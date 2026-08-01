@@ -602,13 +602,13 @@ function renderDraftPack(data) {
 
   draftGrid.innerHTML = cards
     .map((card, index) => {
-      const imageHtml = card.image_url
-        ? `<img src="${card.image_url}" alt="${card.name}" class="card-image" />`
-        : `<div class="card-image card-image--placeholder"><span>${card.name}</span></div>`;
+      const backgroundStyle = card.image_url
+        ? `background-image: url('${card.image_url}');`
+        : "";
 
       return `
-        <button type="button" data-index="${index}" class="card-tile card-image-card" title="Ver detalles de ${card.name}">
-          ${imageHtml}
+        <button type="button" data-index="${index}" class="card-tile card-image-card" style="${backgroundStyle}" title="Ver detalles de ${card.name}">
+          ${card.image_url ? "" : `<span class=\"card-image-fallback\">${card.name}</span>`}
         </button>
       `;
     })
