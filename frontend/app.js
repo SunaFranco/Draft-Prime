@@ -22,6 +22,8 @@ let isReady = false;
 let isHost = false;
 let currentDraftCards = [];
 let currentPickedCards = [];
+let currentDraftPackId = null;
+let currentDetailCard = null;
 
 // ── Elementos del DOM ──────────────────────────────────────────────────────
 const screenHome    = document.getElementById("screen-home");
@@ -584,7 +586,8 @@ function renderDraftPack(data) {
     </div>
   `;
 
-  currentDraftCards = cards;
+  currentDraftPackId = packId;
+  currentDraftCards = cards.map((card) => ({ ...card, _pack_id: packId }));
   renderPickedCards();
 
   if (cards.length === 0) {
@@ -599,28 +602,13 @@ function renderDraftPack(data) {
   draftGrid.innerHTML = cards
     .map((card, index) => {
       const imageHtml = card.image_url
-        ? `<img src="${card.image_url}" alt="${card.name}" class="card-image" />`
-        : `<div class="card-image card-image--placeholder">?</div>`;
-
-      const metaLines = [];
-      if (card.level) metaLines.push(`Nivel: ${card.level}`);
-      if (card.race) metaLines.push(`Raza: ${card.race}`);
-      if (card.atk) metaLines.push(`ATK: ${card.atk}`);
-      if (card.def) metaLines.push(`DEF: ${card.def}`);
+        ? `<img src="${card.image_url}" alt="${card.name}" class="card-image card-image-button" />`
+        : `<div class="card-image card-image--placeholder card-image-button">?</div>`;
 
       return `
-        <div class="card-tile">
+        <button type="button" data-index="${index}" class="card-tile card-image-card" title="Ver detalles de ${card.name}">
           ${imageHtml}
-          <div class="card-info">
-            <strong>${card.name}</strong>
-            <p class="card-meta">${[card.type || "Tipo", ...metaLines].filter(Boolean).join(" · ")}</p>
-            ${card.desc ? `<p class="card-desc">${card.desc}</p>` : ""}
-          </div>
-          <div class="card-actions">
-            <button data-index="${index}" class="btn-card-details">Detalles</button>
-            <button data-pack="${packId}" data-card="${card.name}" class="btn-pick-card">Elegir carta</button>
-          </div>
-        </div>
+        </button>
       `;
     })
     .join("\n");
@@ -680,15 +668,16 @@ function renderPickedCards() {
 
   draftPicked.classList.remove("hidden");
   draftPickedGrid.innerHTML = currentPickedCards
-    .map((card) => {
-      const meta = [card.type, card.race, card.atk ? `ATK ${card.atk}` : null, card.def ? `DEF ${card.def}` : null]
-        .filter(Boolean)
-        .join(" · ");
+    .map((card, index) => {
+      const imageHtml = card.image_url
+        ? `<img src="${card.image_url}" alt="${card.name}" class="card-image card-thumb" />`
+        : `<div class="card-image card-image--placeholder card-thumb">?</div>`;
+
       return `
-        <div class="picked-card" style="border:1px solid var(--border-dim); border-radius:var(--radius-sm); padding:0.75rem; margin:0.35rem 0; background:var(--bg-surface-card);">
-          <strong style="display:block; margin-bottom:0.25rem;">${card.name}</strong>
-          <p style="margin:0; font-size:0.84rem; color:var(--text-muted);">${meta || 'Sin metadata disponible'}</p>
-        </div>
+        <button type="button" data-picked-index="${index}" class="picked-card-thumb" title="Ver detalles de ${card.name}">
+          ${imageHtml}
+          <span class="picked-card-badge">✓</span>
+        </button>
       `;
     })
     .join("");
@@ -710,9 +699,18 @@ function updateLobbyControls(players, host) {
 document.addEventListener("click", (event) => {
   const target = event.target;
 
-  if (target.matches(".btn-card-details")) {
-    const index = Number(target.dataset.index);
+  if (target.matches(".card-image-card") || target.matches(".card-image-button")) {
+    const index = Number(target.closest('[data-index]')?.dataset.index);
     const card = currentDraftCards[index];
+    if (card) {
+      openCardDetailModal(card);
+    }
+    return;
+  }
+
+  if (target.matches(".picked-card-thumb") || target.matches(".card-thumb")) {
+    const index = Number(target.closest('[data-picked-index]')?.dataset.pickedIndex);
+    const card = currentPickedCards[index];
     if (card) {
       openCardDetailModal(card);
     }
@@ -766,6 +764,15 @@ function openCardDetailModal(card) {
   } else {
     modalCardImage.style.backgroundImage = "none";
     modalCardImage.textContent = "Sin imagen";
+  }
+
+  const canPick = currentDraftPackId && currentDraftCards.some((packCard) => packCard.name === card.name);
+  currentDetailCard = card;
+  const actionArea = document.getElementById("modal-card-actions");
+  if (actionArea) {
+    actionArea.innerHTML = canPick
+      ? `<button type="button" class="btn-pick-card" data-pack="${currentDraftPackId}" data-card="${card.name}">Elegir esta carta</button>`
+      : "";
   }
 }
 

@@ -507,8 +507,9 @@ button.active {
 
 .draft-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  justify-items: center;
+  gap: 1rem;
   margin-bottom: 2rem;
 }
 
@@ -521,36 +522,42 @@ button.active {
   background: var(--bg-surface-card);
   border: 1px solid var(--border-dim);
   border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  display: grid;
-  grid-template-columns: 90px 1fr auto;
-  gap: 1.25rem;
+  padding: 0;
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  box-shadow: var(--shadow-card);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
+  gap: 0.5rem;
   overflow: hidden;
+  transition: transform 0.25s ease, border-color 0.25s ease;
 }
 
 .card-tile:hover {
   transform: translateY(-3px);
   border-color: var(--accent-purple);
-  box-shadow: var(--shadow-card), 0 0 20px rgba(139, 92, 246, 0.2);
 }
 
 .card-image, .card-image--placeholder {
-  width: 90px;
-  height: 125px;
-  border-radius: var(--radius-md);
+  width: 100%;
+  height: 0;
+  aspect-ratio: 0.7;
+  border-radius: var(--radius-lg);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #090c14;
+  background: #090c14 center/cover no-repeat;
   object-fit: cover;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-  transition: transform 0.3s ease;
 }
 
-.card-tile:hover .card-image {
-  transform: scale(1.05);
+.card-image-button {
+  width: 100%;
+  display: block;
+  cursor: pointer;
+}
+
+.card-image--placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  font-size: 1.2rem;
+  font-weight: 700;
 }
 
 .card-image--placeholder {
@@ -696,4 +703,27 @@ button.active {
   font-size: 0.9rem;
   line-height: 1.6;
   color: var(--text-muted);
+}
+
+.modal-card-actions {
+  margin-top: 1rem;
+}
+
+.modal-card-actions .btn-pick-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent-blue);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.modal-card-actions .btn-pick-card:hover {
+  background: rgba(59, 130, 246, 0.25);
+  transform: translateY(-1px);
 }
