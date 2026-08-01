@@ -45,6 +45,7 @@ const modalCloseButton = document.getElementById("modal-close");
 const modalCardImage = document.getElementById("modal-card-image");
 const modalCardName = document.getElementById("modal-card-name");
 const modalCardType = document.getElementById("modal-card-type");
+const modalCardSubtype = document.getElementById("modal-card-subtype");
 const modalCardStats = document.getElementById("modal-card-stats");
 const modalCardDesc = document.getElementById("modal-card-desc");
 
@@ -691,9 +692,16 @@ function openCardDetailModal(card) {
   modalCardName.textContent = card.name || "Carta desconocida";
   modalCardType.textContent = card.type ? `Tipo: ${card.type}` : "Tipo: desconocido";
 
+  const subtypeParts = [];
+  if (card.race) subtypeParts.push(card.race);
+  if (card.attribute) subtypeParts.push(card.attribute);
+  if (card.frameType) subtypeParts.push(card.frameType);
+  modalCardSubtype.textContent = subtypeParts.length > 0
+    ? `Subtipo: ${subtypeParts.join(" · ")}`
+    : "Subtipo: desconocido";
+
   const statLines = [];
   if (card.level) statLines.push(`Nivel: ${card.level}`);
-  if (card.race) statLines.push(`Raza: ${card.race}`);
   if (card.atk) statLines.push(`ATK: ${card.atk}`);
   if (card.def) statLines.push(`DEF: ${card.def}`);
   modalCardStats.textContent = statLines.join(" · ") || "";
