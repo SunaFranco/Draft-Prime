@@ -477,7 +477,13 @@ function renderModeSelection(data) {
     return;
   }
 
-  const modes = data.available_modes || [];
+  const modes = (data.available_modes || []).map((mode) => {
+    if (typeof mode === "string") {
+      return { key: mode, name: mode };
+    }
+    return mode;
+  });
+
   if (modes.length === 0) {
     modeGrid.innerHTML = `<div class="mode-empty">No hay modos disponibles por ahora.</div>`;
     return;

@@ -100,8 +100,8 @@ MODES = {
 }
 
 
-def get_available_modes() -> List[str]:
-    return list(MODES.keys())
+def get_available_modes() -> List[dict]:
+    return [{"key": key, "name": name} for key, name in MODES.items()]
 
 
 def is_valid_mode(mode: str) -> bool:
