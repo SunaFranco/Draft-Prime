@@ -211,7 +211,7 @@ def fetch_yugioh_card(name: str) -> dict:
                 "def":        card_data.get("def"),
                 "frameType":  card_data.get("frameType", ""),
                 "archetype":  card_data.get("archetype", ""),
-                "image_url":  image_info.get("image_url_small") or image_info.get("image_url") or "",
+                "image_url":  image_info.get("image_url_small") or image_info.get("image_url_cropped") or image_info.get("image_url") or "",
             }
     except Exception:
         card = {
