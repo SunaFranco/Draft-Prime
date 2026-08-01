@@ -8,8 +8,11 @@
  *  - Leer el session_id de la URL al cargar (si viene de un link de invitación)
  */
 
-const API = "http://localhost:8000";
-const WS_BASE = "ws://localhost:8000";
+const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const localApiUrl = "http://localhost:8000";
+const defaultApiUrl = isLocalhost ? localApiUrl : window.location.origin;
+const API = window.API_URL || defaultApiUrl;
+const WS_BASE = window.WS_URL || `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${new URL(API).host}`;
 
 // ── Estado local ───────────────────────────────────────────────────────────
 let ws = null;
