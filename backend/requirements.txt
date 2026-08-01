@@ -1,0 +1,13 @@
+# Dependencias del backend
+# Instalar con: python -m pip install -r requirements.txt
+#
+# Versiones compatibles con Python 3.13 (tienen binarios precompilados,
+# no necesitan compilar desde código fuente con Rust).
+
+fastapi>=0.115.0      # Framework web principal
+uvicorn>=0.32.0       # Servidor ASGI para correr FastAPI
+websockets>=13.0      # Soporte WebSocket (requerido por uvicorn)
+pydantic>=2.9.0       # Validación de datos (incluido con FastAPI)
+supabase>=2.0.0       # Cliente oficial de Supabase
+python-dotenv>=1.0.0  # Carga de variables de entorno desde .env
+

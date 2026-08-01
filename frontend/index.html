@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PRIME DRAFT - Arena de Draft de Cartas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ══ PANTALLA 1: Inicio ══════════════════════════════════════════════ -->
+  <div id="screen-home" class="screen">
+    <header>
+      <h1> PRIME DRAFT</h1>
+      <p class="subtitle">Armá tu lobby y empezá el draft</p>
+    </header>
+
+    <!-- Banner de invitación (visible cuando hay ?session= en la URL) -->
+    <div id="invite-banner" class="card hidden" style="border-color: var(--accent);">
+      <h2>Te invitaron a una sesión</h2>
+      <p style="font-size: 0.9rem; color: var(--muted);">Sesión: <code id="invite-session-id" style="color: var(--text);"></code></p>
+      <label for="invite-username">Tu nombre</label>
+      <input id="invite-username" type="text" placeholder="Ej: Bob" maxlength="24" />
+      <button id="btn-join-invite">Unirse a la sala 🚀</button>
+      <p id="invite-error" class="error-msg"></p>
+    </div>
+
+    <div id="home-cards" class="home-cards">
+
+      <!-- Crear sesión nueva -->
+      <div class="card">
+        <h2>Crear sesión</h2>
+        <label for="create-username">Tu nombre</label>
+        <input id="create-username" type="text" placeholder="Ej: Alice" maxlength="24" />
+        <button id="btn-create">Crear lobby</button>
+        <p id="create-error" class="error-msg"></p>
+      </div>
+
+      <!-- Unirse a sesión existente por ID manual -->
+      <div class="card">
+        <h2>Unirse con ID</h2>
+        <label for="join-username">Tu nombre</label>
+        <input id="join-username" type="text" placeholder="Ej: Bob" maxlength="24" />
+        <label for="join-session-id">ID de sesión</label>
+        <input id="join-session-id" type="text" placeholder="Ej: b43ce3c59eef" maxlength="12" />
+        <button id="btn-join">Unirse al lobby</button>
+        <p id="join-error" class="error-msg"></p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ PANTALLA 2: Lobby ════════════════════════════════════════════════ -->
+  <div id="screen-lobby" class="screen hidden">
+
+    <div class="lobby-header">
+      <h1>🃏 Lobby</h1>
+      <div class="session-info">
+        <span>ID de sesión:</span>
+        <code id="session-id-display"></code>
+        <button id="btn-copy-link" class="btn-small">Copiar link</button>
+      </div>
+      <p id="connection-status" class="conn-status">Conectando...</p>
+    </div>
+
+    <!-- Lista de slots de jugadores (máx 4) -->
+    <div class="players-grid" id="players-grid"></div>
+
+    <!-- Acciones -->
+    <div class="lobby-actions">
+      <button id="btn-start-game" class="hidden">Empezar partida</button>
+      <button id="btn-ready">Listo ✓</button>
+      <button id="btn-leave" class="btn-danger">Salir</button>
+    </div>
+
+    <!-- Log de eventos en tiempo real -->
+    <div class="event-log-wrapper">
+      <h3>Eventos</h3>
+      <ul id="event-log"></ul>
+    </div>
+
+  </div>
+
+  <!-- ══ PANTALLA 3: Selección de modo ═════════════════════════════════════ -->
+  <div id="screen-mode" class="screen hidden">
+    <div class="mode-header">
+      <h1>Elegí un modo</h1>
+      <p id="mode-subtitle" class="subtitle">Seleccioná uno de los modos principales para continuar.</p>
+    </div>
+
+    <div class="mode-grid" id="mode-grid"></div>
+
+    <div id="mode-config" class="card hidden">
+      <h2 id="mode-config-title">Configurar modo</h2>
+      <p id="mode-config-description" class="subtitle">Elegí el cube y la configuración de sobres.</p>
+
+      <label for="cube-select">Cube</label>
+      <select id="cube-select"></select>
+
+      <label for="pack-count">Cantidad de sobres</label>
+      <select id="pack-count">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+
+      <label for="cards-per-pack">Cartas por sobre</label>
+      <select id="cards-per-pack">
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
+        <option value="9">9</option>
+      </select>
+
+      <button id="btn-configure-mode">Guardar configuración</button>
+      <button id="btn-start-draft" class="hidden">Iniciar draft</button>
+    </div>
+
+    <div class="mode-footer">
+      <button id="btn-back-to-lobby" class="btn-small btn-danger">Volver al lobby</button>
+    </div>
+  </div>
+
+  <!-- ══ PANTALLA 4: Draft en curso ═══════════════════════════════════════════ -->
+  <div id="screen-draft" class="screen hidden">
+    <div class="draft-header">
+      <h1>Draft en curso</h1>
+      <p id="draft-subtitle" class="subtitle">Esperando que el draft comience...</p>
+    </div>
+
+    <div id="draft-state" class="draft-state"></div>
+    <div id="draft-grid" class="draft-grid"></div>
+
+    <div class="mode-footer">
+      <button id="btn-back-to-lobby-draft" class="btn-small btn-danger hidden">Volver al lobby</button>
+    </div>
+  </div>
+
+  <div id="card-detail-modal" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal">
+      <button id="modal-close" class="modal-close" type="button" aria-label="Cerrar detalles">×</button>
+      <div class="modal-card">
+        <div class="modal-card-image" id="modal-card-image"></div>
+        <div class="modal-card-info">
+          <h2 id="modal-card-name"></h2>
+          <p id="modal-card-type" class="card-meta"></p>
+          <p id="modal-card-stats" class="card-meta"></p>
+          <p id="modal-card-desc" class="card-desc"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
