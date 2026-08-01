@@ -276,6 +276,7 @@ function handleEvent(msg) {
       break;
 
     case "draft_open_pack":
+      showScreen("draft");
       renderDraftPack(data);
       break;
 
@@ -556,8 +557,15 @@ function populateCubeOptions(cubes) {
 
 function renderDraftPack(data) {
   if (!draftGrid || !draftState || !draftPicked) return;
+  const cards = Array.isArray(data.cards) ? data.cards : [];
+  const packId = data.pack_id || "";
   const roundText = data.round && data.total_rounds ? `Ronda ${data.round} de ${data.total_rounds}` : '';
   const stepText = data.step ? `Pick ${data.step}` : '';
+
+  const existingBanner = document.getElementById("pick-status-banner");
+  if (existingBanner) {
+    existingBanner.remove();
+  }
 
   draftState.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; background: var(--bg-surface-card); padding: 1.25rem 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-dim);">
@@ -566,7 +574,7 @@ function renderDraftPack(data) {
           🃏 <span>${roundText} — ${stepText}</span>
         </h2>
         <p style="margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--text-muted);">
-          Sobre actual: <code style="color: var(--text-main);">${data.pack_id}</code>
+          Sobre actual: <code style="color: var(--text-main);">${packId}</code>
         </p>
       </div>
       <div style="text-align: right;">
@@ -578,6 +586,15 @@ function renderDraftPack(data) {
 
   currentDraftCards = cards;
   renderPickedCards();
+
+  if (cards.length === 0) {
+    draftGrid.innerHTML = `
+      <div style="padding: 1.5rem; border: 1px dashed var(--border-dim); border-radius: var(--radius-lg); background: rgba(255,255,255,0.04); color: var(--text-muted);">
+        No hay cartas disponibles en este sobre.
+      </div>
+    `;
+    return;
+  }
 
   draftGrid.innerHTML = cards
     .map((card, index) => {
@@ -601,7 +618,7 @@ function renderDraftPack(data) {
           </div>
           <div class="card-actions">
             <button data-index="${index}" class="btn-card-details">Detalles</button>
-            <button data-card="${card.name}" class="btn-pick-card">Elegir carta</button>
+            <button data-pack="${packId}" data-card="${card.name}" class="btn-pick-card">Elegir carta</button>
           </div>
         </div>
       `;
