@@ -42,7 +42,8 @@ const btnStartDraft = document.getElementById("btn-start-draft");
 const draftSubtitle = document.getElementById("draft-subtitle");
 const draftState    = document.getElementById("draft-state");
 const draftPicked   = document.getElementById("draft-picked");
-const draftPickedGrid = document.getElementById("draft-picked-grid");
+const draftPickedList = document.getElementById("draft-picked-list");
+const btnTogglePickedCards = document.getElementById("btn-toggle-picked-cards");
 const draftGrid     = document.getElementById("draft-grid");
 const btnBackDraft  = document.getElementById("btn-back-to-lobby-draft");
 const cardDetailModal = document.getElementById("card-detail-modal");
@@ -626,7 +627,7 @@ function renderDraftComplete(data) {
     </div>
   `;
 
-  draftPickedGrid.innerHTML = myCollection
+  draftPickedList.innerHTML = myCollection
     .map((card, index) => {
       const imageHtml = card.image_url
         ? `<img src="${card.image_url}" alt="${card.name}" class="card-image" />`
@@ -654,34 +655,48 @@ function renderDraftComplete(data) {
     })
     .join("\n");
 
-  draftPicked.classList.remove("hidden");
+  if (myCollection.length > 0) {
+    draftPicked.classList.remove("hidden");
+    btnTogglePickedCards.textContent = `▶ Mis cartas elegidas (${myCollection.length})`;
+    draftPickedList.classList.add("hidden");
+  } else {
+    draftPicked.classList.add("hidden");
+  }
+
   btnBackDraft.classList.remove("hidden");
 }
 
 function renderPickedCards() {
-  if (!draftPicked || !draftPickedGrid) return;
+  if (!draftPicked || !draftPickedList) return;
 
   if (currentPickedCards.length === 0) {
     draftPicked.classList.add("hidden");
-    draftPickedGrid.innerHTML = "";
+    draftPickedList.innerHTML = "";
+    draftPickedList.classList.add("hidden");
     return;
   }
 
   draftPicked.classList.remove("hidden");
-  draftPickedGrid.innerHTML = currentPickedCards
+  btnTogglePickedCards.textContent = `▶ Mis cartas elegidas (${currentPickedCards.length})`;
+  draftPickedList.innerHTML = currentPickedCards
     .map((card, index) => {
       const imageHtml = card.image_url
-        ? `<img src="${card.image_url}" alt="${card.name}" class="card-image card-thumb" />`
-        : `<div class="card-image card-image--placeholder card-thumb">?</div>`;
+        ? `<img src="${card.image_url}" alt="${card.name}" class="picked-card-thumb" />`
+        : `<div class="picked-card-thumb picked-card-thumb--fallback">${card.name}</div>`;
+      const description = card.desc ? card.desc : "Sin descripción disponible.";
 
       return `
-        <button type="button" data-picked-index="${index}" class="picked-card-thumb" title="Ver detalles de ${card.name}">
-          ${imageHtml}
-          <span class="picked-card-badge">✓</span>
+        <button type="button" data-picked-index="${index}" class="picked-card-row" title="Ver detalles de ${card.name}">
+          <div class="picked-card-thumb-wrapper">${imageHtml}</div>
+          <div class="picked-card-info">
+            <strong>${card.name}</strong>
+            <p>${description}</p>
+          </div>
         </button>
       `;
     })
     .join("");
+  draftPickedList.classList.add("hidden");
 }
 
 
@@ -704,6 +719,27 @@ document.addEventListener("click", (event) => {
   if (imageCardButton && imageCardButton.dataset.index != null) {
     const index = Number(imageCardButton.dataset.index);
     const card = currentDraftCards[index];
+    if (card) {
+      openCardDetailModal(card);
+    }
+    return;
+  }
+
+  const togglePickedButton = target.closest("#btn-toggle-picked-cards");
+  if (togglePickedButton) {
+    if (!draftPickedList || !btnTogglePickedCards) return;
+    const isHidden = draftPickedList.classList.toggle("hidden");
+    const count = currentPickedCards.length;
+    btnTogglePickedCards.textContent = isHidden
+      ? `▶ Mis cartas elegidas (${count})`
+      : `▼ Mis cartas elegidas (${count})`;
+    return;
+  }
+
+  const pickedCardRow = target.closest(".picked-card-row");
+  if (pickedCardRow && pickedCardRow.dataset.pickedIndex != null) {
+    const index = Number(pickedCardRow.dataset.pickedIndex);
+    const card = currentPickedCards[index];
     if (card) {
       openCardDetailModal(card);
     }

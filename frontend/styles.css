@@ -514,6 +514,116 @@ button.active {
   grid-auto-rows: minmax(220px, auto);
 }
 
+.draft-picked {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.draft-picked-toggle {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-dim);
+  background: var(--bg-surface-card);
+  color: var(--text-main);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.draft-picked-toggle:hover {
+  border-color: var(--accent-purple);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.draft-picked-list {
+  margin-top: 0.85rem;
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-surface-card);
+}
+
+.picked-card-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 0.85rem;
+  align-items: start;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.picked-card-row:last-child {
+  border-bottom: none;
+}
+
+.picked-card-row:hover {
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.picked-card-thumb-wrapper {
+  width: 80px;
+  min-width: 80px;
+  aspect-ratio: 0.7;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.picked-card-thumb,
+.picked-card-thumb--fallback {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+
+.picked-card-thumb--fallback {
+  display: grid;
+  place-items: center;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.05);
+}
+
+.picked-card-info strong {
+  display: block;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.picked-card-info p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 550px) {
+  .picked-card-row {
+    grid-template-columns: 1fr;
+  }
+
+  .picked-card-thumb-wrapper {
+    width: 100%;
+    aspect-ratio: 2.5;
+  }
+}
+
 @media (max-width: 650px) {
   .draft-grid { grid-template-columns: 1fr; }
 }
