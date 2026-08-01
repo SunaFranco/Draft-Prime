@@ -369,6 +369,17 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
                         })
 
             elif action == "start_game":
+                # Si el host actual está marcado como desconectado, reasignarlo
+                host_player = next((p for p in session["players"] if p["username"] == session["host"]), None)
+                if host_player and not host_player.get("connected", False):
+                    old_host = session["host"]
+                    reassign_host(session)
+                    new_host = session["host"]
+                    await manager.broadcast(session_id, {
+                        "event": "host_changed",
+                        "data":  {"new_host": new_host},
+                    })
+
                 if username != session["host"]:
                     await manager.send_personal(websocket, {
                         "event": "error",
