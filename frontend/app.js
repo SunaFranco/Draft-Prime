@@ -589,6 +589,7 @@ function renderDraftPack(data) {
   currentDraftPackId = packId;
   currentDraftCards = cards.map((card) => ({ ...card, _pack_id: packId }));
   renderPickedCards();
+  draftGrid.classList.remove("hidden");
 
   if (cards.length === 0) {
     draftGrid.innerHTML = `
@@ -699,8 +700,9 @@ function updateLobbyControls(players, host) {
 document.addEventListener("click", (event) => {
   const target = event.target;
 
-  if (target.matches(".card-image-card") || target.matches(".card-image-button")) {
-    const index = Number(target.closest('[data-index]')?.dataset.index);
+  const imageCardButton = target.closest(".card-image-card, .card-image-button");
+  if (imageCardButton && imageCardButton.dataset.index != null) {
+    const index = Number(imageCardButton.dataset.index);
     const card = currentDraftCards[index];
     if (card) {
       openCardDetailModal(card);
@@ -708,8 +710,9 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  if (target.matches(".picked-card-thumb") || target.matches(".card-thumb")) {
-    const index = Number(target.closest('[data-picked-index]')?.dataset.pickedIndex);
+  const pickedCardButton = target.closest(".picked-card-thumb, .card-thumb");
+  if (pickedCardButton && pickedCardButton.dataset.pickedIndex != null) {
+    const index = Number(pickedCardButton.dataset.pickedIndex);
     const card = currentPickedCards[index];
     if (card) {
       openCardDetailModal(card);
