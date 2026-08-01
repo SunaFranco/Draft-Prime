@@ -21,6 +21,7 @@ let currentUsername = null;
 let isReady = false;
 let isHost = false;
 let currentDraftCards = [];
+let currentPickedCards = [];
 
 // ── Elementos del DOM ──────────────────────────────────────────────────────
 const screenHome    = document.getElementById("screen-home");
@@ -38,6 +39,8 @@ const btnConfigure  = document.getElementById("btn-configure-mode");
 const btnStartDraft = document.getElementById("btn-start-draft");
 const draftSubtitle = document.getElementById("draft-subtitle");
 const draftState    = document.getElementById("draft-state");
+const draftPicked   = document.getElementById("draft-picked");
+const draftPickedGrid = document.getElementById("draft-picked-grid");
 const draftGrid     = document.getElementById("draft-grid");
 const btnBackDraft  = document.getElementById("btn-back-to-lobby-draft");
 const cardDetailModal = document.getElementById("card-detail-modal");
@@ -277,6 +280,8 @@ function handleEvent(msg) {
       break;
 
     case "draft_pick_confirmed":
+      currentPickedCards.push(data.card);
+      renderPickedCards();
       document.querySelectorAll(".btn-pick-card").forEach(btn => {
         btn.disabled = true;
         btn.style.opacity = "0.5";
@@ -550,7 +555,7 @@ function populateCubeOptions(cubes) {
 }
 
 function renderDraftPack(data) {
-  if (!draftGrid || !draftState) return;
+  if (!draftGrid || !draftState || !draftPicked) return;
   const roundText = data.round && data.total_rounds ? `Ronda ${data.round} de ${data.total_rounds}` : '';
   const stepText = data.step ? `Pick ${data.step}` : '';
 
@@ -571,8 +576,8 @@ function renderDraftPack(data) {
     </div>
   `;
 
-  const cards = data.cards || [];
   currentDraftCards = cards;
+  renderPickedCards();
 
   draftGrid.innerHTML = cards
     .map((card, index) => {
@@ -605,7 +610,7 @@ function renderDraftPack(data) {
 }
 
 function renderDraftComplete(data) {
-  if (!draftGrid || !draftState) return;
+  if (!draftGrid || !draftState || !draftPicked) return;
   const myCollection = (data.collections && data.collections[currentUsername]) || [];
 
   draftState.innerHTML = `
@@ -615,7 +620,7 @@ function renderDraftComplete(data) {
     </div>
   `;
 
-  draftGrid.innerHTML = myCollection
+  draftPickedGrid.innerHTML = myCollection
     .map((card, index) => {
       const imageHtml = card.image_url
         ? `<img src="${card.image_url}" alt="${card.name}" class="card-image" />`
@@ -643,7 +648,33 @@ function renderDraftComplete(data) {
     })
     .join("\n");
 
+  draftPicked.classList.remove("hidden");
   btnBackDraft.classList.remove("hidden");
+}
+
+function renderPickedCards() {
+  if (!draftPicked || !draftPickedGrid) return;
+
+  if (currentPickedCards.length === 0) {
+    draftPicked.classList.add("hidden");
+    draftPickedGrid.innerHTML = "";
+    return;
+  }
+
+  draftPicked.classList.remove("hidden");
+  draftPickedGrid.innerHTML = currentPickedCards
+    .map((card) => {
+      const meta = [card.type, card.race, card.atk ? `ATK ${card.atk}` : null, card.def ? `DEF ${card.def}` : null]
+        .filter(Boolean)
+        .join(" · ");
+      return `
+        <div class="picked-card" style="border:1px solid var(--border-dim); border-radius:var(--radius-sm); padding:0.75rem; margin:0.35rem 0; background:var(--bg-surface-card);">
+          <strong style="display:block; margin-bottom:0.25rem;">${card.name}</strong>
+          <p style="margin:0; font-size:0.84rem; color:var(--text-muted);">${meta || 'Sin metadata disponible'}</p>
+        </div>
+      `;
+    })
+    .join("");
 }
 
 
