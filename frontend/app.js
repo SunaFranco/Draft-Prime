@@ -24,6 +24,7 @@ let currentDraftCards = [];
 let currentPickedCards = [];
 let currentDraftPackId = null;
 let currentDetailCard = null;
+let lastCompletedCollection = [];
 
 // ── Elementos del DOM ──────────────────────────────────────────────────────
 const screenHome    = document.getElementById("screen-home");
@@ -399,6 +400,13 @@ document.getElementById("btn-copy-link").addEventListener("click", () => {
   });
 });
 
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (target.matches("#btn-copy-deck")) {
+    copyDeckText(lastCompletedCollection);
+  }
+});
+
 // ══════════════════════════════════════════════════════════════════════════
 // RENDER
 // ══════════════════════════════════════════════════════════════════════════
@@ -624,6 +632,9 @@ function renderDraftComplete(data) {
     <div style="text-align: center; padding: 2rem; background: var(--bg-surface-card); border-radius: var(--radius-xl); border: 1px solid var(--accent-gold); box-shadow: var(--shadow-glow-gold);">
       <h2 style="font-size: 2rem; color: var(--accent-gold); margin-bottom: 0.5rem;">🎉 ¡Draft Completado con Éxito!</h2>
       <p style="color: var(--text-muted); font-size: 1.05rem;">Has seleccionado <strong>${myCollection.length} cartas</strong> para armar tu mazo.</p>
+      <button id="btn-copy-deck" type="button" style="margin-top:1rem; font-weight:700; border-radius:var(--radius-md); padding:0.9rem 1.25rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:#111827; border:none; cursor:pointer;">
+        Copiar deck
+      </button>
     </div>
   `;
 
@@ -663,6 +674,7 @@ function renderDraftComplete(data) {
     draftPicked.classList.add("hidden");
   }
 
+  lastCompletedCollection = myCollection.slice();
   btnBackDraft.classList.remove("hidden");
 }
 
@@ -697,6 +709,35 @@ function renderPickedCards() {
     })
     .join("");
   draftPickedList.classList.add("hidden");
+}
+
+function getDeckCopyText(cards) {
+  if (!Array.isArray(cards)) return "";
+
+  const nameCounts = cards.reduce((acc, card) => {
+    const name = card.name || "Carta desconocida";
+    acc[name] = (acc[name] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(nameCounts)
+    .map(([name, count]) => `${count}x ${name}`)
+    .join("\n");
+}
+
+function copyDeckText(cards) {
+  const text = getDeckCopyText(cards);
+  if (!text) return;
+
+  navigator.clipboard.writeText(text).then(() => {
+    const copyButton = document.getElementById("btn-copy-deck");
+    if (copyButton) {
+      copyButton.textContent = "¡Deck copiado!";
+      setTimeout(() => {
+        copyButton.textContent = "Copiar deck";
+      }, 1500);
+    }
+  });
 }
 
 
