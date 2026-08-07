@@ -773,6 +773,7 @@ button.active {
   place-items: center;
   padding: 1.5rem;
   z-index: 100;
+  overflow-y: auto;
   animation: fadeIn 0.25s ease;
 }
 
@@ -784,7 +785,8 @@ button.active {
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), var(--shadow-glow-purple);
   padding: 2rem;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-close {
@@ -820,7 +822,12 @@ button.active {
 }
 
 @media (max-width: 600px) {
-  .modal-card { grid-template-columns: 1fr; }
+  .modal-card {
+    grid-template-columns: 1fr;
+  }
+  .modal-card-image {
+    display: none;
+  }
 }
 
 .modal-card-image {
