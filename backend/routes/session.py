@@ -145,10 +145,6 @@ def all_connected_players_ready(session: dict) -> bool:
     return bool(connected_players) and all(p["ready"] for p in connected_players)
 
 
-def get_available_modes() -> List[dict]:
-    """Devuelve los modos de juego disponibles para el frontend."""
-    return [{"key": key, "name": name} for key, name in MODE_NAMES.items()]
-
 
 def get_available_cubes() -> List[dict]:
     """Devuelve los cubes disponibles en formato compatible con el frontend."""
