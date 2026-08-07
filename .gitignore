@@ -1,1 +1,7 @@
-.env`nbackend/.env`n__pycache__/`n*.pyc
+.env
+backend/.env
+.venv/
+.agents/
+__pycache__/
+*.pyc
+
