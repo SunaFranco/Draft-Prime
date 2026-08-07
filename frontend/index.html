@@ -137,6 +137,10 @@
 
     <div id="draft-state" class="draft-state"></div>
     <div id="draft-grid" class="draft-grid"></div>
+    <div id="draft-picked" class="draft-picked hidden">
+      <button id="btn-toggle-picked-cards" class="draft-picked-toggle" type="button">Mis cartas elegidas</button>
+      <div id="draft-picked-list" class="draft-picked-list hidden"></div>
+    </div>
 
     <div class="mode-footer">
       <button id="btn-back-to-lobby-draft" class="btn-small btn-danger hidden">Volver al lobby</button>
@@ -151,13 +155,16 @@
         <div class="modal-card-info">
           <h2 id="modal-card-name"></h2>
           <p id="modal-card-type" class="card-meta"></p>
-          <div id="modal-card-badges" class="card-badges"></div>
+          <p id="modal-card-subtype" class="card-meta"></p>
+          <p id="modal-card-stats" class="card-meta"></p>
+          <div id="modal-card-actions" class="modal-card-actions"></div>
           <p id="modal-card-desc" class="card-desc"></p>
         </div>
       </div>
     </div>
   </div>
 
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

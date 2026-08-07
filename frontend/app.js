@@ -8,33 +8,11 @@
  *  - Leer el session_id de la URL al cargar (si viene de un link de invitación)
  */
 
-function resolveBackendUrls() {
-  const params = new URLSearchParams(window.location.search);
-  const override = params.get("backend") || window.__BACKEND_URL__;
-
-  if (override) {
-    const normalized = override.replace(/\/$/, "");
-    return {
-      api: normalized,
-      ws: normalized.replace(/^http:/, "ws:").replace(/^https:/, "wss:"),
-    };
-  }
-
-  const isLocalhost = ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
-  if (isLocalhost) {
-    return {
-      api: "http://localhost:8000",
-      ws: "ws://localhost:8000",
-    };
-  }
-
-  return {
-    api: "https://draft-prime.onrender.com",
-    ws: "wss://draft-prime.onrender.com",
-  };
-}
-
-const { api: API, ws: WS_BASE } = resolveBackendUrls();
+const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const localApiUrl = "http://localhost:8000";
+const defaultApiUrl = isLocalhost ? localApiUrl : window.location.origin;
+const API = window.API_URL || defaultApiUrl;
+const WS_BASE = window.WS_URL || `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${new URL(API).host}`;
 
 // ── Estado local ───────────────────────────────────────────────────────────
 let ws = null;
@@ -43,6 +21,10 @@ let currentUsername = null;
 let isReady = false;
 let isHost = false;
 let currentDraftCards = [];
+let currentPickedCards = [];
+let currentDraftPackId = null;
+let currentDetailCard = null;
+let lastCompletedCollection = [];
 
 // ── Elementos del DOM ──────────────────────────────────────────────────────
 const screenHome    = document.getElementById("screen-home");
@@ -60,6 +42,9 @@ const btnConfigure  = document.getElementById("btn-configure-mode");
 const btnStartDraft = document.getElementById("btn-start-draft");
 const draftSubtitle = document.getElementById("draft-subtitle");
 const draftState    = document.getElementById("draft-state");
+const draftPicked   = document.getElementById("draft-picked");
+const draftPickedList = document.getElementById("draft-picked-list");
+const btnTogglePickedCards = document.getElementById("btn-toggle-picked-cards");
 const draftGrid     = document.getElementById("draft-grid");
 const btnBackDraft  = document.getElementById("btn-back-to-lobby-draft");
 const cardDetailModal = document.getElementById("card-detail-modal");
@@ -67,7 +52,8 @@ const modalCloseButton = document.getElementById("modal-close");
 const modalCardImage = document.getElementById("modal-card-image");
 const modalCardName = document.getElementById("modal-card-name");
 const modalCardType = document.getElementById("modal-card-type");
-const modalCardBadges = document.getElementById("modal-card-badges");
+const modalCardSubtype = document.getElementById("modal-card-subtype");
+const modalCardStats = document.getElementById("modal-card-stats");
 const modalCardDesc = document.getElementById("modal-card-desc");
 
 // ── Al cargar la página: leer ?session= de la URL ─────────────────────────
@@ -294,10 +280,13 @@ function handleEvent(msg) {
       break;
 
     case "draft_open_pack":
+      showScreen("draft");
       renderDraftPack(data);
       break;
 
     case "draft_pick_confirmed":
+      currentPickedCards.push(data.card);
+      renderPickedCards();
       document.querySelectorAll(".btn-pick-card").forEach(btn => {
         btn.disabled = true;
         btn.style.opacity = "0.5";
@@ -411,6 +400,13 @@ document.getElementById("btn-copy-link").addEventListener("click", () => {
   });
 });
 
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (target.matches("#btn-copy-deck")) {
+    copyDeckText(lastCompletedCollection);
+  }
+});
+
 // ══════════════════════════════════════════════════════════════════════════
 // RENDER
 // ══════════════════════════════════════════════════════════════════════════
@@ -499,7 +495,13 @@ function renderModeSelection(data) {
     return;
   }
 
-  const modes = data.available_modes || [];
+  const modes = (data.available_modes || []).map((mode) => {
+    if (typeof mode === "string") {
+      return { key: mode, name: mode };
+    }
+    return mode;
+  });
+
   if (modes.length === 0) {
     modeGrid.innerHTML = `<div class="mode-empty">No hay modos disponibles por ahora.</div>`;
     return;
@@ -565,9 +567,16 @@ function populateCubeOptions(cubes) {
 }
 
 function renderDraftPack(data) {
-  if (!draftGrid || !draftState) return;
+  if (!draftGrid || !draftState || !draftPicked) return;
+  const cards = Array.isArray(data.cards) ? data.cards : [];
+  const packId = data.pack_id || "";
   const roundText = data.round && data.total_rounds ? `Ronda ${data.round} de ${data.total_rounds}` : '';
   const stepText = data.step ? `Pick ${data.step}` : '';
+
+  const existingBanner = document.getElementById("pick-status-banner");
+  if (existingBanner) {
+    existingBanner.remove();
+  }
 
   draftState.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; background: var(--bg-surface-card); padding: 1.25rem 1.5rem; border-radius: var(--radius-lg); border: 1px solid var(--border-dim);">
@@ -576,7 +585,7 @@ function renderDraftPack(data) {
           🃏 <span>${roundText} — ${stepText}</span>
         </h2>
         <p style="margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--text-muted);">
-          Sobre actual: <code style="color: var(--text-main);">${data.pack_id}</code>
+          Sobre actual: <code style="color: var(--text-main);">${packId}</code>
         </p>
       </div>
       <div style="text-align: right;">
@@ -586,51 +595,50 @@ function renderDraftPack(data) {
     </div>
   `;
 
-  const cards = data.cards || [];
-  currentDraftCards = cards;
+  currentDraftPackId = packId;
+  currentDraftCards = cards.map((card) => ({ ...card, _pack_id: packId }));
+  renderPickedCards();
+  draftGrid.classList.remove("hidden");
+
+  if (cards.length === 0) {
+    draftGrid.innerHTML = `
+      <div style="padding: 1.5rem; border: 1px dashed var(--border-dim); border-radius: var(--radius-lg); background: rgba(255,255,255,0.04); color: var(--text-muted);">
+        No hay cartas disponibles en este sobre.
+      </div>
+    `;
+    return;
+  }
 
   draftGrid.innerHTML = cards
     .map((card, index) => {
-      const imageHtml = card.image_url
-        ? `<img src="${card.image_url}" alt="${card.name}" class="card-image" />`
-        : `<div class="card-image card-image--placeholder">?</div>`;
-
-      const metaLines = [];
-      if (card.level) metaLines.push(`Nivel: ${card.level}`);
-      if (card.race) metaLines.push(`Raza: ${card.race}`);
-      if (card.atk) metaLines.push(`ATK: ${card.atk}`);
-      if (card.def) metaLines.push(`DEF: ${card.def}`);
+      const backgroundStyle = card.image_url
+        ? `background-image: url('${card.image_url}');`
+        : "";
 
       return `
-        <div class="card-tile">
-          ${imageHtml}
-          <div class="card-info">
-            <strong>${card.name}</strong>
-            <p class="card-meta">${[card.type || "Tipo", ...metaLines].filter(Boolean).join(" · ")}</p>
-            ${card.desc ? `<p class="card-desc">${card.desc}</p>` : ""}
-          </div>
-          <div class="card-actions">
-            <button data-index="${index}" class="btn-card-details">Detalles</button>
-            <button data-card="${card.name}" class="btn-pick-card">Elegir carta</button>
-          </div>
-        </div>
+        <button type="button" data-index="${index}" class="card-tile card-image-card" style="${backgroundStyle}" title="Ver detalles de ${card.name}">
+          ${card.image_url ? "" : `<span class=\"card-image-fallback\">${card.name}</span>`}
+        </button>
       `;
     })
     .join("\n");
 }
 
 function renderDraftComplete(data) {
-  if (!draftGrid || !draftState) return;
+  if (!draftGrid || !draftState || !draftPicked) return;
   const myCollection = (data.collections && data.collections[currentUsername]) || [];
 
   draftState.innerHTML = `
     <div style="text-align: center; padding: 2rem; background: var(--bg-surface-card); border-radius: var(--radius-xl); border: 1px solid var(--accent-gold); box-shadow: var(--shadow-glow-gold);">
       <h2 style="font-size: 2rem; color: var(--accent-gold); margin-bottom: 0.5rem;">🎉 ¡Draft Completado con Éxito!</h2>
       <p style="color: var(--text-muted); font-size: 1.05rem;">Has seleccionado <strong>${myCollection.length} cartas</strong> para armar tu mazo.</p>
+      <button id="btn-copy-deck" type="button" style="margin-top:1rem; font-weight:700; border-radius:var(--radius-md); padding:0.9rem 1.25rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:#111827; border:none; cursor:pointer;">
+        Copiar deck
+      </button>
     </div>
   `;
 
-  draftGrid.innerHTML = myCollection
+  draftPickedList.innerHTML = myCollection
     .map((card, index) => {
       const imageHtml = card.image_url
         ? `<img src="${card.image_url}" alt="${card.name}" class="card-image" />`
@@ -658,7 +666,78 @@ function renderDraftComplete(data) {
     })
     .join("\n");
 
+  if (myCollection.length > 0) {
+    draftPicked.classList.remove("hidden");
+    btnTogglePickedCards.textContent = `▶ Mis cartas elegidas (${myCollection.length})`;
+    draftPickedList.classList.add("hidden");
+  } else {
+    draftPicked.classList.add("hidden");
+  }
+
+  lastCompletedCollection = myCollection.slice();
   btnBackDraft.classList.remove("hidden");
+}
+
+function renderPickedCards() {
+  if (!draftPicked || !draftPickedList) return;
+
+  if (currentPickedCards.length === 0) {
+    draftPicked.classList.add("hidden");
+    draftPickedList.innerHTML = "";
+    draftPickedList.classList.add("hidden");
+    return;
+  }
+
+  draftPicked.classList.remove("hidden");
+  btnTogglePickedCards.textContent = `▶ Mis cartas elegidas (${currentPickedCards.length})`;
+  draftPickedList.innerHTML = currentPickedCards
+    .map((card, index) => {
+      const imageHtml = card.image_url
+        ? `<img src="${card.image_url}" alt="${card.name}" class="picked-card-thumb" />`
+        : `<div class="picked-card-thumb picked-card-thumb--fallback">${card.name}</div>`;
+      const description = card.desc ? card.desc : "Sin descripción disponible.";
+
+      return `
+        <button type="button" data-picked-index="${index}" class="picked-card-row" title="Ver detalles de ${card.name}">
+          <div class="picked-card-thumb-wrapper">${imageHtml}</div>
+          <div class="picked-card-info">
+            <strong>${card.name}</strong>
+            <p>${description}</p>
+          </div>
+        </button>
+      `;
+    })
+    .join("");
+  draftPickedList.classList.add("hidden");
+}
+
+function getDeckCopyText(cards) {
+  if (!Array.isArray(cards)) return "";
+
+  const nameCounts = cards.reduce((acc, card) => {
+    const name = card.name || "Carta desconocida";
+    acc[name] = (acc[name] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(nameCounts)
+    .map(([name, count]) => `${count}x ${name}`)
+    .join("\n");
+}
+
+function copyDeckText(cards) {
+  const text = getDeckCopyText(cards);
+  if (!text) return;
+
+  navigator.clipboard.writeText(text).then(() => {
+    const copyButton = document.getElementById("btn-copy-deck");
+    if (copyButton) {
+      copyButton.textContent = "¡Deck copiado!";
+      setTimeout(() => {
+        copyButton.textContent = "Copiar deck";
+      }, 1500);
+    }
+  });
 }
 
 
@@ -677,9 +756,41 @@ function updateLobbyControls(players, host) {
 document.addEventListener("click", (event) => {
   const target = event.target;
 
-  if (target.matches(".btn-card-details")) {
-    const index = Number(target.dataset.index);
+  const imageCardButton = target.closest(".card-image-card, .card-image-button");
+  if (imageCardButton && imageCardButton.dataset.index != null) {
+    const index = Number(imageCardButton.dataset.index);
     const card = currentDraftCards[index];
+    if (card) {
+      openCardDetailModal(card);
+    }
+    return;
+  }
+
+  const togglePickedButton = target.closest("#btn-toggle-picked-cards");
+  if (togglePickedButton) {
+    if (!draftPickedList || !btnTogglePickedCards) return;
+    const isHidden = draftPickedList.classList.toggle("hidden");
+    const count = currentPickedCards.length;
+    btnTogglePickedCards.textContent = isHidden
+      ? `▶ Mis cartas elegidas (${count})`
+      : `▼ Mis cartas elegidas (${count})`;
+    return;
+  }
+
+  const pickedCardRow = target.closest(".picked-card-row");
+  if (pickedCardRow && pickedCardRow.dataset.pickedIndex != null) {
+    const index = Number(pickedCardRow.dataset.pickedIndex);
+    const card = currentPickedCards[index];
+    if (card) {
+      openCardDetailModal(card);
+    }
+    return;
+  }
+
+  const pickedCardButton = target.closest(".picked-card-thumb, .card-thumb");
+  if (pickedCardButton && pickedCardButton.dataset.pickedIndex != null) {
+    const index = Number(pickedCardButton.dataset.pickedIndex);
+    const card = currentPickedCards[index];
     if (card) {
       openCardDetailModal(card);
     }
@@ -707,50 +818,19 @@ function openCardDetailModal(card) {
   modalCardName.textContent = card.name || "Carta desconocida";
   modalCardType.textContent = card.type ? `Tipo: ${card.type}` : "Tipo: desconocido";
 
-  if (modalCardBadges) {
-    modalCardBadges.innerHTML = "";
+  const subtypeParts = [];
+  if (card.race) subtypeParts.push(card.race);
+  if (card.attribute) subtypeParts.push(card.attribute);
+  if (card.frameType) subtypeParts.push(card.frameType);
+  modalCardSubtype.textContent = subtypeParts.length > 0
+    ? `Subtipo: ${subtypeParts.join(" · ")}`
+    : "Subtipo: desconocido";
 
-    // Attribute Badge
-    if (card.attribute) {
-      const badge = document.createElement("span");
-      badge.className = "badge badge-attribute";
-      badge.textContent = card.attribute;
-      modalCardBadges.appendChild(badge);
-    }
-
-    // Level Badge
-    if (card.level) {
-      const badge = document.createElement("span");
-      badge.className = "badge badge-level";
-      badge.textContent = `⭐ Nivel ${card.level}`;
-      modalCardBadges.appendChild(badge);
-    }
-
-    // Race Badge
-    if (card.race) {
-      const badge = document.createElement("span");
-      badge.className = "badge badge-race";
-      badge.textContent = card.race;
-      modalCardBadges.appendChild(badge);
-    }
-
-    // ATK & DEF Badge
-    if (card.atk !== undefined && card.atk !== null) {
-      const badge = document.createElement("span");
-      badge.className = "badge badge-atk-def";
-      const defVal = (card.def !== undefined && card.def !== null) ? card.def : "?";
-      badge.textContent = `⚔️ ATK: ${card.atk} / 🛡️ DEF: ${defVal}`;
-      modalCardBadges.appendChild(badge);
-    }
-
-    // Archetype Badge
-    if (card.archetype) {
-      const badge = document.createElement("span");
-      badge.className = "badge badge-archetype";
-      badge.textContent = `🏷️ ${card.archetype}`;
-      modalCardBadges.appendChild(badge);
-    }
-  }
+  const statLines = [];
+  if (card.level) statLines.push(`Nivel: ${card.level}`);
+  if (card.atk) statLines.push(`ATK: ${card.atk}`);
+  if (card.def) statLines.push(`DEF: ${card.def}`);
+  modalCardStats.textContent = statLines.join(" · ") || "";
 
   if (card.desc) {
     modalCardDesc.innerHTML = card.desc.replace(/\n/g, "<br />");
@@ -764,6 +844,15 @@ function openCardDetailModal(card) {
   } else {
     modalCardImage.style.backgroundImage = "none";
     modalCardImage.textContent = "Sin imagen";
+  }
+
+  const canPick = currentDraftPackId && currentDraftCards.some((packCard) => packCard.name === card.name);
+  currentDetailCard = card;
+  const actionArea = document.getElementById("modal-card-actions");
+  if (actionArea) {
+    actionArea.innerHTML = canPick
+      ? `<button type="button" class="btn-pick-card" data-pack="${currentDraftPackId}" data-card="${card.name}">Elegir esta carta</button>`
+      : "";
   }
 }
 
