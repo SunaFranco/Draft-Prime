@@ -29,7 +29,6 @@ const btnLeave = document.getElementById("btn-leave");
 const btnCopyLink = document.getElementById("btn-copy-link");
 const modeGrid = document.getElementById("mode-grid");
 const modeConfig = document.getElementById("mode-config");
-const modeConfigFields = document.getElementById("mode-config-fields");
 const btnConfigure = document.getElementById("btn-configure-mode");
 const btnStartDraft = document.getElementById("btn-start-draft");
 const btnBackToLobby = document.getElementById("btn-back-to-lobby");
@@ -263,9 +262,7 @@ function setupModeConfig(data) {
 
   if (currentModeUI) {
     currentModeUI.resetState();
-    currentModeUI.renderConfigFields(modeConfigFields, data, isHost);
-  } else {
-    modeConfigFields.innerHTML = `<p style="color: var(--muted);">Modo de juego no soportado en el cliente.</p>`;
+    currentModeUI.renderConfigFields(modeConfig, data, isHost);
   }
 
   if (btnConfigure) btnConfigure.classList.toggle("hidden", !isHost);
@@ -309,7 +306,7 @@ if (btnCopyLink) {
 if (btnConfigure) {
   btnConfigure.addEventListener("click", () => {
     if (!currentModeUI) return;
-    const configPayload = currentModeUI.readConfigFields(modeConfigFields);
+    const configPayload = currentModeUI.readConfigFields(modeConfig);
     sessionClient.send({
       action: "configure_mode",
       ...configPayload,

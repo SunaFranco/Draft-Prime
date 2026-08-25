@@ -3,7 +3,6 @@
  */
 
 import { BaseGameModeUI } from "../base_mode.js";
-import { showScreen, logEvent } from "../../js/core/ui.js";
 
 export class SubastaPokemonModeUI extends BaseGameModeUI {
   constructor() {
@@ -11,13 +10,18 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
   }
 
   renderConfigFields(containerEl, data, isHost) {
-    containerEl.innerHTML = `
-      <div class="card" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px;">
-        <p style="color: var(--muted); font-size: 0.9rem;">
-          Este modo utilizará la subasta de Pokémon. Las configuraciones específicas estarán disponibles próximamente.
-        </p>
-      </div>
-    `;
+    const cubeSelect = document.getElementById("cube-select");
+    const packCount = document.getElementById("pack-count");
+    const cardsPerPack = document.getElementById("cards-per-pack");
+
+    // Ocultar controles de draft de Yu-Gi-Oh para subasta
+    [cubeSelect, packCount, cardsPerPack].forEach((el) => {
+      if (el) {
+        el.style.display = "none";
+        const label = document.querySelector(`label[for="${el.id}"]`);
+        if (label) label.style.display = "none";
+      }
+    });
   }
 
   readConfigFields(containerEl) {
@@ -25,7 +29,6 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
   }
 
   handleEvent(event, data, context) {
-    // Stub preparado para recibir eventos de subasta Pokémon en el futuro
     return false;
   }
 }

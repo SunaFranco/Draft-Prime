@@ -26,39 +26,31 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
   renderConfigFields(containerEl, data, isHost) {
     const cubes = data.available_cubes || [];
 
-    const cubeOptionsHtml = cubes.map((c) => `<option value="${c.key}">${c.title}</option>`).join("");
+    const cubeSelect = document.getElementById("cube-select");
+    const packCount = document.getElementById("pack-count");
+    const cardsPerPack = document.getElementById("cards-per-pack");
 
-    containerEl.innerHTML = `
-      <label for="cube-select">Cube</label>
-      <select id="cube-select" ${!isHost ? 'disabled' : ''}>
-        ${cubeOptionsHtml || '<option value="">No hay cubes disponibles</option>'}
-      </select>
+    // Mostrar controles de sobres/cubes
+    [cubeSelect, packCount, cardsPerPack].forEach((el) => {
+      if (el) {
+        el.disabled = !isHost;
+        const label = document.querySelector(`label[for="${el.id}"]`);
+        if (label) label.style.display = "";
+        el.style.display = "";
+      }
+    });
 
-      <label for="pack-count">Cantidad de sobres</label>
-      <select id="pack-count" ${!isHost ? 'disabled' : ''}>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3" selected>3</option>
-        <option value="4">4</option>
-      </select>
-
-      <label for="cards-per-pack">Cartas por sobre</label>
-      <select id="cards-per-pack" ${!isHost ? 'disabled' : ''}>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5" selected>5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8">8</option>
-        <option value="9">9</option>
-      </select>
-    `;
+    if (cubeSelect) {
+      cubeSelect.innerHTML = cubes
+        .map((c) => `<option value="${c.key}">${c.title}</option>`)
+        .join("");
+    }
   }
 
   readConfigFields(containerEl) {
-    const cubeSelect = containerEl.querySelector("#cube-select");
-    const packCount = containerEl.querySelector("#pack-count");
-    const cardsPerPack = containerEl.querySelector("#cards-per-pack");
+    const cubeSelect = document.getElementById("cube-select");
+    const packCount = document.getElementById("pack-count");
+    const cardsPerPack = document.getElementById("cards-per-pack");
 
     return {
       cube_key: cubeSelect ? cubeSelect.value : "",
