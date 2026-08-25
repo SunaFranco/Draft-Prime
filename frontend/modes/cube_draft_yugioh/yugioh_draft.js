@@ -13,6 +13,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     this.currentDraftPackId = null;
     this.currentDetailCard = null;
     this.lastCompletedCollection = [];
+    this.sessionClient = null;
   }
 
   resetState() {
@@ -21,6 +22,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     this.currentDraftPackId = null;
     this.currentDetailCard = null;
     this.lastCompletedCollection = [];
+    this.sessionClient = null;
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -30,7 +32,6 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     const packCount = document.getElementById("pack-count");
     const cardsPerPack = document.getElementById("cards-per-pack");
 
-    // Mostrar controles de sobres/cubes
     [cubeSelect, packCount, cardsPerPack].forEach((el) => {
       if (el) {
         el.disabled = !isHost;
@@ -61,6 +62,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
 
   handleEvent(event, data, context) {
     const { sessionClient, isHost } = context;
+    this.sessionClient = sessionClient;
 
     switch (event) {
       case "draft_started":
@@ -77,6 +79,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
         document.getElementById("draft-subtitle").textContent = `Ronda ${data.round} / ${data.total_rounds} — Paso ${data.step}`;
         document.getElementById("draft-state").textContent = `Selecciona 1 carta de las ${data.remaining} restantes`;
         this.renderPackCards(this.currentDraftCards, sessionClient);
+        this.renderPickedDrawer(sessionClient);
         return true;
 
       case "draft_pick_confirmed":
@@ -89,7 +92,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
             <p>Esperando a que el resto de los jugadores completen su selección...</p>
           </div>
         `;
-        this.renderPickedDrawer();
+        this.renderPickedDrawer(sessionClient);
         return true;
 
       case "draft_step_progress":
@@ -114,6 +117,9 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     return false;
   }
 
+  /**
+   * Renderiza las cartas del sobre activo mostrando únicamente la imagen entera como marco clickeable.
+   */
   renderPackCards(cards, sessionClient) {
     const grid = document.getElementById("draft-grid");
     if (!grid) return;
@@ -121,44 +127,68 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
 
     cards.forEach((card) => {
       const cardEl = document.createElement("div");
-      cardEl.className = "card draft-card";
+      cardEl.className = "draft-card-only-img";
 
-      const hasImg = Boolean(card.image_url);
-      const imgHtml = hasImg
-        ? `<img class="draft-card-img" src="${card.image_url}" alt="${card.name}" loading="lazy" />`
-        : `<div class="draft-card-fallback">${card.name}</div>`;
-
-      cardEl.innerHTML = `
-        <div class="draft-card-preview">${imgHtml}</div>
-        <div class="draft-card-body">
-          <div class="draft-card-title">${card.name}</div>
-          <div class="draft-card-type">${card.type || "Yu-Gi-Oh!"}</div>
-        </div>
-      `;
+      if (card.image_url) {
+        cardEl.innerHTML = `<img src="${card.image_url}" alt="${card.name}" class="card-image-full" loading="lazy" />`;
+      } else {
+        cardEl.innerHTML = `<div class="card-image-fallback-full"><span>${card.name}</span></div>`;
+      }
 
       cardEl.addEventListener("click", () => {
-        this.openCardModal(card, sessionClient);
+        this.openCardModal(card, sessionClient, true);
       });
 
       grid.appendChild(cardEl);
     });
   }
 
-  renderPickedDrawer() {
+  /**
+   * Renderiza el apartado inferior de cartas elegidas con botón desplegable y miniaturas interactiva.
+   */
+  renderPickedDrawer(sessionClient) {
     const drawer = document.getElementById("draft-picked");
     const list = document.getElementById("draft-picked-list");
+    const toggleBtn = document.getElementById("btn-toggle-picked-cards");
     if (!drawer || !list) return;
 
     if (this.currentPickedCards.length > 0) {
       drawer.classList.remove("hidden");
     }
 
+    if (toggleBtn) {
+      toggleBtn.innerHTML = `Mis cartas elegidas (${this.currentPickedCards.length})`;
+    }
+
     list.innerHTML = "";
+
+    if (this.currentPickedCards.length === 0) {
+      list.innerHTML = `<div style="padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem;">Aún no has elegido ninguna carta.</div>`;
+      return;
+    }
+
     this.currentPickedCards.forEach((c) => {
-      const item = document.createElement("div");
-      item.className = "draft-picked-item";
-      item.textContent = c.name;
-      list.appendChild(item);
+      const row = document.createElement("div");
+      row.className = "picked-card-row";
+
+      const hasImg = Boolean(c.image_url);
+      const thumbHtml = hasImg
+        ? `<img class="picked-card-thumb" src="${c.image_url}" alt="${c.name}" loading="lazy" />`
+        : `<div class="picked-card-thumb--fallback"><span>${c.name}</span></div>`;
+
+      row.innerHTML = `
+        <div class="picked-card-thumb-wrapper">${thumbHtml}</div>
+        <div class="picked-card-info">
+          <strong>${c.name}</strong>
+          <p>${c.type || "Yu-Gi-Oh!"} ${c.level ? "• " + c.level + "★" : ""}</p>
+        </div>
+      `;
+
+      row.addEventListener("click", () => {
+        this.openCardModal(c, sessionClient, false);
+      });
+
+      list.appendChild(row);
     });
   }
 
@@ -168,22 +198,20 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
 
     const myCollection = collections[sessionClient.currentUsername] || [];
     this.currentPickedCards = myCollection;
-    this.renderPickedDrawer();
+    this.renderPickedDrawer(sessionClient);
 
     let html = `
       <div class="card results-card" style="grid-column: 1 / -1; padding: 2rem;">
         <h2>🏆 Resumen de Cartas Elegidas</h2>
-        <p style="color: var(--muted); margin-bottom: 1.5rem;">A continuación se muestran los mazos drafteados por cada jugador:</p>
-        <div class="collections-grid" style="display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+        <p style="color: var(--muted); margin-bottom: 1.5rem;">A continuación se muestran los mazos drafteados por cada jugador (haz clic en una carta para ver sus detalles):</p>
+        <div class="collections-grid" style="display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
     `;
 
     Object.entries(collections).forEach(([uname, cardList]) => {
       html += `
-        <div class="card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border);">
-          <h3>${uname} (${cardList.length} cartas)</h3>
-          <ul style="max-height: 250px; overflow-y: auto; font-size: 0.9rem; margin-top: 0.5rem; padding-left: 1.2rem;">
-            ${cardList.map((c) => `<li>${c.name}</li>`).join("")}
-          </ul>
+        <div class="card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-dim); padding: 1rem;">
+          <h3 style="margin-bottom: 0.75rem;">${uname} (${cardList.length} cartas)</h3>
+          <div class="results-card-list" id="results-user-${uname}" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto;"></div>
         </div>
       `;
     });
@@ -191,11 +219,42 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     html += `</div></div>`;
     grid.innerHTML = html;
 
+    // Renderizar miniaturas clickeables para los resultados finales
+    Object.entries(collections).forEach(([uname, cardList]) => {
+      const container = document.getElementById(`results-user-${uname}`);
+      if (!container) return;
+
+      cardList.forEach((c) => {
+        const item = document.createElement("div");
+        item.className = "picked-card-row";
+        item.style.padding = "0.5rem";
+
+        const hasImg = Boolean(c.image_url);
+        const thumbHtml = hasImg
+          ? `<img class="picked-card-thumb" src="${c.image_url}" alt="${c.name}" loading="lazy" />`
+          : `<div class="picked-card-thumb--fallback"><span>${c.name}</span></div>`;
+
+        item.innerHTML = `
+          <div class="picked-card-thumb-wrapper" style="width: 50px; min-width: 50px;">${thumbHtml}</div>
+          <div class="picked-card-info">
+            <strong style="font-size: 0.9rem;">${c.name}</strong>
+            <p style="font-size: 0.75rem;">${c.type || "Yu-Gi-Oh!"}</p>
+          </div>
+        `;
+
+        item.addEventListener("click", () => {
+          this.openCardModal(c, sessionClient, false);
+        });
+
+        container.appendChild(item);
+      });
+    });
+
     const btnBack = document.getElementById("btn-back-to-lobby-draft");
     if (btnBack) btnBack.classList.remove("hidden");
   }
 
-  openCardModal(card, sessionClient) {
+  openCardModal(card, sessionClient, allowPick = true) {
     this.currentDetailCard = card;
 
     const modal = document.getElementById("card-detail-modal");
@@ -227,17 +286,25 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
       imgEl.innerHTML = `<div class="draft-card-fallback" style="padding: 2rem;">${card.name}</div>`;
     }
 
-    actionsEl.innerHTML = `
-      <button id="btn-modal-pick-card" class="btn-primary" style="width: 100%;">Elegir esta carta 🎴</button>
-    `;
+    if (allowPick) {
+      actionsEl.innerHTML = `
+        <button id="btn-modal-pick-card" class="btn-primary" style="width: 100%;">Elegir esta carta 🎴</button>
+      `;
 
-    document.getElementById("btn-modal-pick-card").onclick = () => {
-      this.closeCardModal();
-      sessionClient.send({
-        action: "draft_pick_card",
-        card_name: card.name,
-      });
-    };
+      document.getElementById("btn-modal-pick-card").onclick = () => {
+        this.closeCardModal();
+        sessionClient.send({
+          action: "draft_pick_card",
+          card_name: card.name,
+        });
+      };
+    } else {
+      actionsEl.innerHTML = `
+        <div style="padding: 0.6rem; text-align: center; color: var(--accent-gold); background: rgba(245, 158, 11, 0.1); border: 1px solid var(--border-gold); border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600;">
+          Carta en colección ✓
+        </div>
+      `;
+    }
 
     modal.classList.remove("hidden");
   }

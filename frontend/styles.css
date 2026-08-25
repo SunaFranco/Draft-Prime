@@ -507,11 +507,50 @@ button.active {
 
 .draft-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
-  justify-items: center;
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 200px));
+  justify-content: center;
+  gap: 1.25rem;
   margin-bottom: 2rem;
-  grid-auto-rows: minmax(220px, auto);
+}
+
+.draft-card-only-img {
+  width: 100%;
+  aspect-ratio: 0.7;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg-surface-card);
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.draft-card-only-img:hover {
+  transform: translateY(-5px) scale(1.03);
+  border-color: var(--accent-purple);
+  box-shadow: 0 12px 30px rgba(139, 92, 246, 0.35);
+}
+
+.card-image-full {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-image-fallback-full {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .draft-picked {
