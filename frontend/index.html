@@ -97,30 +97,10 @@
       <h2 id="mode-config-title">Configurar modo</h2>
       <p id="mode-config-description" class="subtitle">Elegí el cube y la configuración de sobres.</p>
 
-      <label for="cube-select">Cube</label>
-      <select id="cube-select"></select>
-
-      <label for="pack-count">Cantidad de sobres</label>
-      <select id="pack-count">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-      </select>
-
-      <label for="cards-per-pack">Cartas por sobre</label>
-      <select id="cards-per-pack">
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8">8</option>
-        <option value="9">9</option>
-      </select>
+      <div id="mode-config-fields"></div>
 
       <button id="btn-configure-mode">Guardar configuración</button>
-      <button id="btn-start-draft" class="hidden">Iniciar draft</button>
+      <button id="btn-start-draft" class="hidden">Iniciar partida</button>
     </div>
 
     <div class="mode-footer">
@@ -165,6 +145,6 @@
   </div>
 
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
