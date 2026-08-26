@@ -137,7 +137,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
         await manager.connect(session_id, username, websocket)
         await manager.send_personal(websocket, {
             "event": "session_state",
-            "data":  session_public_state(session),
+            "data":  session_public_state(session, target_username=username),
         })
         await manager.broadcast(session_id, {
             "event": "player_joined",
@@ -168,7 +168,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
 
         await manager.send_personal(websocket, {
             "event": "session_state",
-            "data":  session_public_state(session),
+            "data":  session_public_state(session, target_username=username),
         })
 
         await manager.broadcast(session_id, {

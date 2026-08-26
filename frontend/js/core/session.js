@@ -78,4 +78,23 @@ export class SessionClient {
       this.ws = null;
     }
   }
+
+  saveActiveSession(sessionId, username) {
+    localStorage.setItem("draft_prime_session_id", sessionId);
+    localStorage.setItem("draft_prime_username", username);
+  }
+
+  getSavedSession() {
+    const sessionId = localStorage.getItem("draft_prime_session_id");
+    const username = localStorage.getItem("draft_prime_username");
+    if (sessionId && username) {
+      return { sessionId, username };
+    }
+    return null;
+  }
+
+  clearSavedSession() {
+    localStorage.removeItem("draft_prime_session_id");
+    localStorage.removeItem("draft_prime_username");
+  }
 }

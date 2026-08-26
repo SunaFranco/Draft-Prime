@@ -65,6 +65,39 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     this.sessionClient = sessionClient;
 
     switch (event) {
+      case "session_state":
+        if (data.draft_state) {
+          const ds = data.draft_state;
+          this.currentPickedCards = ds.collection || [];
+          this.renderPickedDrawer(sessionClient);
+
+          if (ds.finished) {
+            showScreen("draft");
+            document.getElementById("draft-subtitle").textContent = "Draft finalizado";
+            document.getElementById("draft-state").textContent = "Todas las rondas han completado. Revisa las colecciones de cartas.";
+            this.renderDraftResults(ds.collections, sessionClient, isHost);
+          } else {
+            showScreen("draft");
+            if (ds.has_picked_this_step) {
+              document.getElementById("draft-subtitle").textContent = `Ronda ${ds.round} / ${ds.total_rounds} — Paso ${ds.step}`;
+              document.getElementById("draft-state").textContent = "Carta elegida. Esperando a los demás jugadores...";
+              document.getElementById("draft-grid").innerHTML = `
+                <div class="card empty-pack-msg" style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+                  <h3>Carta elegida ✓</h3>
+                  <p>Esperando a que el resto de los jugadores completen su selección...</p>
+                </div>
+              `;
+            } else if (ds.current_pack) {
+              this.currentDraftPackId = ds.current_pack.pack_id;
+              this.currentDraftCards = ds.current_pack.cards || [];
+              document.getElementById("draft-subtitle").textContent = `Ronda ${ds.round} / ${ds.total_rounds} — Paso ${ds.step}`;
+              document.getElementById("draft-state").textContent = `Selecciona 1 carta de las ${this.currentDraftCards.length} restantes`;
+              this.renderPackCards(this.currentDraftCards, sessionClient);
+            }
+          }
+        }
+        return true;
+
       case "draft_started":
         showScreen("draft");
         logEvent("🎲 ¡El draft ha comenzado!");

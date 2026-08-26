@@ -150,6 +150,44 @@ class CubeDraftYugiohMode(BaseGameMode):
     def get_public_config_options(self, session: dict) -> Dict[str, Any]:
         return {"available_cubes": get_available_cubes()}
 
+    def get_player_sync_state(self, session: dict, username: str) -> dict:
+        draft = session.get("draft")
+        if not draft:
+            return {}
+
+        finished = draft.get("finished", False)
+        has_picked_this_step = draft["picks_in_step"].get(username) is not None
+        collection = draft["collections"].get(username, [])
+
+        user_pack = draft["current_packs"].get(username)
+        current_pack = None
+        if user_pack and not has_picked_this_step and not finished:
+            current_pack = {
+                "pack_id": user_pack["pack_id"],
+                "cards": user_pack["cards"],
+            }
+
+        picked_count = sum(1 for v in draft["picks_in_step"].values() if v is not None)
+        total_players = len(draft["picker_order"])
+
+        state = {
+            "round": draft["current_round"],
+            "step": draft["current_step"],
+            "total_rounds": draft["pack_count"],
+            "cards_per_pack": draft["cards_per_pack"],
+            "collection": collection,
+            "current_pack": current_pack,
+            "has_picked_this_step": has_picked_this_step,
+            "picked_count": picked_count,
+            "total_players": total_players,
+            "finished": finished,
+        }
+
+        if finished:
+            state["collections"] = draft["collections"]
+
+        return state
+
     def validate_config(self, message: dict) -> dict:
         cube_key = message.get("cube_key")
         pack_count = int(message.get("pack_count", 0))

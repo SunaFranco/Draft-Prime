@@ -97,7 +97,7 @@ def get_connected_player_order(session: dict) -> List[str]:
     return [p["username"] for p in session["players"] if p["connected"]]
 
 
-def session_public_state(session: dict) -> dict:
+def session_public_state(session: dict, target_username: Optional[str] = None) -> dict:
     """
     Devuelve una versión 'limpia' de la sesión para enviar al cliente.
     Excluye datos internos como las conexiones WebSocket o estado sensible no formateado.
@@ -121,5 +121,7 @@ def session_public_state(session: dict) -> dict:
     if mode_key and registry.is_valid_mode(mode_key):
         handler = registry.get_mode_handler(mode_key)
         state.update(handler.get_public_config_options(session))
+        if target_username:
+            state["draft_state"] = handler.get_player_sync_state(session, target_username)
 
     return state

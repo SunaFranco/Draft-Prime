@@ -34,6 +34,12 @@ class BaseGameMode(ABC):
         """
         return {}
 
+    def get_player_sync_state(self, session: dict, username: str) -> dict:
+        """
+        Retorna el estado de sincronización particular para un jugador al reconectarse.
+        """
+        return {}
+
     @abstractmethod
     def validate_config(self, message: dict) -> dict:
         """

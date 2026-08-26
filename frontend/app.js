@@ -42,6 +42,13 @@ const pickedList = document.getElementById("draft-picked-list");
 window.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const sessionFromUrl = params.get("session");
+
+  const saved = sessionClient.getSavedSession();
+  if (saved && saved.sessionId === sessionFromUrl) {
+    connect(saved.sessionId, saved.username);
+    return;
+  }
+
   if (sessionFromUrl) {
     document.getElementById("invite-session-id").textContent = sessionFromUrl;
     document.getElementById("invite-banner").classList.remove("hidden");
@@ -113,6 +120,7 @@ function connect(sessionId, username) {
       logEvent("Conectado a la sesión.");
       document.getElementById("session-id-display").textContent = sessionId;
       showScreen("lobby");
+      sessionClient.saveActiveSession(sessionId, username);
     },
     () => {
       setConnectionStatus("○ Desconectado", "offline");
@@ -130,13 +138,18 @@ function handleWebSocketMessage(msg) {
   const event = msg.event;
   const data = msg.data || {};
 
+  if (event === "session_state" && data.mode) {
+    currentModeKey = data.mode;
+    currentModeUI = modeUIRegistry[data.mode] || null;
+  }
+
   // Intentar delegar primero al controlador de UI del modo de juego activo
   if (currentModeUI) {
     const handled = currentModeUI.handleEvent(event, data, {
       sessionClient,
       isHost,
     });
-    if (handled) return;
+    if (handled && event !== "session_state") return;
   }
 
   // Eventos generales del Lobby
@@ -285,6 +298,7 @@ if (btnStartGame) {
 if (btnLeave) {
   btnLeave.addEventListener("click", () => {
     sessionClient.disconnect();
+    sessionClient.clearSavedSession();
     if (currentModeUI) currentModeUI.resetState();
     currentModeUI = null;
     currentModeKey = null;
