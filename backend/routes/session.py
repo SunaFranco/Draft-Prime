@@ -314,7 +314,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
                     })
 
     except WebSocketDisconnect:
-        manager.disconnect(session_id, username)
+        was_active = manager.disconnect(session_id, username, websocket)
+
+        if not was_active:
+            return
 
         player = next(
             (p for p in session["players"] if p["username"] == username), None

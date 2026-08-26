@@ -80,11 +80,11 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
             showScreen("draft");
             if (ds.has_picked_this_step) {
               document.getElementById("draft-subtitle").textContent = `Ronda ${ds.round} / ${ds.total_rounds} — Paso ${ds.step}`;
-              document.getElementById("draft-state").textContent = "Carta elegida. Esperando a los demás jugadores...";
+              document.getElementById("draft-state").textContent = `Carta elegida. Esperando a los demás jugadores... (${ds.picked_count}/${ds.total_players})`;
               document.getElementById("draft-grid").innerHTML = `
                 <div class="card empty-pack-msg" style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
                   <h3>Carta elegida ✓</h3>
-                  <p>Esperando a que el resto de los jugadores completen su selección...</p>
+                  <p>Esperando a que el resto de los jugadores completen su selección... <strong>(${ds.picked_count}/${ds.total_players})</strong></p>
                 </div>
               `;
             } else if (ds.current_pack) {
@@ -131,6 +131,16 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
       case "draft_step_progress":
         if (data.picker !== sessionClient.currentUsername) {
           logEvent(`${data.picker} ha realizado su selección (${data.picked_count}/${data.total_players})`);
+        }
+        {
+          const stateEl = document.getElementById("draft-state");
+          if (stateEl && stateEl.textContent.includes("Esperando")) {
+            stateEl.textContent = `Carta elegida. Esperando a los demás jugadores... (${data.picked_count}/${data.total_players})`;
+          }
+          const waitMsg = document.querySelector(".empty-pack-msg p");
+          if (waitMsg) {
+            waitMsg.innerHTML = `Esperando a que el resto de los jugadores completen su selección... <strong>(${data.picked_count}/${data.total_players})</strong>`;
+          }
         }
         return true;
 

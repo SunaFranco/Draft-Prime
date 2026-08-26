@@ -26,10 +26,20 @@ class ConnectionManager:
             self.active[session_id] = {}
         self.active[session_id][username] = websocket
 
-    def disconnect(self, session_id: str, username: str):
-        """Elimina la conexión del usuario de la sesión."""
+    def disconnect(self, session_id: str, username: str, websocket: WebSocket = None) -> bool:
+        """
+        Elimina la conexión del usuario de la sesión.
+        Si se proporciona websocket, solo desconecta si coincide con el socket activo
+        (evita que un socket obsoleto desconecte una reconexión nueva).
+        Retorna True si se eliminó, False si el socket era obsoleto.
+        """
         if session_id in self.active:
+            current_ws = self.active[session_id].get(username)
+            if websocket is not None and current_ws is not websocket:
+                return False
             self.active[session_id].pop(username, None)
+            return True
+        return False
 
     async def broadcast(self, session_id: str, message: dict):
         """
@@ -57,7 +67,10 @@ class ConnectionManager:
         """Envía un mensaje al socket activo de un jugador en la sesión."""
         websocket = self.active.get(session_id, {}).get(username)
         if websocket:
-            await websocket.send_json(message)
+            try:
+                await websocket.send_json(message)
+            except Exception:
+                self.active.get(session_id, {}).pop(username, None)
 
 
 manager = ConnectionManager()
