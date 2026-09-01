@@ -161,63 +161,6 @@ def get_game_session(session_id: str) -> Optional[dict]:
     return None
 
 
-def _normalize_auction_type(value: Optional[str]) -> str:
-    """Normaliza el tipo de subasta para comparar sin depender de mayúsculas/minúsculas."""
-    if value is None:
-        return ""
-    return str(value).strip().lower()
-
-
-def _extract_pool_cards_from_item(pool_item: dict) -> List[str]:
-    """Extrae nombres de Pokémon desde varias estructuras posibles de la respuesta de Supabase."""
-    if not isinstance(pool_item, dict):
-        return []
-
-    names: List[str] = []
-    payloads = []
-
-    for key in ["pokemon_pool_cards", "pokemon_cards", "pool_cards", "cards"]:
-        if key in pool_item:
-            payloads.append(pool_item.get(key))
-
-    if not payloads and any(k in pool_item for k in ["pokemon_name", "name", "card_name"]):
-        payloads.append(pool_item)
-
-    for payload in payloads:
-        if payload is None:
-            continue
-
-        if isinstance(payload, dict):
-            items = [payload]
-        elif isinstance(payload, list):
-            items = payload
-        else:
-            items = []
-
-        for item in items:
-            if not isinstance(item, dict):
-                continue
-
-            pokemon_name = (
-                item.get("pokemon_name")
-                or item.get("name")
-                or item.get("card_name")
-                or item.get("pokemon")
-            )
-            if pokemon_name is None:
-                continue
-
-            qty = item.get("qty", item.get("quantity", item.get("count", 1)))
-            try:
-                qty_value = int(qty)
-            except (TypeError, ValueError):
-                qty_value = 1
-
-            names.extend([str(pokemon_name)] * max(qty_value, 1))
-
-    return names
-
-
 def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional[str] = None) -> List[str]:
     """Obtiene la lista de nombres de Pokémon desde la base de datos filtrada por año y tipo de subasta."""
     if not supabase_client:
@@ -225,42 +168,18 @@ def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional
 
     try:
         query = supabase_client.table("pokemon_pools").select("id, year, auction_type, pokemon_pool_cards(pokemon_name, qty)")
-
         if year is not None:
             query = query.eq("year", year)
+        if auction_type is not None:
+            query = query.eq("auction_type", auction_type)
 
         res = query.execute()
-        rows = res.data or []
-
-        if auction_type is not None:
-            target_type = _normalize_auction_type(auction_type)
-            rows = [row for row in rows if _normalize_auction_type(row.get("auction_type")) == target_type]
-
-        names: List[str] = []
-        for pool_item in rows:
-            names.extend(_extract_pool_cards_from_item(pool_item))
-
-        if names:
+        if res.data:
+            names = []
+            for pool_item in res.data:
+                for card in pool_item.get("pokemon_pool_cards", []):
+                    names.extend([card["pokemon_name"]] * card.get("qty", 1))
             return names
-
-        # Fallback defensivo: si la consulta anidada devuelve vacío por diferencias de estructura
-        # o de nombre del campo, volvemos a consultar sin filtrar por tipo y normalizamos manualmente.
-        fallback_query = supabase_client.table("pokemon_pools").select("id, year, auction_type, pokemon_pool_cards(pokemon_name, qty)")
-        if year is not None:
-            fallback_query = fallback_query.eq("year", year)
-
-        fallback_res = fallback_query.execute()
-        fallback_rows = fallback_res.data or []
-
-        if auction_type is not None:
-            target_type = _normalize_auction_type(auction_type)
-            fallback_rows = [row for row in fallback_rows if _normalize_auction_type(row.get("auction_type")) == target_type]
-
-        names = []
-        for pool_item in fallback_rows:
-            names.extend(_extract_pool_cards_from_item(pool_item))
-
-        return names
     except Exception as e:
         print(f"[WARNING] Error consultando pokemon_pools en Supabase: {e}")
 
