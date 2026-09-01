@@ -2,7 +2,10 @@
 backend/tests/test_subasta_pokemon.py - Pruebas unitarias para el modo Subasta Pokémon
 """
 
+import types
 import unittest
+
+from backend import database
 from backend.modes.subasta_pokemon import poke_api, events_data, showdown
 from backend.modes.subasta_pokemon.handler import SubastaPokemonMode, evolve_player_pokemon
 
@@ -52,6 +55,38 @@ class TestSubastaPokemon(unittest.TestCase):
         self.assertIn("Raichu", names)
         self.assertIn("Charmeleon", names)
 
+    def test_get_pokemon_pools_from_db_handles_case_and_flattened_relations(self):
+        class FakeQuery:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def eq(self, key, value):
+                return self
+
+            def execute(self):
+                return types.SimpleNamespace(data=self.rows)
+
+        class FakeClient:
+            def table(self, name):
+                return FakeQuery([
+                    {
+                        "id": 1,
+                        "year": 1,
+                        "auction_type": "Normal",
+                        "pokemon_pool_cards": [
+                            {"pokemon_name": "Pikachu", "qty": 2},
+                            {"pokemon_name": "Bulbasaur", "qty": 1}
+                        ]
+                    }
+                ])
+
+        original_client = database.supabase_client
+        database.supabase_client = FakeClient()
+        try:
+            pool = database.get_pokemon_pools_from_db(year=1, auction_type="normal")
+            self.assertEqual(pool, ["Pikachu", "Pikachu", "Bulbasaur"])
+        finally:
+            database.supabase_client = original_client
 
     def test_fixed_ability_and_moves_by_level(self):
         poke = poke_api.fetch_pokemon_data("Pikachu", level_cap=20)
