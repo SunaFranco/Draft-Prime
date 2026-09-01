@@ -122,3 +122,67 @@ def create_new_cube(title: str, description: str, cards: List[str], author: str 
         raise RuntimeError(f"Error guardando Cube en Supabase: {e}") from e
 
     raise RuntimeError("No se pudo crear el cube en Supabase.")
+
+
+MEMORY_GAME_SESSIONS: Dict[str, dict] = {}
+
+
+def save_game_session(session_id: str, mode: str, state_data: dict) -> None:
+    """Guarda o actualiza el estado de una partida en Supabase o en memoria local."""
+    MEMORY_GAME_SESSIONS[session_id] = state_data
+
+    if supabase_client:
+        try:
+            supabase_client.table("game_sessions").upsert({
+                "session_id": session_id,
+                "mode": mode,
+                "state_data": state_data
+            }).execute()
+        except Exception as e:
+            print(f"[WARNING] Error guardando estado de partida {session_id} en Supabase: {e}")
+
+
+def get_game_session(session_id: str) -> Optional[dict]:
+    """Obtiene el estado guardado de una partida desde Supabase o memoria local."""
+    if session_id in MEMORY_GAME_SESSIONS:
+        return MEMORY_GAME_SESSIONS[session_id]
+
+    if supabase_client:
+        try:
+            res = supabase_client.table("game_sessions").select("state_data").eq("session_id", session_id).execute()
+            if res.data and len(res.data) > 0:
+                data = res.data[0].get("state_data")
+                if data:
+                    MEMORY_GAME_SESSIONS[session_id] = data
+                    return data
+        except Exception as e:
+            print(f"[WARNING] Error cargando partida {session_id} desde Supabase: {e}")
+
+    return None
+
+
+def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional[str] = None) -> List[str]:
+    """Obtiene la lista de nombres de Pokémon desde la base de datos filtrada por año y tipo de subasta."""
+    if not supabase_client:
+        return []
+
+    try:
+        query = supabase_client.table("pokemon_pools").select("id, year, auction_type, pokemon_pool_cards(pokemon_name, qty)")
+        if year is not None:
+            query = query.eq("year", year)
+        if auction_type is not None:
+            query = query.eq("auction_type", auction_type)
+
+        res = query.execute()
+        if res.data:
+            names = []
+            for pool_item in res.data:
+                for card in pool_item.get("pokemon_pool_cards", []):
+                    names.extend([card["pokemon_name"]] * card.get("qty", 1))
+            return names
+    except Exception as e:
+        print(f"[WARNING] Error consultando pokemon_pools en Supabase: {e}")
+
+    return []
+
+
