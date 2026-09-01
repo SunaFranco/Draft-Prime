@@ -202,13 +202,6 @@ class SubastaPokemonMode(BaseGameMode):
         buyout_multiplier = float(message.get("buyout_multiplier", 10.0))
         secret_fee = int(message.get("secret_fee", 500))
 
-        if starting_money < 1000 or starting_money > 100000:
-            raise ValueError("Presupuesto inicial debe estar entre $1,000 y $100,000.")
-        if turns_per_year < 1 or turns_per_year > 10:
-            raise ValueError("Turnos por año deben estar entre 1 y 10.")
-        if pok_per_player < 1 or pok_per_player > 6:
-            raise ValueError("Pokémon por subasta debe estar entre 1 y 6.")
-
         return {
             "starting_money": starting_money,
             "turns_per_year": turns_per_year,
