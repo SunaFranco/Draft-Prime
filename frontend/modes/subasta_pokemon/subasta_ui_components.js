@@ -65,11 +65,12 @@ export function renderAuctionView(data, sessionClient, isHost) {
     <div class="auction-grid">
       <!-- Tarjeta del Pokémon Subastado -->
       <div class="card auction-poke-card">
-        <h3>🔍 Pokémon en Subasta</h3>
+        <h3>🔍 Pokémon Incógnito</h3>
         <div class="poke-image-wrapper">
-          ${poke.image_url ? `<img src="${poke.image_url}" alt="Pokemon" />` : '<div class="poke-unknown-avatar">❓</div>'}
+          <div class="poke-unknown-avatar">❓</div>
         </div>
         <p class="base-price">Precio Inicial: <strong>$${auction.base_price || 1000}</strong></p>
+
 
         <div class="hints-box">
           <h4>💡 Pistas Desbloqueadas:</h4>
@@ -91,8 +92,8 @@ export function renderAuctionView(data, sessionClient, isHost) {
 
         ${isWinnerPendingSecret ? `
           <div class="secret-choice-modal">
-            <h4>🎉 ¡Ganaste la subasta!</h4>
-            <p>¿Deseas pagar <strong>$${auction.secret_fee}</strong> para ocultar este Pokémon a tus rivales?</p>
+            <h4>🎉 ¡Ganaste la subasta de ${poke.name || 'este Pokémon'}!</h4>
+            <p>¿Deseas pagar <strong>$${auction.secret_fee}</strong> para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
             <div class="btn-group">
               <button id="btn-secret-yes" class="btn btn-primary">🔒 Pagar $${auction.secret_fee} y Ocultar</button>
               <button id="btn-secret-no" class="btn btn-secondary">👁️ Mostrar a todos ($0)</button>
