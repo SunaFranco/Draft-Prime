@@ -94,10 +94,12 @@ h1 {
 .hidden { display: none !important; }
 
 .screen {
-  max-width: 950px;
+  max-width: 1400px;
+  width: 95%;
   margin: 0 auto;
   animation: fadeIn 0.2s ease-out;
 }
+
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
@@ -477,6 +479,67 @@ button.btn-danger:hover {
 }
 
 .mode-footer { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+
+/* ── Draft Screen & Cards Grid (Multicolumna para PC) ─────────────────────── */
+.draft-header {
+  margin-bottom: 2rem;
+}
+
+.draft-state {
+  margin-bottom: 1.5rem;
+  background: var(--bg-surface-card);
+  padding: 1.25rem 1.5rem;
+  border: 2.5px solid var(--border-bright);
+  box-shadow: var(--shadow-card);
+}
+
+.draft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+.draft-card-only-img {
+  width: 100%;
+  aspect-ratio: 0.7;
+  border: 2.5px solid var(--border-bright);
+  background: var(--bg-surface-card);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 4px 4px 0px #000;
+}
+
+.draft-card-only-img:hover {
+  transform: translate(-3px, -3px);
+  border-color: var(--border-neon);
+  box-shadow: 6px 6px 0px #00ff66;
+}
+
+.card-image-full {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-image-fallback-full {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 
 /* ── Subasta Pokémon Brutalist Styling ────────────────────────────────────── */
 .subasta-config-panel {
