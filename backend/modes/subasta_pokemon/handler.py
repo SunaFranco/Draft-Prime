@@ -128,10 +128,10 @@ class SubastaPokemonMode(BaseGameMode):
 
     def get_public_config_options(self, session: dict) -> Dict[str, Any]:
         return {
-            "default_starting_money": 10000,
+            "default_starting_money": 100000,
             "default_turns_per_year": 3,
-            "default_pok_per_player": 2,
-            "default_buyout_multiplier": 3.0,
+            "default_pok_per_player": 8,
+            "default_buyout_multiplier": 10.0,
             "default_secret_fee": 500,
         }
 
@@ -196,10 +196,10 @@ class SubastaPokemonMode(BaseGameMode):
         }
 
     def validate_config(self, message: dict) -> dict:
-        starting_money = int(message.get("starting_money", 10000))
+        starting_money = int(message.get("starting_money", 100000))
         turns_per_year = int(message.get("turns_per_year", 3))
-        pok_per_player = int(message.get("pok_per_player", 2))
-        buyout_multiplier = float(message.get("buyout_multiplier", 3.0))
+        pok_per_player = int(message.get("pok_per_player", 8))
+        buyout_multiplier = float(message.get("buyout_multiplier", 10.0))
         secret_fee = int(message.get("secret_fee", 500))
 
         if starting_money < 1000 or starting_money > 100000:
@@ -219,10 +219,10 @@ class SubastaPokemonMode(BaseGameMode):
 
     def start_game(self, session: dict) -> None:
         config = session.get("mode_config", {
-            "starting_money": 10000,
+            "starting_money": 100000,
             "turns_per_year": 3,
-            "pok_per_player": 2,
-            "buyout_multiplier": 3.0,
+            "pok_per_player": 8,
+            "buyout_multiplier": 10.0,
             "secret_fee": 500,
         })
         order = get_connected_player_order(session)
