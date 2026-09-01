@@ -3,6 +3,7 @@
  */
 
 import { BaseGameModeUI } from "../base_mode.js";
+import { showScreen } from "../../js/core/ui.js";
 import {
   renderConfigForm,
   readConfigForm,
@@ -12,7 +13,6 @@ import {
   renderAdminAndStandingsView,
   renderMyPokemonInventory,
 } from "./subasta_ui_components.js";
-
 
 export class SubastaPokemonModeUI extends BaseGameModeUI {
   constructor() {
@@ -61,8 +61,10 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
   }
 
   renderCurrentStageView(state, sessionClient, isHost) {
+    showScreen("draft");
     const draftContainer = document.getElementById("screen-draft");
     if (!draftContainer) return;
+
 
     const stage = state.stage || 2;
 

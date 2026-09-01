@@ -200,6 +200,12 @@ function handleWebSocketMessage(msg) {
       }
       break;
 
+    case "draft_started":
+      showScreen("draft");
+      logEvent("¡La partida ha comenzado!");
+      break;
+
+
     case "error":
       logEvent(`❌ Error: ${data.message}`);
       alert(data.message);
