@@ -71,21 +71,32 @@ def extract_level_up_moves(moves_data: List[dict]) -> List[dict]:
     return level_moves
 
 
+def clean_poke_api_name(name: str) -> str:
+    """Limpia caracteres especiales para generar slugs válidos de PokeAPI."""
+    s = name.lower().strip()
+    s = s.replace("farfetch'd", "farfetchd").replace("sirfetch'd", "sirfetchd")
+    s = s.replace("mr. mime", "mr-mime").replace("mime jr.", "mime-jr").replace("mr. rime", "mr-rime")
+    s = s.replace("type: null", "type-null").replace("tapu ", "tapu-")
+    s = s.replace("é", "e").replace("'", "").replace(" ", "-")
+    return s
+
+
 def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
     """Consulta datos de Pokémon desde PokeAPI con fallback en caso de error/offline."""
     key = str(name_or_id).lower().strip()
+    api_slug = clean_poke_api_name(name_or_id)
     cache_key = f"{key}_{level_cap}"
     if cache_key in POKE_CACHE:
         return POKE_CACHE[cache_key].copy()
 
-    url = f"{POKEAPI_BASE_URL}/{urllib.parse.quote(key)}"
+    url = f"{POKEAPI_BASE_URL}/{urllib.parse.quote(api_slug)}"
     try:
         ctx = ssl.create_default_context()
         req = urllib.request.Request(url, headers={"User-Agent": "DraftPrimeApp/1.0"})
         with urllib.request.urlopen(req, context=ctx, timeout=5) as resp:
             data = json.loads(resp.read().decode())
             poke_id = data.get("id", 1)
-            name = data.get("name", key).capitalize()
+            name = str(name_or_id).capitalize()
             types = [t["type"]["name"].capitalize() for t in data.get("types", [])]
             abilities = [a["ability"]["name"].replace("-", " ").capitalize() for a in data.get("abilities", [])]
             stats = {s["stat"]["name"]: s["base_stat"] for s in data.get("stats", [])}
@@ -129,9 +140,10 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             }
             POKE_CACHE[cache_key] = res
             return res.copy()
-    except Exception:
+    except Exception as e:
+        print(f"[WARNING] No se pudo cargar '{name_or_id}' ({api_slug}) desde PokeAPI ({e}). Usando fallback local.")
         # Fallback local
-        name_clean = key.capitalize()
+        name_clean = str(name_or_id).capitalize()
         default_moves = [
             {"name": "Tackle", "level": 1},
             {"name": "Quick Attack", "level": 5},
@@ -163,9 +175,16 @@ def get_random_pokemon_from_tier(tier: str = "normal", year: Optional[int] = Non
     from backend import database
     db_pool = database.get_pokemon_pools_from_db(year=year, auction_type=tier)
 
-    pool = db_pool if db_pool else SAMPLE_POKEMON_POOLS.get(tier.lower(), SAMPLE_POKEMON_POOLS["normal"])
-    chosen_name = random.choice(pool)
+    if db_pool:
+        print(f"[OK] [DATABASE] Se cargaron {len(db_pool)} Pokémon desde Supabase (Año {year}, Tipo '{tier}').")
+        chosen_name = random.choice(db_pool)
+    else:
+        print(f"[INFO] [LOCAL] Usando pool estático por defecto (Año {year}, Tipo '{tier}').")
+        pool = SAMPLE_POKEMON_POOLS.get(tier.lower(), SAMPLE_POKEMON_POOLS["normal"])
+        chosen_name = random.choice(pool)
+
     return fetch_pokemon_data(chosen_name, level_cap=level_cap)
+
 
 
 def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:

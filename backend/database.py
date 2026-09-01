@@ -164,6 +164,7 @@ def get_game_session(session_id: str) -> Optional[dict]:
 def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional[str] = None) -> List[str]:
     """Obtiene la lista de nombres de Pokémon desde la base de datos filtrada por año y tipo de subasta."""
     if not supabase_client:
+        print("[INFO] [SUPABASE] Sin cliente de Supabase (sin SUPABASE_URL / KEY). Usando pool local.")
         return []
 
     try:
@@ -171,18 +172,35 @@ def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional
         if year is not None:
             query = query.eq("year", year)
         if auction_type is not None:
-            query = query.eq("auction_type", auction_type)
+            query = query.ilike("auction_type", auction_type.strip())
 
         res = query.execute()
         if res.data:
             names = []
             for pool_item in res.data:
                 for card in pool_item.get("pokemon_pool_cards", []):
-                    names.extend([card["pokemon_name"]] * card.get("qty", 1))
-            return names
+                    if card.get("pokemon_name"):
+                        names.extend([card["pokemon_name"]] * card.get("qty", 1))
+            if names:
+                print(f"[OK] [SUPABASE] Se obtuvieron {len(names)} Pokémon de la DB (Año={year}, Tipo='{auction_type}').")
+                return names
+
+        # Si no encontró resultados exactos con filtro por año, intentar buscar cualquier pool existente en la DB
+        res_fallback = supabase_client.table("pokemon_pools").select("id, pokemon_pool_cards(pokemon_name, qty)").execute()
+        if res_fallback.data:
+            names = []
+            for pool_item in res_fallback.data:
+                for card in pool_item.get("pokemon_pool_cards", []):
+                    if card.get("pokemon_name"):
+                        names.extend([card["pokemon_name"]] * card.get("qty", 1))
+            if names:
+                print(f"[OK] [SUPABASE FALLBACK] No se encontró coincidencia exacta para Año={year}, pero se obtuvieron {len(names)} Pokémon de otros pools en la DB.")
+                return names
+
     except Exception as e:
         print(f"[WARNING] Error consultando pokemon_pools en Supabase: {e}")
 
     return []
+
 
 
