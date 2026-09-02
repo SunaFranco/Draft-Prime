@@ -12,13 +12,6 @@ ITEMS_POOL = [
 
 EVENTS_YEAR_1 = [
     {
-        "id": "e1_entrenamiento",
-        "title": "🏋️ Entrenamiento Intensivo",
-        "description": "Tu equipo entrena duro. ¡El nivel de tu Pokémon más débil aumenta en +5!",
-        "type": "stat_boost",
-        "xp_bonus": 5,
-    },
-    {
         "id": "e1_objeto",
         "title": "🎁 Hallazgo de Objeto",
         "description": "Encontraste un objeto competitivo tirado en la ruta.",
@@ -30,13 +23,6 @@ EVENTS_YEAR_1 = [
         "description": "Un patrocinador local apoya tu campaña con $1,000 de presupuesto extra.",
         "type": "money_grant",
         "amount": 1000,
-    },
-    {
-        "id": "e1_batalla",
-        "title": "⚔️ Batalla Salvaje",
-        "description": "¡Un combate desafiante! Tu Pokémon líder gana +8 niveles.",
-        "type": "xp_boost",
-        "xp_bonus": 8,
     },
 ]
 
