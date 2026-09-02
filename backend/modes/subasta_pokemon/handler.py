@@ -126,6 +126,7 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         else:
             updated["ability"] = evo_abilities[0]
 
+    next_evolution = poke_api.get_pokemon_evolution_target(updated["name"], max_level=max_lvl)
     poke.clear()
     poke.update({
         "id": updated.get("id"),
@@ -140,7 +141,9 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "image_url": updated.get("image_url", ""),
         "level": max_lvl,
         "level_up_moves": updated.get("level_up_moves", []),
-        "selected_moves": merged_selected if merged_selected else updated.get("selected_moves", [])
+        "selected_moves": merged_selected if merged_selected else updated.get("selected_moves", []),
+        "can_evolve": bool(next_evolution),
+        "evolution_target": next_evolution,
     })
     return True
 

@@ -168,6 +168,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                     {"name": "Iron Tail", "level": 20}
                 ]
 
+            next_evolution = get_pokemon_evolution_target(name, max_level=level_cap)
             res = {
                 "id": poke_id,
                 "name": name,
@@ -181,7 +182,9 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "image_url": image_url,
                 "level": level_cap,
                 "level_up_moves": level_up_moves,
-                "selected_moves": [m["name"] for m in level_up_moves if m["level"] <= level_cap][-4:]
+                "selected_moves": [m["name"] for m in level_up_moves if m["level"] <= level_cap][-4:],
+                "can_evolve": bool(next_evolution),
+                "evolution_target": next_evolution,
             }
             POKE_CACHE[cache_key] = res
             return res.copy()
@@ -196,6 +199,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             {"name": "Body Slam", "level": 20},
             {"name": "Hyper Beam", "level": 40}
         ]
+        next_evolution = get_pokemon_evolution_target(name_clean, max_level=level_cap)
         res = {
             "id": random.randint(1, 151),
             "name": name_clean,
@@ -209,7 +213,9 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png",
             "level": level_cap,
             "level_up_moves": default_moves,
-            "selected_moves": [m["name"] for m in default_moves if m["level"] <= level_cap][-4:]
+            "selected_moves": [m["name"] for m in default_moves if m["level"] <= level_cap][-4:],
+            "can_evolve": bool(next_evolution),
+            "evolution_target": next_evolution,
         }
         POKE_CACHE[cache_key] = res
         return res.copy()

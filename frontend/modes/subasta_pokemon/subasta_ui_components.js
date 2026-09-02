@@ -341,6 +341,8 @@ export function renderMyPokemonInventory(data, sessionClient) {
             : itemName;
           const canEvolve = (() => {
             const currentYear = Number(data.current_year || 1);
+            const evolutionAllowed = Boolean(poke.can_evolve || poke.evolution_target);
+            if (!evolutionAllowed) return false;
             if (currentYear === 1) return false;
             if (currentYear === 2) return poke.level >= 40;
             return poke.level >= 100;
