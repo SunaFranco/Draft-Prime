@@ -2,6 +2,12 @@
  * frontend/modes/subasta_pokemon/subasta_ui_components.js - Componentes de renderizado UI para Subasta Pokémon
  */
 
+function buildWikidexUrl(name) {
+  if (!name) return "";
+  const formatted = String(name).trim().replace(/\s+/g, "_").replace(/[()]/g, "");
+  return `https://www.wikidex.net/wiki/${encodeURI(formatted)}`;
+}
+
 export function renderConfigForm(containerEl, data, isHost) {
   const defaults = {
     starting_money: 10000,
@@ -70,6 +76,9 @@ export function renderAuctionView(data, sessionClient, isHost) {
     poke.image_url &&
     (isPubliclyRevealed || (!auction.reveal_hold_until || revealCountdownMs <= 5000))
   );
+  const hintAbility = hints.ability && !String(hints.ability).includes("🔒")
+    ? `<a href="${buildWikidexUrl(hints.ability)}" target="_blank" rel="noopener noreferrer" class="badge-link">${hints.ability}</a>`
+    : hints.ability || "🔒 Incógnito (3.0x)";
 
   let html = `
     <div class="subasta-header">
@@ -105,7 +114,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
           <ul>
             <li><strong>Letra Inicial:</strong> ${hints.first_letter}</li>
             <li><strong>Región:</strong> ${hints.region || "🔒 Incógnito (2.0x)"}</li>
-            <li><strong>Habilidad:</strong> ${hints.ability || "🔒 Incógnito (3.0x)"}</li>
+            <li><strong>Habilidad:</strong> ${hintAbility}</li>
             <li><strong>Tipo Primario:</strong> ${hints.primary_type || "🔒 Incógnito (5.0x)"}</li>
             <li><strong>Mejor Stat Base:</strong> ${hints.highest_stat || "🔒 Incógnito (8.0x)"}</li>
           </ul>
@@ -288,7 +297,9 @@ export function renderMyPokemonInventory(data, sessionClient) {
           return `
             <div class="poke-inventory-item" data-poke-idx="${pokeIdx}">
               <div class="poke-inv-header">
-                ${poke.image_url ? `<img src="${poke.image_url}" class="poke-thumb" />` : ''}
+                ${poke.image_url && poke.name
+                  ? `<a href="${buildWikidexUrl(poke.name)}" target="_blank" rel="noopener noreferrer"><img src="${poke.image_url}" class="poke-thumb" alt="${poke.name}" /></a>`
+                  : (poke.image_url ? `<img src="${poke.image_url}" class="poke-thumb" />` : '')}
                 <div>
                   <span class="badge">Nv. ${poke.level || levelCap}</span>
                   <span class="badge badge-green">Habilidad: ${abilityHtml}</span>
