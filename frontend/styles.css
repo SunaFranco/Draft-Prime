@@ -619,27 +619,26 @@ button.btn-danger:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  background: #000;
+  border: 3px solid var(--border-neon);
+  box-shadow: 4px 4px 0px #00ff66;
   overflow: hidden;
-  position: relative;
 }
 
 .poke-image-wrapper--revealed {
-  background: transparent;
-  border: none;
+  background: #000;
+  border-color: var(--border-neon);
 }
 
 .poke-thumb--revealed {
-  width: 240px;
-  height: 240px;
+  width: 100%;
+  height: 100%;
   max-width: none;
   max-height: none;
   object-fit: cover;
   display: block;
-  background: transparent;
-  transform: scale(1.15);
+  background: #000;
+  transform: scale(1.18);
 }
 
 .poke-unknown-avatar {
