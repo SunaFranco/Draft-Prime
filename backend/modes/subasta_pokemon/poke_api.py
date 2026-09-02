@@ -199,19 +199,19 @@ def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:
     hints = {}
     name = poke_data.get("name", "???")
 
-    if multiplier >= 1.5:
+    if multiplier >= 1:
         hints["first_letter"] = name[0].upper() if name else "?"
 
-    if multiplier >= 2.0:
+    if multiplier >= 1.5:
         hints["region"] = poke_data.get("region", "Desconocida")
 
-    if multiplier >= 2.5:
+    if multiplier >= 2:
         hints["ability"] = poke_data.get("ability", "Desconocida")
 
-    if multiplier >= 3.0:
+    if multiplier >= 3:
         hints["primary_type"] = poke_data.get("primary_type", "Normal")
 
-    if multiplier >= 3.5:
+    if multiplier >= 5:
         hints["highest_stat"] = poke_data.get("highest_stat", "HP (50)")
 
     return hints
