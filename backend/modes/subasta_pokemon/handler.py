@@ -51,6 +51,80 @@ def get_year_level_cap(year: int) -> int:
     return 100
 
 
+ITEM_SHOP_PRICES = {
+    "Leftovers": 1200,
+    "Life Orb": 1800,
+    "Choice Band": 2000,
+    "Choice Specs": 2000,
+    "Choice Scarf": 2000,
+    "Eviolite": 1500,
+    "Rocky Helmet": 1400,
+    "Heavy-Duty Boots": 1600,
+    "Focus Sash": 1700,
+    "Assault Vest": 1800,
+}
+
+
+def normalize_item_inventory(items: Any) -> Dict[str, int]:
+    if items is None:
+        return {}
+    if isinstance(items, dict):
+        return {str(k): int(v) for k, v in items.items() if int(v) > 0}
+    if isinstance(items, list):
+        counts: Dict[str, int] = {}
+        for item in items:
+            name = str(item)
+            counts[name] = counts.get(name, 0) + 1
+        return counts
+    return {}
+
+
+def add_item_to_inventory(player: dict, item_name: str, qty: int = 1):
+    item_name = str(item_name)
+    if not item_name:
+        return
+    items = normalize_item_inventory(player.get("items", {}))
+    items[item_name] = items.get(item_name, 0) + qty
+    player["items"] = {k: v for k, v in sorted(items.items()) if v > 0}
+
+
+def remove_item_from_inventory(player: dict, item_name: str, qty: int = 1):
+    item_name = str(item_name)
+    if not item_name:
+        return
+    items = normalize_item_inventory(player.get("items", {}))
+    current = items.get(item_name, 0)
+    if current <= 0:
+        return
+    new_qty = max(0, current - qty)
+    if new_qty <= 0:
+        items.pop(item_name, None)
+    else:
+        items[item_name] = new_qty
+    player["items"] = {k: v for k, v in sorted(items.items()) if v > 0}
+
+
+def assign_item_to_pokemon(player: dict, pok_idx: int, item_name: str) -> bool:
+    if pok_idx < 0 or pok_idx >= len(player.get("pokemon", [])):
+        return False
+    inventory = normalize_item_inventory(player.get("items", {}))
+    if item_name not in inventory or inventory[item_name] <= 0:
+        return False
+
+    poke = player["pokemon"][pok_idx]
+    current_item = poke.get("item") or poke.get("held_item")
+    if current_item and current_item != item_name:
+        add_item_to_inventory(player, current_item)
+
+    if current_item == item_name:
+        return True
+
+    remove_item_from_inventory(player, item_name)
+    poke["item"] = item_name
+    poke["held_item"] = item_name
+    return True
+
+
 def init_subasta_round(session: dict):
     """Inicializa una nueva ronda de subasta para un Pokémon."""
     subasta_state = session["subasta"]
@@ -273,7 +347,7 @@ class SubastaPokemonMode(BaseGameMode):
                 "money": p_info["money"],
                 "pokemon_count": len(p_info["pokemon"]),
                 "pokemon": visible_pokes,
-                "items": p_info.get("items", []),
+                "items": normalize_item_inventory(p_info.get("items", {})),
                 "points": p_info.get("points", 0)
             }
 
@@ -661,6 +735,51 @@ class SubastaPokemonMode(BaseGameMode):
             )
             subasta_state["standings"] = sorted_standings
 
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action in ("subasta_item_assign", "subasta_item_equip"):
+            item_name = message.get("item_name") or message.get("item")
+            poke_idx = int(message.get("pokemon_index", message.get("poke_index", -1)))
+            player = subasta_state["players"].get(username)
+
+            if not item_name:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Debes elegir un objeto."}})
+                return True
+            if not player:
+                return True
+
+            if not assign_item_to_pokemon(player, poke_idx, item_name):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes ese objeto o el Pokémon es inválido."}})
+                return True
+
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_shop_buy":
+            stage = subasta_state.get("current_stage")
+            if stage not in (4, 8, 12, 13):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "La tienda solo está disponible en las fases de confirmación de Showdown."}})
+                return True
+
+            item_name = message.get("item_name")
+            if not item_name:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Debes indicar qué objeto quieres comprar."}})
+                return True
+
+            player = subasta_state["players"].get(username)
+            if not player:
+                return True
+
+            price = ITEM_SHOP_PRICES.get(item_name, 1500)
+            if player["money"] < price:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes suficiente dinero para comprar ese objeto."}})
+                return True
+
+            player["money"] -= price
+            add_item_to_inventory(player, item_name)
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True

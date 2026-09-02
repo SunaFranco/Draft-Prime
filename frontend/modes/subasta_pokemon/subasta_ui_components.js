@@ -8,6 +8,24 @@ function buildWikidexUrl(name) {
   return `https://www.wikidex.net/wiki/${encodeURI(formatted)}`;
 }
 
+function normalizeItemMap(items) {
+  if (!items) return {};
+  if (Array.isArray(items)) {
+    const counts = {};
+    items.forEach((item) => {
+      const key = String(item || "").trim();
+      if (!key) return;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  }
+  return Object.entries(items).reduce((acc, [key, value]) => {
+    const qty = Number(value) || 0;
+    if (qty > 0) acc[String(key)] = qty;
+    return acc;
+  }, {});
+}
+
 export function renderConfigForm(containerEl, data, isHost) {
   const defaults = {
     starting_money: 10000,
@@ -311,7 +329,18 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
 export function renderMyPokemonInventory(data, sessionClient) {
   const myData = data.my_data || {};
   const pokemonList = myData.pokemon || [];
+  const bagEntries = Object.entries(normalizeItemMap(myData.items || {}));
   const levelCap = data.current_year === 1 ? 20 : (data.current_year === 2 ? 40 : 100);
+  const shopOpen = [4, 8, 12, 13].includes(Number(data.stage || 0));
+  const shopItems = [
+    { name: "Leftovers", price: 1200 },
+    { name: "Life Orb", price: 1800 },
+    { name: "Choice Band", price: 2000 },
+    { name: "Choice Specs", price: 2000 },
+    { name: "Choice Scarf", price: 2000 },
+    { name: "Eviolite", price: 1500 },
+    { name: "Rocky Helmet", price: 1400 },
+  ];
 
   if (pokemonList.length === 0) {
     return `
@@ -364,6 +393,15 @@ export function renderMyPokemonInventory(data, sessionClient) {
 
               <div class="poke-item-line">
                 <span class="badge badge-item"><strong>Ítem:</strong> ${itemHtml}</span>
+                ${bagEntries.length ? `
+                  <div class="item-equip-box">
+                    <select class="poke-item-select" data-poke-idx="${pokeIdx}">
+                      <option value="">-- Cambiar item --</option>
+                      ${bagEntries.map(([itemName, qty]) => `<option value="${itemName}">${itemName} (x${qty})</option>`).join("")}
+                    </select>
+                    <button class="btn btn-small btn-primary btn-equip-item" data-poke-idx="${pokeIdx}">Cambiar</button>
+                  </div>
+                ` : ""}
               </div>
 
               ${canEvolve ? `<button class="btn btn-small btn-primary btn-evolve-pokemon" data-poke-idx="${pokeIdx}">✨ Evolucionar</button>` : ""}
@@ -402,6 +440,35 @@ export function renderMyPokemonInventory(data, sessionClient) {
           `;
         }).join("")}
       </div>
+
+      <div class="backpack-panel">
+        <h4>Mochila</h4>
+        ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
+          <div class="bag-item-row">
+            <a href="${buildWikidexUrl(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>
+            <span class="item-qty">x${qty}</span>
+            <select class="bag-item-select" data-item-name="${itemName}">
+              ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+            </select>
+            <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>
+          </div>
+        `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
+      </div>
+
+      ${shopOpen ? `
+        <div class="shop-panel">
+          <h4>Tienda</h4>
+          <div class="shop-items">
+            ${shopItems.map((shopItem) => `
+              <div class="shop-item-row">
+                <a href="${buildWikidexUrl(shopItem.name)}" target="_blank" rel="noopener noreferrer" class="badge-link">${shopItem.name}</a>
+                <span>$${shopItem.price}</span>
+                <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
     </div>
   `;
 }

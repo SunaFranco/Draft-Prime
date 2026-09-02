@@ -412,6 +412,99 @@ class TestSubastaPokemon(unittest.TestCase):
         asyncio.run(mode.handle_action(session, "Alice", "subasta_fold", {}, None, manager))
         self.assertEqual(manager.messages[-1]["data"]["message"], "No puedes retirarte mientras eres el mayor pujador.")
 
+    def test_item_backpack_and_equip_flow(self):
+        class DummyManager:
+            def __init__(self):
+                self.messages = []
+
+            async def send_personal(self, websocket, payload):
+                self.messages.append(payload)
+
+            async def send_personal_to_user(self, session_id, username, payload):
+                self.messages.append({"user": username, "payload": payload})
+
+            async def broadcast(self, *args, **kwargs):
+                pass
+
+        session = {
+            "id": "s1",
+            "host": "Alice",
+            "mode": "subasta_pokemon",
+            "subasta": {
+                "starting_money": 10000,
+                "current_stage": 4,
+                "current_year": 1,
+                "current_turn": 1,
+                "turns_per_year": 3,
+                "pok_per_player": 2,
+                "player_order": ["Alice"],
+                "players": {
+                    "Alice": {
+                        "money": 12000,
+                        "pokemon": [{"name": "Pikachu", "level": 20, "item": "Leftovers"}],
+                        "items": {"Leftovers": 1, "Life Orb": 2},
+                        "points": 0,
+                        "resolved_turn": False,
+                    }
+                },
+                "current_auction": {},
+                "current_turn_events": {}
+            }
+        }
+
+        mode = SubastaPokemonMode()
+        manager = DummyManager()
+
+        asyncio.run(mode.handle_action(session, "Alice", "subasta_item_assign", {"pokemon_index": 0, "item_name": "Life Orb"}, None, manager))
+        self.assertEqual(session["subasta"]["players"]["Alice"]["pokemon"][0]["item"], "Life Orb")
+        self.assertEqual(session["subasta"]["players"]["Alice"]["items"]["Life Orb"], 1)
+
+    def test_shop_buy_available_only_in_showdown_confirmation_stages(self):
+        class DummyManager:
+            def __init__(self):
+                self.messages = []
+
+            async def send_personal(self, websocket, payload):
+                self.messages.append(payload)
+
+            async def send_personal_to_user(self, session_id, username, payload):
+                self.messages.append({"user": username, "payload": payload})
+
+            async def broadcast(self, *args, **kwargs):
+                pass
+
+        session = {
+            "id": "s1",
+            "host": "Alice",
+            "mode": "subasta_pokemon",
+            "subasta": {
+                "starting_money": 10000,
+                "current_stage": 2,
+                "current_year": 1,
+                "current_turn": 1,
+                "turns_per_year": 3,
+                "pok_per_player": 2,
+                "player_order": ["Alice"],
+                "players": {
+                    "Alice": {"money": 5000, "pokemon": [], "items": {}, "points": 0, "resolved_turn": False}
+                },
+                "current_auction": {},
+                "current_turn_events": {}
+            }
+        }
+
+        mode = SubastaPokemonMode()
+        manager = DummyManager()
+
+        result = asyncio.run(mode.handle_action(session, "Alice", "subasta_shop_buy", {"item_name": "Leftovers"}, None, manager))
+        self.assertTrue(result)
+        self.assertEqual(session["subasta"]["players"]["Alice"]["items"].get("Leftovers", 0), 0)
+
+        session["subasta"]["current_stage"] = 4
+        result = asyncio.run(mode.handle_action(session, "Alice", "subasta_shop_buy", {"item_name": "Leftovers"}, None, manager))
+        self.assertTrue(result)
+        self.assertGreaterEqual(session["subasta"]["players"]["Alice"]["items"].get("Leftovers", 0), 1)
+
     def test_fixed_ability_and_moves_by_level(self):
         poke = poke_api.fetch_pokemon_data("Pikachu", level_cap=20)
         self.assertIn("ability", poke)

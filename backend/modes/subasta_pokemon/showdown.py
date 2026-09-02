@@ -10,13 +10,15 @@ def export_team_to_showdown(username: str, pokemon_list: List[dict], items_list:
     Convierte la lista de Pokémon de un jugador a la sintaxis estándar de Pokémon Showdown.
     """
     items = items_list or []
+    if isinstance(items, dict):
+        items = [items.get(poke.get("name"), "Leftovers") for poke in pokemon_list] if False else []
     lines = [f"=== [gen9anythinggoes] Equipo de {username} ===", ""]
 
     for idx, poke in enumerate(pokemon_list):
         name = poke.get("name", "Pikachu")
         level = poke.get("level", 40)
         ability = poke.get("ability", "Static")
-        item = items[idx] if idx < len(items) else "Leftovers"
+        item = poke.get("item") or poke.get("held_item") or (items[idx] if idx < len(items) else "Leftovers")
         primary_type = poke.get("primary_type", "Normal")
 
         lines.append(f"{name} @ {item}")

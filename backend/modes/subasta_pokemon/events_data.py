@@ -98,6 +98,21 @@ def get_random_event_for_year(year: int) -> dict:
     return event
 
 
+def normalize_item_counts(items) -> dict:
+    """Normaliza el inventario a un diccionario item -> cantidad."""
+    if items is None:
+        return {}
+    if isinstance(items, dict):
+        return {str(k): int(v) for k, v in items.items() if int(v) > 0}
+    if isinstance(items, list):
+        counts = {}
+        for item in items:
+            if item:
+                counts[str(item)] = counts.get(str(item), 0) + 1
+        return counts
+    return {}
+
+
 def apply_event_to_player(player_state: dict, event: dict) -> dict:
     """Aplica los efectos de un evento al estado del jugador y retorna un resumen del impacto."""
     event_type = event.get("type")
@@ -109,7 +124,9 @@ def apply_event_to_player(player_state: dict, event: dict) -> dict:
 
     if event.get("granted_item"):
         item = event["granted_item"]
-        player_state.setdefault("items", []).append(item)
+        items = normalize_item_counts(player_state.setdefault("items", {}))
+        items[item] = items.get(item, 0) + 1
+        player_state["items"] = items
         msg_parts.append(f"Objeto obtenido: {item}.")
 
     if "xp_bonus" in event and player_state.get("pokemon"):

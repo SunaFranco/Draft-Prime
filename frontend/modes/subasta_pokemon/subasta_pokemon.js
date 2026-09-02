@@ -201,6 +201,35 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
+    document.querySelectorAll(".btn-equip-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const pokeIdx = parseInt(btn.getAttribute("data-poke-idx"), 10);
+        const select = document.querySelector(`.poke-item-select[data-poke-idx="${pokeIdx}"]`);
+        const itemName = select ? select.value : "";
+        if (!itemName) return;
+        sessionClient.send({ action: "subasta_item_assign", poke_index: pokeIdx, item_name: itemName });
+      });
+    });
+
+    document.querySelectorAll(".btn-item-give").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const itemName = btn.getAttribute("data-item-name");
+        const row = btn.closest(".bag-item-row");
+        const select = row ? row.querySelector(".bag-item-select") : null;
+        const pokeIdx = select ? parseInt(select.value, 10) : -1;
+        if (!itemName || pokeIdx < 0) return;
+        sessionClient.send({ action: "subasta_item_assign", poke_index: pokeIdx, item_name: itemName });
+      });
+    });
+
+    document.querySelectorAll(".btn-buy-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const itemName = btn.getAttribute("data-item-name");
+        if (!itemName) return;
+        sessionClient.send({ action: "subasta_shop_buy", item_name: itemName });
+      });
+    });
+
     document.querySelectorAll(".btn-modify-moves").forEach((btn) => {
       btn.addEventListener("click", () => {
         const box = btn.closest(".moves-selector-box");
