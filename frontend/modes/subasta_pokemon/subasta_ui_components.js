@@ -26,6 +26,11 @@ function normalizeItemMap(items) {
   }, {});
 }
 
+function buildItemSpriteUrl(name) {
+  const slug = String(name || "").trim().toLowerCase().replace(/\s+/g, "-");
+  return slug ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(slug)}.png` : "";
+}
+
 export function renderConfigForm(containerEl, data, isHost) {
   const defaults = {
     starting_money: 10000,
@@ -342,20 +347,11 @@ export function renderMyPokemonInventory(data, sessionClient) {
     { name: "Rocky Helmet", price: 1400 },
   ];
 
-  if (pokemonList.length === 0) {
-    return `
-      <div class="card inventory-card">
-        <h3>Mis Pokémon Conseguidos</h3>
-        <p class="text-muted">Aún no has conseguido ningún Pokémon en las subastas.</p>
-      </div>
-    `;
-  }
-
   return `
     <div class="card inventory-card">
       <h3>Mis Pokémon Conseguidos (Level Cap: Nv. ${levelCap})</h3>
       <div class="inventory-grid">
-        ${pokemonList.map((poke, pokeIdx) => {
+        ${pokemonList.length ? pokemonList.map((poke, pokeIdx) => {
           const levelUpMoves = (poke.level_up_moves || []).filter((m) => m.level <= levelCap);
           const selectedMoves = poke.selected_moves || [];
           const isSaved = selectedMoves.length >= 4;
@@ -438,37 +434,42 @@ export function renderMyPokemonInventory(data, sessionClient) {
               </div>
             </div>
           `;
-        }).join("")}
+        }).join("") : '<p class="text-muted">Aún no has conseguido ningún Pokémon en las subastas.</p>'}
       </div>
 
       <div class="backpack-panel">
-        <h4>Mochila</h4>
-        ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
-          <div class="bag-item-row">
-            <a href="${buildWikidexUrl(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>
-            <span class="item-qty">x${qty}</span>
-            <select class="bag-item-select" data-item-name="${itemName}">
-              ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
-            </select>
-            <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>
-          </div>
-        `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
-      </div>
+        <button type="button" class="btn btn-secondary backpack-toggle" aria-expanded="false">🎒 Mochila</button>
+        <div class="backpack-menu">
+          <h4>Mochila</h4>
+          ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
+            <div class="bag-item-row">
+              <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
+              <a href="${buildWikidexUrl(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>
+              <span class="item-qty">x${qty}</span>
+              ${pokemonList.length ? `<select class="bag-item-select" data-item-name="${itemName}">
+                ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+              </select>
+              <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>` : ""}
+            </div>
+          `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
 
-      ${shopOpen ? `
-        <div class="shop-panel">
-          <h4>Tienda</h4>
-          <div class="shop-items">
-            ${shopItems.map((shopItem) => `
-              <div class="shop-item-row">
-                <a href="${buildWikidexUrl(shopItem.name)}" target="_blank" rel="noopener noreferrer" class="badge-link">${shopItem.name}</a>
-                <span>$${shopItem.price}</span>
-                <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
+          ${shopOpen ? `
+            <div class="shop-panel">
+              <h4>Tienda</h4>
+              <div class="shop-items">
+                ${shopItems.map((shopItem) => `
+                  <div class="shop-item-row">
+                    <img src="${buildItemSpriteUrl(shopItem.name)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
+                    <a href="${buildWikidexUrl(shopItem.name)}" target="_blank" rel="noopener noreferrer" class="badge-link">${shopItem.name}</a>
+                    <span>$${shopItem.price}</span>
+                    <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
+                  </div>
+                `).join("")}
               </div>
-            `).join("")}
-          </div>
+            </div>
+          ` : ""}
         </div>
-      ` : ""}
+      </div>
     </div>
   `;
 }

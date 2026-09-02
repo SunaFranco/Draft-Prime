@@ -92,6 +92,8 @@ class TestSubastaPokemon(unittest.TestCase):
             "level": 35,
             "ability": "Blaze",
             "abilities": ["Blaze", "Solar Power"],
+            "item": "Life Orb",
+            "held_item": "Life Orb",
             "image_url": "old-sprite.png",
             "selected_moves": ["Ember"],
             "level_up_moves": [
@@ -126,6 +128,8 @@ class TestSubastaPokemon(unittest.TestCase):
         self.assertEqual(original["image_url"], "new-sprite.png")
         self.assertEqual(original["ability"], "Solar Power")
         self.assertIn("Solar Power", original["abilities"])
+        self.assertEqual(original["item"], "Life Orb")
+        self.assertEqual(original["held_item"], "Life Orb")
         self.assertGreaterEqual(len(original["selected_moves"]), 1)
 
     def test_buyout_immediately_finishes_round(self):

@@ -177,6 +177,7 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
     """Evoluciona un Pokémon reemplazando la especie completa y manteniendo los ataques válidos."""
     evo_map = EVOLUTION_MAP_LVL_40 if max_lvl == 40 else EVOLUTION_MAP_LVL_100
     current_name = poke.get("name")
+    current_item = poke.get("item") or poke.get("held_item")
     target_name = poke_api.get_pokemon_evolution_target(current_name, max_lvl)
     if not target_name:
         target_name = evo_map.get(current_name)
@@ -217,6 +218,8 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "level": max_lvl,
         "level_up_moves": updated.get("level_up_moves", []),
         "selected_moves": merged_selected if merged_selected else updated.get("selected_moves", []),
+        "item": current_item,
+        "held_item": current_item,
         "can_evolve": bool(next_evolution) and (next_level is None or next_level <= max_lvl),
         "evolution_target": next_evolution,
         "next_evolution_level": next_level,

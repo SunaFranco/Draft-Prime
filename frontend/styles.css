@@ -858,6 +858,85 @@ button.btn-danger:hover {
   margin: 0.5rem 0 0.25rem;
 }
 
+.backpack-panel {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.backpack-toggle {
+  position: relative;
+  z-index: 2;
+}
+
+.backpack-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.6rem);
+  width: min(560px, 100%);
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  display: none;
+  padding: 1rem;
+  background: var(--bg-surface-card);
+  border: 2px solid var(--border-bright);
+  box-shadow: 5px 5px 0 var(--border-neon);
+  z-index: 5;
+}
+
+.backpack-menu--open {
+  display: block;
+}
+
+.bag-item-row,
+.shop-item-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.item-sprite {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.item-qty {
+  color: var(--border-neon);
+  font-weight: 700;
+}
+
+.shop-panel {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--border-dim);
+}
+
+.shop-item-row {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+@media (max-width: 560px) {
+  .backpack-menu {
+    right: -0.5rem;
+    width: calc(100vw - 2rem);
+  }
+
+  .bag-item-row,
+  .shop-item-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .bag-item-select,
+  .shop-item-row button {
+    grid-column: 2 / -1;
+  }
+}
+
 .move-label {
   font-size: 0.8rem;
   display: flex;
