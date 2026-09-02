@@ -265,6 +265,9 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
 
 export function renderExportView(data, sessionClient, isHost) {
   const showdownText = data.showdown_text || "";
+  const standings = data.standings || [];
+  const players = Object.keys(data.all_players || {});
+  const isFinalStage = Number(data.stage) === 12;
 
   return `
     <div class="card export-card">
@@ -275,7 +278,36 @@ export function renderExportView(data, sessionClient, isHost) {
 
       <div class="btn-group">
         <button id="btn-copy-showdown" class="btn btn-success">📋 Copiar al Portapapeles</button>
-        ${isHost ? `<button id="btn-next-stage-export" class="btn btn-primary">➡️ Avanzar a la Siguiente Etapa (Host)</button>` : ""}
+      </div>
+
+      ${isHost ? `
+        <div class="admin-match-box">
+          <h3>⚖️ Registrar resultados de esta fase</h3>
+          <div class="form-group">
+            <label>Ganador (+3 pts):</label>
+            <select id="admin-match-winner">
+              ${players.map((p) => `<option value="${p}">${p}</option>`).join("")}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Perdedor (+1 pt):</label>
+            <select id="admin-match-loser">
+              ${players.map((p) => `<option value="${p}">${p}</option>`).join("")}
+            </select>
+          </div>
+          <button id="btn-submit-match" class="btn btn-secondary">Registrar resultado</button>
+          <button id="btn-finalize-event" class="btn btn-primary">${isFinalStage ? "Finalizar evento y revelar ganador" : "Finalizar evento"}</button>
+        </div>
+      ` : ""}
+
+      <div class="standings-card">
+        <h3>Clasificación acumulada</h3>
+        <table class="standings-table">
+          <thead><tr><th>Posición</th><th>Jugador</th><th>Puntos</th></tr></thead>
+          <tbody>${standings.map((s, idx) => `
+            <tr><td>#${idx + 1}</td><td><strong>${s.username}</strong></td><td>${s.points} pts</td></tr>
+          `).join("")}</tbody>
+        </table>
       </div>
     </div>
   `;
@@ -283,12 +315,19 @@ export function renderExportView(data, sessionClient, isHost) {
 
 export function renderAdminAndStandingsView(data, sessionClient, isHost) {
   const standings = data.standings || [];
-  const players = Object.keys(data.all_players || {});
+  const winner = standings[0];
 
   return `
     <div class="card standings-card">
       <h2>🏆 ${data.stage_name}</h2>
       <hr />
+
+      ${data.event_finished && winner ? `
+        <div class="secret-choice-modal">
+          <h2>🏆 Evento finalizado</h2>
+          <p>El ganador es <strong>${winner.username}</strong> con <strong>${winner.points} pts</strong>.</p>
+        </div>
+      ` : ""}
 
       <table class="standings-table">
         <thead>
@@ -309,24 +348,6 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
         </tbody>
       </table>
 
-      ${isHost ? `
-        <div class="admin-match-box">
-          <h3>⚖️ Panel de Administrador: Cargar Resultado de Enfrentamiento</h3>
-          <div class="form-group">
-            <label>Ganador (+3 pts):</label>
-            <select id="admin-match-winner">
-              ${players.map((p) => `<option value="${p}">${p}</option>`).join("")}
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Perdedor (+1 pt):</label>
-            <select id="admin-match-loser">
-              ${players.map((p) => `<option value="${p}">${p}</option>`).join("")}
-            </select>
-          </div>
-          <button id="btn-submit-match" class="btn btn-primary">Registrar Resultado</button>
-        </div>
-      ` : ""}
     </div>
   `;
 }

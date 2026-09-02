@@ -137,8 +137,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
     // Avanzar Etapa (Host)
     const btnForceNext = document.getElementById("btn-force-next-stage");
-    const btnNextStageExport = document.getElementById("btn-next-stage-export");
-    [btnForceNext, btnNextStageExport].forEach((btn) => {
+    [btnForceNext].forEach((btn) => {
       if (btn) {
         btn.addEventListener("click", () => {
           sessionClient.send({ action: "subasta_next_stage" });
@@ -158,6 +157,13 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
             setTimeout(() => (btnCopyShowdown.textContent = "📋 Copiar al Portapapeles"), 2000);
           });
         }
+      });
+    }
+
+    const btnFinalizeEvent = document.getElementById("btn-finalize-event");
+    if (btnFinalizeEvent) {
+      btnFinalizeEvent.addEventListener("click", () => {
+        sessionClient.send({ action: "subasta_finalize_event" });
       });
     }
 
@@ -268,7 +274,6 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       revealFill.style.width = `${percent}%`;
       const text = document.querySelector("[data-reveal-bar] ~ div");
       if (text && text.tagName === "DIV") {
-        // no-op; el texto ya se actualiza al renderizar el estado
       }
       if (remaining <= 0) {
         clearInterval(window.__subastaRevealTimer);

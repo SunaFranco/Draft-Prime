@@ -373,7 +373,8 @@ class SubastaPokemonMode(BaseGameMode):
             "current_turn_event": subasta_state.get("current_turn_events", {}).get(username),
             "showdown_text": showdown_text,
             "standings": subasta_state.get("standings", []),
-            "match_history": subasta_state.get("match_history", [])
+            "match_history": subasta_state.get("match_history", []),
+            "event_finished": subasta_state.get("event_finished", False)
         }
 
     def validate_config(self, message: dict) -> dict:
@@ -451,7 +452,8 @@ class SubastaPokemonMode(BaseGameMode):
             "current_auction": {},
             "current_turn_events": {},
             "standings": [{"username": u, "points": 0} for u in order],
-            "match_history": []
+            "match_history": [],
+            "event_finished": False
         }
 
         init_subasta_round(session)
@@ -716,6 +718,9 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede cargar resultados."}})
                 return True
 
+            if subasta_state["current_stage"] not in (4, 8, 12):
+                return True
+
             winner = message.get("winner")
             loser = message.get("loser")
 
@@ -737,6 +742,41 @@ class SubastaPokemonMode(BaseGameMode):
                 reverse=True
             )
             subasta_state["standings"] = sorted_standings
+
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_finalize_event":
+            if username != session["host"]:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede finalizar la fase."}})
+                return True
+
+            current_stage = subasta_state["current_stage"]
+            if current_stage not in (4, 8, 12):
+                return True
+
+            if current_stage == 12:
+                subasta_state["current_stage"] = 13
+                subasta_state["event_finished"] = True
+            else:
+                subasta_state["current_stage"] = current_stage + 1
+                if subasta_state["current_stage"] == 5:
+                    subasta_state["current_year"] = 2
+                    year_money = subasta_state.get("year_starting_money", {}).get(2, 5000)
+                    for p_info in subasta_state["players"].values():
+                        p_info["money"] += year_money
+                        evolve_player_pokemon(p_info, 40)
+                    subasta_state["current_stage"] = 6
+                    init_subasta_round(session)
+                elif subasta_state["current_stage"] == 9:
+                    subasta_state["current_year"] = 3
+                    year_money = subasta_state.get("year_starting_money", {}).get(3, 7500)
+                    for p_info in subasta_state["players"].values():
+                        p_info["money"] += year_money
+                        evolve_player_pokemon(p_info, 100)
+                    subasta_state["current_stage"] = 10
+                    init_subasta_round(session)
 
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
