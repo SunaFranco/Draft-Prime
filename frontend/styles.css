@@ -623,6 +623,7 @@ button.btn-danger:hover {
   border: 3px solid var(--border-neon);
   box-shadow: 4px 4px 0px #00ff66;
   overflow: hidden;
+  position: relative;
 }
 
 .poke-image-wrapper--revealed {
@@ -633,10 +634,12 @@ button.btn-danger:hover {
 .poke-thumb--revealed {
   width: 100%;
   height: 100%;
-  max-width: none;
-  max-height: none;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   display: block;
+  background: #000;
+  transform: scale(1.12);
 }
 
 .poke-unknown-avatar {
