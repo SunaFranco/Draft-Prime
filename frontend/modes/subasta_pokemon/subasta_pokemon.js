@@ -25,7 +25,6 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const packCount = document.getElementById("pack-count");
     const cardsPerPack = document.getElementById("cards-per-pack");
 
-    // Ocultar controles de draft de Yu-Gi-Oh para subasta
     [cubeSelect, packCount, cardsPerPack].forEach((el) => {
       if (el) {
         el.style.display = "none";
@@ -34,18 +33,13 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       }
     });
 
-    const fieldsContainer = document.getElementById("mode-config-fields");
-    if (fieldsContainer) {
-      renderConfigForm(fieldsContainer, data, isHost);
-    }
+    const fieldsContainer = document.getElementById("mode-config-fields") || containerEl;
+    renderConfigForm(fieldsContainer, data, isHost);
   }
 
   readConfigFields(containerEl) {
-    const fieldsContainer = document.getElementById("mode-config-fields");
-    if (fieldsContainer) {
-      return readConfigForm(fieldsContainer);
-    }
-    return {};
+    const fieldsContainer = document.getElementById("mode-config-fields") || containerEl;
+    return readConfigForm(fieldsContainer);
   }
 
   handleEvent(event, data, context) {
