@@ -345,8 +345,9 @@ export function renderMyPokemonInventory(data, sessionClient) {
             const evolutionAllowed = Boolean(poke.can_evolve || poke.evolution_target);
             if (!evolutionAllowed) return false;
             if (currentYear === 1) return false;
-            if (currentYear === 2) return poke.level >= (nextEvolutionLevel || 40);
-            return poke.level >= (nextEvolutionLevel || 100);
+
+            const requiredLevel = nextEvolutionLevel > 0 ? nextEvolutionLevel : (currentYear === 2 ? 40 : 100);
+            return poke.level >= requiredLevel;
           })();
 
           return `

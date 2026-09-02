@@ -127,6 +127,7 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
             updated["ability"] = evo_abilities[0]
 
     next_evolution = poke_api.get_pokemon_evolution_target(updated["name"], max_level=max_lvl)
+    next_level = poke_api.get_pokemon_next_evolution_level(updated["name"])
     poke.clear()
     poke.update({
         "id": updated.get("id"),
@@ -142,10 +143,21 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "level": max_lvl,
         "level_up_moves": updated.get("level_up_moves", []),
         "selected_moves": merged_selected if merged_selected else updated.get("selected_moves", []),
-        "can_evolve": bool(next_evolution),
+        "can_evolve": bool(next_evolution) and (next_level is None or next_level <= max_lvl),
         "evolution_target": next_evolution,
+        "next_evolution_level": next_level,
     })
     return True
+
+
+def refresh_pokemon_evolution_status(poke: dict, max_lvl: int):
+    """Actualiza si el Pokémon puede evolucionar al cambiar de año."""
+    target_name = poke_api.get_pokemon_evolution_target(poke.get("name"), max_level=max_lvl)
+    next_level = poke_api.get_pokemon_next_evolution_level(poke.get("name"))
+    poke["can_evolve"] = bool(target_name) and (next_level is None or next_level <= max_lvl)
+    poke["evolution_target"] = target_name
+    poke["next_evolution_level"] = next_level
+    return poke["can_evolve"]
 
 
 def evolve_player_pokemon(player_state: dict, max_lvl: int):
@@ -167,6 +179,8 @@ def evolve_player_pokemon(player_state: dict, max_lvl: int):
                 poke["level_up_moves"] = [
                     m for m in current_moves if m.get("level", 0) <= max_lvl
                 ]
+
+            refresh_pokemon_evolution_status(poke, max_lvl)
 
 
 
