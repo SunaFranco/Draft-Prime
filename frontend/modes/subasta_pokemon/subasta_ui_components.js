@@ -339,6 +339,12 @@ export function renderMyPokemonInventory(data, sessionClient) {
           const itemHtml = itemName && itemName !== 'Sin ítem' && itemName !== 'Sin item'
             ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>`
             : itemName;
+          const canEvolve = (() => {
+            const currentYear = Number(data.current_year || 1);
+            if (currentYear === 1) return false;
+            if (currentYear === 2) return poke.level >= 40;
+            return poke.level >= 100;
+          })();
 
           return `
             <div class="poke-inventory-item" data-poke-idx="${pokeIdx}">
@@ -355,6 +361,8 @@ export function renderMyPokemonInventory(data, sessionClient) {
               <div class="poke-item-line">
                 <span class="badge badge-item"><strong>Ítem:</strong> ${itemHtml}</span>
               </div>
+
+              ${canEvolve ? `<button class="btn btn-small btn-primary btn-evolve-pokemon" data-poke-idx="${pokeIdx}">✨ Evolucionar</button>` : ""}
 
               <div class="moves-selector-box ${isSaved ? 'moves-saved' : ''}" data-poke-idx="${pokeIdx}">
                 <div class="moves-summary-panel">

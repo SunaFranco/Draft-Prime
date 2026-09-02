@@ -99,6 +99,37 @@ def init_subasta_round(session: dict):
     }
 
 
+def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
+    """Evoluciona un Pokémon conservando los movimientos ya elegidos cuando siguen siendo válidos."""
+    evo_map = EVOLUTION_MAP_LVL_40 if max_lvl == 40 else EVOLUTION_MAP_LVL_100
+    current_name = poke.get("name")
+    target_name = evo_map.get(current_name)
+
+    if not target_name:
+        poke["level"] = max_lvl
+        return False
+
+    updated = poke_api.fetch_pokemon_data(target_name, level_cap=max_lvl)
+    previous_selected = poke.get("selected_moves", []) or []
+    valid_new_moves = [m["name"] for m in updated.get("level_up_moves", []) if m.get("level", 0) <= max_lvl]
+    preserved = [move for move in previous_selected if move in valid_new_moves]
+    remaining = [move for move in valid_new_moves if move not in preserved]
+    merged_selected = (preserved + remaining)[:4]
+
+    poke.update({
+        "name": updated["name"],
+        "region": updated["region"],
+        "types": updated["types"],
+        "primary_type": updated["primary_type"],
+        "abilities": updated["abilities"],
+        "image_url": updated["image_url"],
+        "level": max_lvl,
+        "level_up_moves": updated["level_up_moves"],
+        "selected_moves": merged_selected if merged_selected else updated.get("selected_moves", [])
+    })
+    return True
+
+
 def evolve_player_pokemon(player_state: dict, max_lvl: int):
     """Evoluciona los Pokémon del jugador y actualiza su nivel al máximo del año."""
     evo_map = EVOLUTION_MAP_LVL_40 if max_lvl == 40 else EVOLUTION_MAP_LVL_100
@@ -107,18 +138,7 @@ def evolve_player_pokemon(player_state: dict, max_lvl: int):
         target_name = evo_map.get(current_name, current_name)
 
         if target_name != current_name:
-            updated = poke_api.fetch_pokemon_data(target_name, level_cap=max_lvl)
-            poke.update({
-                "name": updated["name"],
-                "region": updated["region"],
-                "types": updated["types"],
-                "primary_type": updated["primary_type"],
-                "abilities": updated["abilities"],
-                "image_url": updated["image_url"],
-                "level": max_lvl,
-                "level_up_moves": updated["level_up_moves"],
-                "selected_moves": updated.get("selected_moves", poke.get("selected_moves", []))
-            })
+            evolve_single_pokemon(poke, max_lvl)
         else:
             poke["level"] = max_lvl
             if "selected_moves" not in poke or not poke["selected_moves"]:
@@ -627,6 +647,35 @@ class SubastaPokemonMode(BaseGameMode):
                 valid_moves = [m for m in selected_moves if m in allowed_moves][:4]
                 if valid_moves:
                     poke["selected_moves"] = valid_moves
+
+                save_game_session(session_id, self.key, subasta_state)
+                await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_evolve_pokemon":
+            poke_idx = int(message.get("poke_index", 0))
+            player = subasta_state["players"].get(username)
+
+            if player and 0 <= poke_idx < len(player.get("pokemon", [])):
+                poke = player["pokemon"][poke_idx]
+                current_level = poke.get("level", 1)
+                target_year = subasta_state.get("current_year", 1)
+                target_limit = 40 if target_year == 2 else 100
+
+                if current_level < target_limit:
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": "Tu Pokémon aún no está listo para evolucionar."}})
+                    return True
+
+                if evolve_single_pokemon(poke, target_limit):
+                    existing_selected = poke.get("selected_moves", []) or []
+                    level_up_moves = poke.get("level_up_moves", []) or []
+                    allowed = [m["name"] for m in level_up_moves if m.get("level", 0) <= target_limit]
+                    filtered = [move for move in existing_selected if move in allowed]
+                    if len(filtered) < 4:
+                        for move in allowed:
+                            if move not in filtered and len(filtered) < 4:
+                                filtered.append(move)
+                    poke["selected_moves"] = filtered[:4]
 
                 save_game_session(session_id, self.key, subasta_state)
                 await self._broadcast_subasta_state(session, manager)
