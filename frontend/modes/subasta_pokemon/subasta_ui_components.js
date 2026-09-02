@@ -56,7 +56,18 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const isAuctionFinished = Boolean(auction.finished);
   const isWinnerPendingSecret = auction.awaiting_secret_choice && auction.winner === sessionClient.currentUsername;
   const isFolded = (auction.folded_players || []).includes(sessionClient.currentUsername);
-  const isPokemonRevealed = Boolean(auction.finished && poke && !poke.is_hidden && poke.name && poke.image_url);
+  const revealHoldUntil = Number(auction.reveal_hold_until || 0) * 1000;
+  const revealCountdownMs = revealHoldUntil > 0 ? Math.max(0, revealHoldUntil - Date.now()) : 0;
+  const revealPercent = revealHoldUntil > 0 ? Math.max(0, Math.min(100, (revealCountdownMs / 5000) * 100)) : 0;
+  const isPokemonRevealed = Boolean(
+    !auction.awaiting_secret_choice &&
+    auction.finished &&
+    poke &&
+    !poke.is_hidden &&
+    poke.name &&
+    poke.image_url &&
+    (!auction.reveal_hold_until || revealCountdownMs <= 5000)
+  );
 
   let html = `
     <div class="subasta-header">
@@ -74,6 +85,18 @@ export function renderAuctionView(data, sessionClient, isHost) {
             : `<div class="poke-unknown-avatar">❓</div>`}
         </div>
         ${isPokemonRevealed ? `<p class="base-price"><strong>Adjudicado a:</strong> ${auction.winner || "Ninguno"}</p>` : `<p class="base-price">Precio Inicial: <strong>$${auction.base_price || 1000}</strong></p>`}
+
+        ${auction.reveal_hold_until ? `
+          <div class="reveal-countdown" style="margin-top: 12px;">
+            <div style="display:flex; justify-content:space-between; font-size: 12px; margin-bottom: 6px; color: #e5e7eb;">
+              <span>Revelando</span>
+              <span>${Math.max(0, Math.ceil(revealCountdownMs / 1000))}s</span>
+            </div>
+            <div data-reveal-bar style="direction: rtl; width: 100%; height: 10px; background: rgba(255,255,255,0.12); border-radius: 999px; overflow: hidden;">
+              <div data-reveal-fill style="height: 100%; width: ${revealPercent}%; background: linear-gradient(90deg, #fbbf24, #f59e0b, #ef4444); border-radius: 999px; transition: width 0.12s linear;"></div>
+            </div>
+          </div>
+        ` : ""}
 
         <div class="hints-box">
           <h4>💡 Pistas Desbloqueadas:</h4>

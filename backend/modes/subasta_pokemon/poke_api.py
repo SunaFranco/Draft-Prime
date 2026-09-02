@@ -190,28 +190,28 @@ def get_random_pokemon_from_tier(tier: str = "normal", year: Optional[int] = Non
 def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:
     """
     Retorna un diccionario de pistas acumulativas en función del multiplicador del precio inicial:
-      - 1: Primera letra del nombre
+      - 1.5x: Primera letra del nombre
       - 2.0x: Región de origen
-      - 3.0x: Habilidad asignada
-      - 5.0x: Tipo primario
-      - 8.0x: Estadística base más alta
+      - 2.5x: Habilidad asignada
+      - 3.0x: Tipo primario
+      - 3.5x: Estadística base más alta
     """
     hints = {}
     name = poke_data.get("name", "???")
 
-    if multiplier >= 1:
+    if multiplier >= 1.5:
         hints["first_letter"] = name[0].upper() if name else "?"
 
     if multiplier >= 2.0:
         hints["region"] = poke_data.get("region", "Desconocida")
 
-    if multiplier >= 3.0:
+    if multiplier >= 2.5:
         hints["ability"] = poke_data.get("ability", "Desconocida")
 
-    if multiplier >= 5.0:
+    if multiplier >= 3.0:
         hints["primary_type"] = poke_data.get("primary_type", "Normal")
 
-    if multiplier >= 8.0:
+    if multiplier >= 3.5:
         hints["highest_stat"] = poke_data.get("highest_stat", "HP (50)")
 
     return hints

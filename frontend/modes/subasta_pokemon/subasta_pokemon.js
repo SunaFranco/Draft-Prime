@@ -90,6 +90,8 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
 
   attachEventListeners(state, sessionClient, isHost) {
+    this.startRevealCountdown(state);
+
     // Puja Personalizada
     const btnBidCustom = document.getElementById("btn-bid-custom");
     if (btnBidCustom) {
@@ -197,6 +199,40 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         });
       });
     });
+  }
+
+  startRevealCountdown(state) {
+    const revealUntil = Number((state.current_auction || {}).reveal_hold_until || 0) * 1000;
+    const revealBar = document.querySelector("[data-reveal-bar]");
+    const revealFill = document.querySelector("[data-reveal-fill]");
+
+    if (!revealUntil || !revealBar || !revealFill) {
+      if (window.__subastaRevealTimer) {
+        clearInterval(window.__subastaRevealTimer);
+        window.__subastaRevealTimer = null;
+      }
+      return;
+    }
+
+    const tick = () => {
+      const remaining = Math.max(0, revealUntil - Date.now());
+      const percent = Math.max(0, Math.min(100, (remaining / 5000) * 100));
+      revealFill.style.width = `${percent}%`;
+      const text = document.querySelector("[data-reveal-bar] ~ div");
+      if (text && text.tagName === "DIV") {
+        // no-op; el texto ya se actualiza al renderizar el estado
+      }
+      if (remaining <= 0) {
+        clearInterval(window.__subastaRevealTimer);
+        window.__subastaRevealTimer = null;
+      }
+    };
+
+    if (window.__subastaRevealTimer) {
+      clearInterval(window.__subastaRevealTimer);
+    }
+    tick();
+    window.__subastaRevealTimer = setInterval(tick, 100);
   }
 
   resetState() {

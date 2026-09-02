@@ -2,7 +2,9 @@
 backend/modes/subasta_pokemon/handler.py - Implementación completa del modo Subasta Pokémon
 """
 
+import asyncio
 import random
+import time
 from typing import Dict, List, Any, Optional
 from backend.modes.base import BaseGameMode
 from backend.modes.subasta_pokemon import poke_api, events_data, showdown
@@ -87,7 +89,8 @@ def init_subasta_round(session: dict):
         "hints": poke_api.get_hints_for_multiplier(poke_data, 1.0),
         "finished": False,
         "winner": None,
-        "awaiting_secret_choice": False
+        "awaiting_secret_choice": False,
+        "reveal_hold_until": None
     }
 
 
@@ -114,9 +117,39 @@ def evolve_player_pokemon(player_state: dict, max_lvl: int):
 
 
 class SubastaPokemonMode(BaseGameMode):
+    reveal_hold_seconds = 5
+
     @property
     def key(self) -> str:
         return "subasta_pokemon"
+
+    async def _advance_after_reveal_delay(self, session: dict, session_id: str, manager: Any):
+        await asyncio.sleep(self.reveal_hold_seconds)
+
+        subasta_state = session.get("subasta")
+        if not subasta_state:
+            return
+
+        auction = subasta_state.get("current_auction")
+        if not auction:
+            return
+
+        if auction.get("winner") is None:
+            return
+
+        # Si el descanso de revelado ya terminó, se pasa a la siguiente ronda.
+        target = subasta_state["pok_per_player"] * subasta_state["current_year"]
+        all_done = all(len(p["pokemon"]) >= target for p in subasta_state["players"].values())
+
+        if all_done:
+            subasta_state["current_stage"] += 1
+            subasta_state["current_turn"] = 1
+            self._generate_turn_events(subasta_state)
+        else:
+            init_subasta_round(session)
+
+        save_game_session(session_id, self.key, subasta_state)
+        await self._broadcast_subasta_state(session, manager)
 
     @property
     def name(self) -> str:
@@ -399,8 +432,16 @@ class SubastaPokemonMode(BaseGameMode):
             player["pokemon"].append(won_pokemon)
             auction["finished"] = True
             auction["awaiting_secret_choice"] = False
-
+            auction["reveal_hold_until"] = None
             subasta_state["auction_turn_index"] += 1
+
+            # Cuando el ganador elige revelar, damos 5 segundos para que todos lo vean antes de avanzar.
+            if not keep_secret:
+                auction["reveal_hold_until"] = time.time() + self.reveal_hold_seconds
+                save_game_session(session_id, self.key, subasta_state)
+                await self._broadcast_subasta_state(session, manager)
+                asyncio.create_task(self._advance_after_reveal_delay(session, session_id, manager))
+                return True
 
             # Verificar si todos los jugadores alcanzaron el cupo de Pokémon del año
             target = subasta_state["pok_per_player"] * subasta_state["current_year"]
