@@ -96,24 +96,35 @@ def init_subasta_round(session: dict):
 
 
 def evolve_player_pokemon(player_state: dict, max_lvl: int):
-    """Evoluciona los Pokémon del jugador si cumplen el criterio de nivel."""
+    """Evoluciona los Pokémon del jugador y actualiza su nivel al máximo del año."""
     evo_map = EVOLUTION_MAP_LVL_40 if max_lvl == 40 else EVOLUTION_MAP_LVL_100
     for poke in player_state.get("pokemon", []):
         current_name = poke.get("name")
-        if current_name in evo_map and poke.get("level", 1) <= max_lvl:
-            new_name = evo_map[current_name]
-            updated = poke_api.fetch_pokemon_data(new_name, level_cap=max_lvl)
+        target_name = evo_map.get(current_name, current_name)
+
+        if target_name != current_name:
+            updated = poke_api.fetch_pokemon_data(target_name, level_cap=max_lvl)
             poke.update({
                 "name": updated["name"],
                 "region": updated["region"],
                 "types": updated["types"],
                 "primary_type": updated["primary_type"],
                 "abilities": updated["abilities"],
-                # Mantiene su habilidad fija asignada previamente en subasta
                 "image_url": updated["image_url"],
                 "level": max_lvl,
-                "level_up_moves": updated["level_up_moves"]
+                "level_up_moves": updated["level_up_moves"],
+                "selected_moves": updated.get("selected_moves", poke.get("selected_moves", []))
             })
+        else:
+            poke["level"] = max_lvl
+            if "selected_moves" not in poke or not poke["selected_moves"]:
+                poke["selected_moves"] = []
+
+            current_moves = poke.get("level_up_moves") or []
+            if current_moves:
+                poke["level_up_moves"] = [
+                    m for m in current_moves if m.get("level", 0) <= max_lvl
+                ]
 
 
 

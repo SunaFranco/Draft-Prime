@@ -327,10 +327,12 @@ export function renderMyPokemonInventory(data, sessionClient) {
                   <div class="moves-checkboxes">
                     ${levelUpMoves.map((m) => {
                       const isChecked = selectedMoves.includes(m.name) ? 'checked' : '';
+                      const moveUrl = buildWikidexUrl(m.name);
                       return `
                         <label class="move-label">
                           <input type="checkbox" class="move-chk-${pokeIdx}" value="${m.name}" ${isChecked} />
-                          ${m.name} <small>(Nv. ${m.level})</small>
+                          <a href="${moveUrl}" target="_blank" rel="noopener noreferrer" class="move-link">${m.name}</a>
+                          <small>(Nv. ${m.level})</small>
                         </label>
                       `;
                     }).join("")}

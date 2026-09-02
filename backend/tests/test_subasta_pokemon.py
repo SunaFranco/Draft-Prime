@@ -54,6 +54,31 @@ class TestSubastaPokemon(unittest.TestCase):
         self.assertIn("Raichu", names)
         self.assertIn("Charmeleon", names)
 
+    def test_evolution_updates_all_pokemon_to_year_cap(self):
+        player_state = {
+            "pokemon": [
+                {"name": "Pikachu", "level": 20},
+                {"name": "Bulbasaur", "level": 20},
+                {"name": "Gengar", "level": 35},
+                {"name": "Pupitar", "level": 80}
+            ]
+        }
+
+        evolve_player_pokemon(player_state, 40)
+        self.assertTrue(all(p["level"] == 40 for p in player_state["pokemon"]))
+
+        player_state = {
+            "pokemon": [
+                {"name": "Pikachu", "level": 40},
+                {"name": "Bulbasaur", "level": 40},
+                {"name": "Gengar", "level": 40},
+                {"name": "Pupitar", "level": 90}
+            ]
+        }
+
+        evolve_player_pokemon(player_state, 100)
+        self.assertTrue(all(p["level"] == 100 for p in player_state["pokemon"]))
+
     def test_buyout_immediately_finishes_round(self):
         class DummyManager:
             def __init__(self):
