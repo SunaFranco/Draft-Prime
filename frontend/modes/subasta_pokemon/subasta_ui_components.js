@@ -13,31 +13,71 @@ export function renderConfigForm(containerEl, data, isHost) {
     starting_money: 10000,
     turns_per_year: 3,
     pok_per_player: 2,
+    year_starting_money_1: 10000,
+    year_starting_money_2: 5000,
+    year_starting_money_3: 7500,
+    year1_tier: "normal",
+    year2_tier: "normal",
+    year3_tier: "legendary",
     buyout_multiplier: 3.0,
     secret_fee: 500,
   };
 
+  const config = data?.mode_config || {};
+
   containerEl.innerHTML = `
     <div class="subasta-config-panel">
       <div class="form-group">
-        <label for="subasta-money">Presupuesto Inicial ($):</label>
-        <input type="number" id="subasta-money" value="${defaults.starting_money}" min="1000" max="100000" ${!isHost ? "disabled" : ""} />
-      </div>
-      <div class="form-group">
         <label for="subasta-turns">Turnos de Eventos por Año:</label>
-        <input type="number" id="subasta-turns" value="${defaults.turns_per_year}" min="1" max="10" ${!isHost ? "disabled" : ""} />
+        <input type="number" id="subasta-turns" value="${config.turns_per_year || defaults.turns_per_year}" min="1" max="10" ${!isHost ? "disabled" : ""} />
       </div>
       <div class="form-group">
-        <label for="subasta-pok-player">Pokémon por Subasta:</label>
-        <input type="number" id="subasta-pok-player" value="${defaults.pok_per_player}" min="1" max="6" ${!isHost ? "disabled" : ""} />
+        <label for="subasta-pok-player">Pokémon por Subasta (por jugador):</label>
+        <input type="number" id="subasta-pok-player" value="${config.pok_per_player || defaults.pok_per_player}" min="1" max="6" ${!isHost ? "disabled" : ""} />
+      </div>
+      <div class="form-group">
+        <label for="subasta-year1-money">Dinero inicial Año 1 ($):</label>
+        <input type="number" id="subasta-year1-money" value="${config.year_starting_money_1 ?? config.starting_money ?? defaults.year_starting_money_1}" min="0" max="1000000" ${!isHost ? "disabled" : ""} />
+      </div>
+      <div class="form-group">
+        <label for="subasta-year2-money">Dinero inicial Año 2 ($):</label>
+        <input type="number" id="subasta-year2-money" value="${config.year_starting_money_2 ?? defaults.year_starting_money_2}" min="0" max="1000000" ${!isHost ? "disabled" : ""} />
+      </div>
+      <div class="form-group">
+        <label for="subasta-year3-money">Dinero inicial Año Final ($):</label>
+        <input type="number" id="subasta-year3-money" value="${config.year_starting_money_3 ?? defaults.year_starting_money_3}" min="0" max="1000000" ${!isHost ? "disabled" : ""} />
+      </div>
+      <div class="form-group">
+        <label for="subasta-year1-tier">Tipo de subasta Año 1:</label>
+        <select id="subasta-year1-tier" ${!isHost ? "disabled" : ""}>
+          <option value="normal" ${((config.year_tiers && config.year_tiers[1]) || config.year1_tier || defaults.year1_tier) === "normal" ? "selected" : ""}>Normal</option>
+          <option value="mega" ${((config.year_tiers && config.year_tiers[1]) || config.year1_tier || defaults.year1_tier) === "mega" ? "selected" : ""}>Mega</option>
+          <option value="legendary" ${((config.year_tiers && config.year_tiers[1]) || config.year1_tier || defaults.year1_tier) === "legendary" ? "selected" : ""}>Legendario</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="subasta-year2-tier">Tipo de subasta Año 2:</label>
+        <select id="subasta-year2-tier" ${!isHost ? "disabled" : ""}>
+          <option value="normal" ${((config.year_tiers && config.year_tiers[2]) || config.year2_tier || defaults.year2_tier) === "normal" ? "selected" : ""}>Normal</option>
+          <option value="mega" ${((config.year_tiers && config.year_tiers[2]) || config.year2_tier || defaults.year2_tier) === "mega" ? "selected" : ""}>Mega</option>
+          <option value="legendary" ${((config.year_tiers && config.year_tiers[2]) || config.year2_tier || defaults.year2_tier) === "legendary" ? "selected" : ""}>Legendario</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="subasta-year3-tier">Tipo de subasta Año Final:</label>
+        <select id="subasta-year3-tier" ${!isHost ? "disabled" : ""}>
+          <option value="normal" ${((config.year_tiers && config.year_tiers[3]) || config.year3_tier || defaults.year3_tier) === "normal" ? "selected" : ""}>Normal</option>
+          <option value="mega" ${((config.year_tiers && config.year_tiers[3]) || config.year3_tier || defaults.year3_tier) === "mega" ? "selected" : ""}>Mega</option>
+          <option value="legendary" ${((config.year_tiers && config.year_tiers[3]) || config.year3_tier || defaults.year3_tier) === "legendary" ? "selected" : ""}>Legendario</option>
+        </select>
       </div>
       <div class="form-group">
         <label for="subasta-buyout-mult">Multiplicador Compra Directa:</label>
-        <input type="number" step="0.5" id="subasta-buyout-mult" value="${defaults.buyout_multiplier}" min="1.5" max="10" ${!isHost ? "disabled" : ""} />
+        <input type="number" step="0.5" id="subasta-buyout-mult" value="${config.buyout_multiplier || defaults.buyout_multiplier}" min="1.5" max="10" ${!isHost ? "disabled" : ""} />
       </div>
       <div class="form-group">
         <label for="subasta-secret-fee">Tarifa Pokémon Secreto ($):</label>
-        <input type="number" id="subasta-secret-fee" value="${defaults.secret_fee}" min="0" max="5000" ${!isHost ? "disabled" : ""} />
+        <input type="number" id="subasta-secret-fee" value="${config.secret_fee || defaults.secret_fee}" min="0" max="5000" ${!isHost ? "disabled" : ""} />
       </div>
     </div>
   `;
@@ -45,9 +85,15 @@ export function renderConfigForm(containerEl, data, isHost) {
 
 export function readConfigForm(containerEl) {
   return {
-    starting_money: parseInt(document.getElementById("subasta-money").value, 10),
     turns_per_year: parseInt(document.getElementById("subasta-turns").value, 10),
     pok_per_player: parseInt(document.getElementById("subasta-pok-player").value, 10),
+    year_starting_money_1: parseInt(document.getElementById("subasta-year1-money").value, 10),
+    year_starting_money_2: parseInt(document.getElementById("subasta-year2-money").value, 10),
+    year_starting_money_3: parseInt(document.getElementById("subasta-year3-money").value, 10),
+    year1_tier: document.getElementById("subasta-year1-tier").value,
+    year2_tier: document.getElementById("subasta-year2-tier").value,
+    year3_tier: document.getElementById("subasta-year3-tier").value,
+    starting_money: parseInt(document.getElementById("subasta-year1-money").value, 10),
     buyout_multiplier: parseFloat(document.getElementById("subasta-buyout-mult").value),
     secret_fee: parseInt(document.getElementById("subasta-secret-fee").value, 10),
   };

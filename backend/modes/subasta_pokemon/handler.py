@@ -57,11 +57,8 @@ def init_subasta_round(session: dict):
     current_year = subasta_state["current_year"]
     level_cap = get_year_level_cap(current_year)
 
-    tier = "normal"
-    if current_year == 2:
-        tier = random.choice(["normal", "mega"])
-    elif current_year == 3:
-        tier = random.choice(["mega", "legendary"])
+    year_tiers = subasta_state.get("year_tiers", {1: "normal", 2: "normal", 3: "legendary"})
+    tier = year_tiers.get(current_year, "normal")
 
     poke_data = poke_api.get_random_pokemon_from_tier(tier, year=current_year, level_cap=level_cap)
 
@@ -244,18 +241,43 @@ class SubastaPokemonMode(BaseGameMode):
         }
 
     def validate_config(self, message: dict) -> dict:
-        starting_money = int(message.get("starting_money", 100000))
+        starting_money = int(message.get("starting_money", message.get("year_starting_money_1", 100000)))
         turns_per_year = int(message.get("turns_per_year", 3))
         pok_per_player = int(message.get("pok_per_player", 8))
         buyout_multiplier = float(message.get("buyout_multiplier", 10.0))
         secret_fee = int(message.get("secret_fee", 500))
+
+        year_starting_money = {
+            1: int(message.get("year_starting_money_1", starting_money)),
+            2: int(message.get("year_starting_money_2", 5000)),
+            3: int(message.get("year_starting_money_3", 7500)),
+        }
+
+        year_tiers = {
+            1: str(message.get("year1_tier", message.get("year_tiers", {}).get(1, "normal"))).lower(),
+            2: str(message.get("year2_tier", message.get("year_tiers", {}).get(2, "normal"))).lower(),
+            3: str(message.get("year3_tier", message.get("year_tiers", {}).get(3, "legendary"))).lower(),
+        }
+
+        allowed_tiers = {"normal", "mega", "legendary"}
+        for year, tier in year_tiers.items():
+            if tier not in allowed_tiers:
+                raise ValueError(f"El tipo de subasta del Año {year} no es válido: {tier}")
 
         return {
             "starting_money": starting_money,
             "turns_per_year": turns_per_year,
             "pok_per_player": pok_per_player,
             "buyout_multiplier": buyout_multiplier,
-            "secret_fee": secret_fee
+            "secret_fee": secret_fee,
+            "year_starting_money": year_starting_money,
+            "year_tiers": year_tiers,
+            "year_starting_money_1": year_starting_money[1],
+            "year_starting_money_2": year_starting_money[2],
+            "year_starting_money_3": year_starting_money[3],
+            "year1_tier": year_tiers[1],
+            "year2_tier": year_tiers[2],
+            "year3_tier": year_tiers[3],
         }
 
     def start_game(self, session: dict) -> None:
@@ -277,6 +299,8 @@ class SubastaPokemonMode(BaseGameMode):
             "pok_per_player": config["pok_per_player"],
             "buyout_multiplier": config["buyout_multiplier"],
             "secret_fee": config["secret_fee"],
+            "year_starting_money": config.get("year_starting_money", {1: config["starting_money"], 2: 5000, 3: 7500}),
+            "year_tiers": config.get("year_tiers", {1: "normal", 2: "normal", 3: "legendary"}),
             "player_order": order,
             "auction_turn_index": 0,
             "players": {
@@ -523,8 +547,9 @@ class SubastaPokemonMode(BaseGameMode):
                 # Transiciones especiales (Inicio de Año 2 y 3)
                 if next_stage == 5:  # Inicio Año 2
                     subasta_state["current_year"] = 2
+                    year_money = subasta_state.get("year_starting_money", {}).get(2, 5000)
                     for p_info in subasta_state["players"].values():
-                        p_info["money"] += 5000
+                        p_info["money"] += year_money
                         evolve_player_pokemon(p_info, 40)
                     next_stage = 6  # Salta a Subasta Año 2
                     subasta_state["current_stage"] = next_stage
@@ -532,8 +557,9 @@ class SubastaPokemonMode(BaseGameMode):
 
                 elif next_stage == 9:  # Inicio Año 3
                     subasta_state["current_year"] = 3
+                    year_money = subasta_state.get("year_starting_money", {}).get(3, 7500)
                     for p_info in subasta_state["players"].values():
-                        p_info["money"] += 7500
+                        p_info["money"] += year_money
                         evolve_player_pokemon(p_info, 100)
                     next_stage = 10  # Salta a Subasta Año 3
                     subasta_state["current_stage"] = next_stage
