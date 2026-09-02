@@ -274,6 +274,8 @@ export function renderMyPokemonInventory(data, sessionClient) {
         ${pokemonList.map((poke, pokeIdx) => {
           const levelUpMoves = (poke.level_up_moves || []).filter((m) => m.level <= levelCap);
           const selectedMoves = poke.selected_moves || [];
+          const isSaved = selectedMoves.length >= 4;
+          const itemName = poke.item || poke.held_item || 'Sin ítem';
 
           return `
             <div class="poke-inventory-item" data-poke-idx="${pokeIdx}">
@@ -281,24 +283,38 @@ export function renderMyPokemonInventory(data, sessionClient) {
                 ${poke.image_url ? `<img src="${poke.image_url}" class="poke-thumb" />` : ''}
                 <div>
                   <span class="badge">Nv. ${poke.level || levelCap}</span>
-                  <span class="badge badge-gold">Habilidad: ${poke.ability || 'Desconocida'}</span>
+                  <span class="badge badge-green">Habilidad: ${poke.ability || 'Desconocida'}</span>
                 </div>
               </div>
 
-              <div class="moves-selector-box">
-                <h5>⚔️ Selecciona hasta 4 Movimientos (por nivel):</h5>
-                <div class="moves-checkboxes">
-                  ${levelUpMoves.map((m) => {
-                    const isChecked = selectedMoves.includes(m.name) ? 'checked' : '';
-                    return `
-                      <label class="move-label">
-                        <input type="checkbox" class="move-chk-${pokeIdx}" value="${m.name}" ${isChecked} />
-                        ${m.name} <small>(Nv. ${m.level})</small>
-                      </label>
-                    `;
-                  }).join("")}
+              <div class="poke-item-line">
+                <span class="badge badge-item"><strong>Ítem:</strong> ${itemName}</span>
+              </div>
+
+              <div class="moves-selector-box ${isSaved ? 'moves-saved' : ''}" data-poke-idx="${pokeIdx}">
+                <div class="moves-summary-panel">
+                  <h5>⚔️ 4 Movimientos Elegidos:</h5>
+                  <div class="saved-moves-list">
+                    ${selectedMoves.map((moveName) => `<span class="move-pill">${moveName}</span>`).join("")}
+                  </div>
+                  <button class="btn btn-small btn-secondary btn-modify-moves" data-poke-idx="${pokeIdx}">✏️ Modificar movimientos</button>
                 </div>
-                <button class="btn btn-small btn-primary btn-save-moves" data-poke-idx="${pokeIdx}">💾 Guardar 4 Movimientos</button>
+
+                <div class="moves-editor-panel">
+                  <h5>⚔️ Selecciona hasta 4 Movimientos (por nivel):</h5>
+                  <div class="moves-checkboxes">
+                    ${levelUpMoves.map((m) => {
+                      const isChecked = selectedMoves.includes(m.name) ? 'checked' : '';
+                      return `
+                        <label class="move-label">
+                          <input type="checkbox" class="move-chk-${pokeIdx}" value="${m.name}" ${isChecked} />
+                          ${m.name} <small>(Nv. ${m.level})</small>
+                        </label>
+                      `;
+                    }).join("")}
+                  </div>
+                  <button class="btn btn-small btn-primary btn-save-moves" data-poke-idx="${pokeIdx}">💾 Guardar 4 Movimientos</button>
+                </div>
               </div>
             </div>
           `;

@@ -199,6 +199,15 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         });
       });
     });
+
+    document.querySelectorAll(".btn-modify-moves").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const box = btn.closest(".moves-selector-box");
+        if (box) {
+          box.classList.remove("moves-saved");
+        }
+      });
+    });
   }
 
   startRevealCountdown(state) {
