@@ -100,7 +100,7 @@ def init_subasta_round(session: dict):
 
 
 def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
-    """Evoluciona un Pokémon conservando los movimientos ya elegidos cuando siguen siendo válidos."""
+    """Evoluciona un Pokémon reemplazando la especie completa y manteniendo los ataques válidos."""
     evo_map = EVOLUTION_MAP_LVL_40 if max_lvl == 40 else EVOLUTION_MAP_LVL_100
     current_name = poke.get("name")
     target_name = evo_map.get(current_name)
@@ -116,15 +116,28 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
     remaining = [move for move in valid_new_moves if move not in preserved]
     merged_selected = (preserved + remaining)[:4]
 
+    original_abilities = poke.get("abilities") or []
+    evo_abilities = updated.get("abilities") or []
+    if evo_abilities:
+        if len(original_abilities) > 1 and len(evo_abilities) > 1:
+            updated["ability"] = evo_abilities[1]
+        else:
+            updated["ability"] = evo_abilities[0]
+
+    poke.clear()
     poke.update({
+        "id": updated.get("id"),
         "name": updated["name"],
-        "region": updated["region"],
-        "types": updated["types"],
-        "primary_type": updated["primary_type"],
-        "abilities": updated["abilities"],
-        "image_url": updated["image_url"],
+        "region": updated.get("region", "Desconocida"),
+        "types": updated.get("types", []),
+        "primary_type": updated.get("primary_type", updated.get("types", ["Normal"])[0] if updated.get("types") else "Normal"),
+        "abilities": updated.get("abilities", []),
+        "ability": updated.get("ability", updated.get("abilities", ["Desconocida"])[0]),
+        "stats": updated.get("stats", {}),
+        "highest_stat": updated.get("highest_stat", "HP (50)"),
+        "image_url": updated.get("image_url", ""),
         "level": max_lvl,
-        "level_up_moves": updated["level_up_moves"],
+        "level_up_moves": updated.get("level_up_moves", []),
         "selected_moves": merged_selected if merged_selected else updated.get("selected_moves", [])
     })
     return True

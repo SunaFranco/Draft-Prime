@@ -4,8 +4,9 @@ backend/tests/test_subasta_pokemon.py - Pruebas unitarias para el modo Subasta P
 
 import asyncio
 import unittest
+from unittest.mock import patch
 from backend.modes.subasta_pokemon import poke_api, events_data, showdown
-from backend.modes.subasta_pokemon.handler import SubastaPokemonMode, evolve_player_pokemon
+from backend.modes.subasta_pokemon.handler import SubastaPokemonMode, evolve_player_pokemon, evolve_single_pokemon
 
 
 class TestSubastaPokemon(unittest.TestCase):
@@ -78,6 +79,47 @@ class TestSubastaPokemon(unittest.TestCase):
 
         evolve_player_pokemon(player_state, 100)
         self.assertTrue(all(p["level"] == 100 for p in player_state["pokemon"]))
+
+    def test_evolution_replaces_species_and_keeps_ability_slot(self):
+        original = {
+            "name": "Pikachu",
+            "level": 35,
+            "ability": "Lightning Rod",
+            "abilities": ["Static", "Lightning Rod"],
+            "image_url": "old-sprite.png",
+            "selected_moves": ["Quick Attack"],
+            "level_up_moves": [
+                {"name": "Quick Attack", "level": 1},
+                {"name": "Thunderbolt", "level": 15},
+                {"name": "Volt Tackle", "level": 30}
+            ]
+        }
+
+        evolved_data = {
+            "name": "Raichu",
+            "region": "Kanto",
+            "types": ["Electric"],
+            "primary_type": "Electric",
+            "abilities": ["Static", "Surge Surfer"],
+            "ability": "Static",
+            "image_url": "new-sprite.png",
+            "level_up_moves": [
+                {"name": "Quick Attack", "level": 1},
+                {"name": "Thunderbolt", "level": 15},
+                {"name": "Volt Tackle", "level": 20},
+                {"name": "Surf", "level": 25}
+            ]
+        }
+
+        with patch("backend.modes.subasta_pokemon.handler.poke_api.fetch_pokemon_data", return_value=evolved_data):
+            result = evolve_single_pokemon(original, 40)
+
+        self.assertTrue(result)
+        self.assertEqual(original["name"], "Raichu")
+        self.assertEqual(original["image_url"], "new-sprite.png")
+        self.assertEqual(original["ability"], "Surge Surfer")
+        self.assertIn("Surge Surfer", original["abilities"])
+        self.assertGreaterEqual(len(original["selected_moves"]), 1)
 
     def test_buyout_immediately_finishes_round(self):
         class DummyManager:
