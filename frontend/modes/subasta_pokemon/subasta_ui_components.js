@@ -53,8 +53,10 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const hints = auction.hints || {};
   const poke = auction.pokemon || {};
 
+  const isAuctionFinished = Boolean(auction.finished);
   const isWinnerPendingSecret = auction.awaiting_secret_choice && auction.winner === sessionClient.currentUsername;
   const isFolded = (auction.folded_players || []).includes(sessionClient.currentUsername);
+  const isPokemonRevealed = Boolean(auction.finished && poke && !poke.is_hidden && poke.name && poke.image_url);
 
   let html = `
     <div class="subasta-header">
@@ -65,21 +67,22 @@ export function renderAuctionView(data, sessionClient, isHost) {
     <div class="auction-grid">
       <!-- Tarjeta del Pokémon Subastado -->
       <div class="card auction-poke-card">
-        <h3>🔍 Pokémon Incógnito</h3>
+        <h3>${isPokemonRevealed ? `🔍 ${poke.name}` : "🔍 Pokémon Incógnito"}</h3>
         <div class="poke-image-wrapper">
-          <div class="poke-unknown-avatar">❓</div>
+          ${isPokemonRevealed
+            ? `<img src="${poke.image_url}" alt="${poke.name}" class="poke-thumb" style="max-width: 180px; width: 100%; object-fit: contain;" />`
+            : `<div class="poke-unknown-avatar">❓</div>`}
         </div>
-        <p class="base-price">Precio Inicial: <strong>$${auction.base_price || 1000}</strong></p>
-
+        ${isPokemonRevealed ? `<p class="base-price"><strong>Adjudicado a:</strong> ${auction.winner || "Ninguno"}</p>` : `<p class="base-price">Precio Inicial: <strong>$${auction.base_price || 1000}</strong></p>`}
 
         <div class="hints-box">
           <h4>💡 Pistas Desbloqueadas:</h4>
           <ul>
-            <li><strong>Letra Inicial:</strong> ${hints.first_letter || "🔒 Incógnito (esperando puja de 1.5x)"}</li>
+            <li><strong>Letra Inicial:</strong> ${hints.first_letter}</li>
             <li><strong>Región:</strong> ${hints.region || "🔒 Incógnito (2.0x)"}</li>
-            <li><strong>Habilidad:</strong> ${hints.ability || "🔒 Incógnito (2.5x)"}</li>
-            <li><strong>Tipo Primario:</strong> ${hints.primary_type || "🔒 Incógnito (3.0x)"}</li>
-            <li><strong>Mejor Stat Base:</strong> ${hints.highest_stat || "🔒 Incógnito (3.5x)"}</li>
+            <li><strong>Habilidad:</strong> ${hints.ability || "🔒 Incógnito (3.0x)"}</li>
+            <li><strong>Tipo Primario:</strong> ${hints.primary_type || "🔒 Incógnito (5.0x)"}</li>
+            <li><strong>Mejor Stat Base:</strong> ${hints.highest_stat || "🔒 Incógnito (8.0x)"}</li>
           </ul>
         </div>
       </div>
@@ -90,7 +93,13 @@ export function renderAuctionView(data, sessionClient, isHost) {
         <p class="current-bid-display">Puja Actual: <span>$${auction.current_bid || 0}</span></p>
         <p class="high-bidder-display">Mayor Pujador: <strong>${auction.high_bidder || "Ninguno"}</strong></p>
 
-        ${isWinnerPendingSecret ? `
+        ${isAuctionFinished && !isWinnerPendingSecret ? `
+          <div class="secret-choice-modal">
+            <h4>🏁 La subasta ya terminó.</h4>
+            <p>Ganador: <strong>${auction.winner || "Ninguno"}</strong></p>
+            <p>El Pokémon ya fue adjudicado y la ronda está en espera de confirmación del ganador.</p>
+          </div>
+        ` : isWinnerPendingSecret ? `
           <div class="secret-choice-modal">
             <h4>🎉 ¡Ganaste la subasta de ${poke.name || 'este Pokémon'}!</h4>
             <p>¿Deseas pagar <strong>$${auction.secret_fee}</strong> para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
@@ -246,9 +255,8 @@ export function renderMyPokemonInventory(data, sessionClient) {
               <div class="poke-inv-header">
                 ${poke.image_url ? `<img src="${poke.image_url}" class="poke-thumb" />` : ''}
                 <div>
-                  <h4>${poke.name} ${poke.is_hidden ? '🔒' : ''}</h4>
                   <span class="badge">Nv. ${poke.level || levelCap}</span>
-                  <span class="badge badge-gold">Habilidad Fija: ${poke.ability || 'Desconocida'}</span>
+                  <span class="badge badge-gold">Habilidad: ${poke.ability || 'Desconocida'}</span>
                 </div>
               </div>
 

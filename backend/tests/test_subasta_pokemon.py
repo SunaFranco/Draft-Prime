@@ -2,6 +2,7 @@
 backend/tests/test_subasta_pokemon.py - Pruebas unitarias para el modo Subasta Pokémon
 """
 
+import asyncio
 import unittest
 from backend.modes.subasta_pokemon import poke_api, events_data, showdown
 from backend.modes.subasta_pokemon.handler import SubastaPokemonMode, evolve_player_pokemon
@@ -51,6 +52,62 @@ class TestSubastaPokemon(unittest.TestCase):
         names = [p["name"] for p in player_state["pokemon"]]
         self.assertIn("Raichu", names)
         self.assertIn("Charmeleon", names)
+
+    def test_buyout_immediately_finishes_round(self):
+        class DummyManager:
+            def __init__(self):
+                self.messages = []
+
+            async def broadcast(self, *args, **kwargs):
+                pass
+
+            async def send_personal(self, websocket, payload):
+                self.messages.append(payload)
+
+            async def send_personal_to_user(self, session_id, username, payload):
+                self.messages.append({"user": username, "payload": payload})
+
+        session = {
+            "id": "s1",
+            "host": "Alice",
+            "mode": "subasta_pokemon",
+            "subasta": {
+                "starting_money": 10000,
+                "current_stage": 2,
+                "current_year": 1,
+                "current_turn": 1,
+                "turns_per_year": 3,
+                "player_order": ["Alice", "Bob"],
+                "players": {
+                    "Alice": {"money": 5000, "pokemon": [], "items": []},
+                    "Bob": {"money": 15000, "pokemon": [], "items": []}
+                },
+                "current_auction": {
+                    "base_price": 1000,
+                    "current_bid": 1000,
+                    "high_bidder": "Alice",
+                    "buyout_price": 10000,
+                    "secret_fee": 500,
+                    "pokemon": {"name": "Pikachu"},
+                    "finished": False,
+                    "winner": None,
+                    "awaiting_secret_choice": False,
+                    "folded_players": []
+                }
+            }
+        }
+
+        manager = DummyManager()
+        mode = SubastaPokemonMode()
+
+        asyncio.run(mode.handle_action(session, "Bob", "subasta_buyout", {}, None, manager))
+
+        self.assertTrue(session["subasta"]["current_auction"]["finished"])
+        self.assertEqual(session["subasta"]["current_auction"]["winner"], "Bob")
+
+        asyncio.run(mode.handle_action(session, "Alice", "subasta_bid", {"bid_amount": 2000}, None, manager))
+        self.assertTrue(manager.messages[-1]["event"] == "error")
+        self.assertEqual(manager.messages[-1]["data"]["message"], "La subasta ya terminó.")
 
     def test_fixed_ability_and_moves_by_level(self):
         poke = poke_api.fetch_pokemon_data("Pikachu", level_cap=20)

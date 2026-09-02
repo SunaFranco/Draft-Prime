@@ -140,14 +140,17 @@ class SubastaPokemonMode(BaseGameMode):
         if not subasta_state:
             return {}
 
-        player_data = subasta_state["players"].get(username, {
-            "money": subasta_state["starting_money"],
+        default_player_data = {
+            "money": subasta_state.get("starting_money", 0),
             "pokemon": [],
             "items": [],
             "points": 0
-        })
+        }
+        player_data = subasta_state["players"].get(username, default_player_data)
 
-        current_stage = subasta_state["current_stage"]
+        current_stage = subasta_state.get("current_stage", 2)
+        current_year = subasta_state.get("current_year", 1)
+        current_turn = subasta_state.get("current_turn", 1)
         current_auction = subasta_state.get("current_auction", {})
 
         # Si el Pokémon del rival es secreto, ocultar detalles a otros jugadores
@@ -183,9 +186,9 @@ class SubastaPokemonMode(BaseGameMode):
         return {
             "stage": current_stage,
             "stage_name": STAGE_NAMES.get(current_stage, "En Juego"),
-            "current_year": subasta_state["current_year"],
-            "current_turn": subasta_state["current_turn"],
-            "max_turns": subasta_state["turns_per_year"],
+            "current_year": current_year,
+            "current_turn": current_turn,
+            "max_turns": subasta_state.get("turns_per_year", 3),
             "my_data": player_data,
             "all_players": filtered_players_info,
             "current_auction": current_auction,
@@ -306,8 +309,8 @@ class SubastaPokemonMode(BaseGameMode):
         if action == "subasta_bid":
             bid_amount = int(message.get("bid_amount", 0))
             auction = subasta_state.get("current_auction")
-            if not auction or auction.get("finished"):
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No hay subasta activa."}})
+            if not auction or auction.get("finished") or auction.get("winner"):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "La subasta ya terminó."}})
                 return True
 
             player = subasta_state["players"].get(username)
@@ -350,7 +353,8 @@ class SubastaPokemonMode(BaseGameMode):
 
         elif action == "subasta_buyout":
             auction = subasta_state.get("current_auction")
-            if not auction or auction.get("finished"):
+            if not auction or auction.get("finished") or auction.get("winner"):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "La subasta ya terminó."}})
                 return True
 
             buyout_price = auction["buyout_price"]
@@ -362,6 +366,7 @@ class SubastaPokemonMode(BaseGameMode):
             auction["current_bid"] = buyout_price
             auction["high_bidder"] = username
             auction["winner"] = username
+            auction["finished"] = True
             auction["awaiting_secret_choice"] = True
 
             save_game_session(session_id, self.key, subasta_state)
