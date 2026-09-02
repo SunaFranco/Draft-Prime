@@ -103,6 +103,7 @@ def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Option
             return None
 
         target_name = None
+        target_level = None
         while current:
             species_name = current.get("species", {}).get("name", "")
             if species_name and clean_poke_api_name(species_name) == slug:
@@ -113,6 +114,7 @@ def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Option
                     min_level = details.get("min_level")
                     if trigger == "level-up" and (min_level is None or int(min_level) <= int(max_level)):
                         target_name = candidate.get("species", {}).get("name")
+                        target_level = int(min_level) if min_level is not None else None
                         return target_name
                 break
             if current.get("evolves_to"):
@@ -120,6 +122,43 @@ def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Option
             else:
                 break
         return target_name
+    except Exception:
+        return None
+
+
+def get_pokemon_next_evolution_level(name_or_id: str) -> Optional[int]:
+    """Devuelve el nivel mínimo de la siguiente evolución por level-up del Pokémon."""
+    try:
+        slug = clean_poke_api_name(name_or_id)
+        species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(slug)}"
+        req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+        with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
+            species = json.loads(resp.read().decode())
+        chain_url = species.get("evolution_chain", {}).get("url")
+        if not chain_url:
+            return None
+
+        chain_req = urllib.request.Request(chain_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+        with urllib.request.urlopen(chain_req, context=ssl.create_default_context(), timeout=5) as chain_resp:
+            evo_data = json.loads(chain_resp.read().decode())
+
+        current = evo_data.get("chain")
+        while current:
+            species_name = current.get("species", {}).get("name", "")
+            if species_name and clean_poke_api_name(species_name) == slug:
+                candidates = current.get("evolves_to", [])
+                for candidate in candidates:
+                    details = (candidate.get("evolution_details") or [{}])[0]
+                    trigger = (details.get("trigger") or {}).get("name")
+                    min_level = details.get("min_level")
+                    if trigger == "level-up":
+                        return int(min_level) if min_level is not None else None
+                return None
+            if current.get("evolves_to"):
+                current = current["evolves_to"][0]
+            else:
+                return None
+        return None
     except Exception:
         return None
 
@@ -169,6 +208,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 ]
 
             next_evolution = get_pokemon_evolution_target(name, max_level=level_cap)
+            next_evolution_level = get_pokemon_next_evolution_level(name)
             res = {
                 "id": poke_id,
                 "name": name,
@@ -185,6 +225,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "selected_moves": [m["name"] for m in level_up_moves if m["level"] <= level_cap][-4:],
                 "can_evolve": bool(next_evolution),
                 "evolution_target": next_evolution,
+                "next_evolution_level": next_evolution_level,
             }
             POKE_CACHE[cache_key] = res
             return res.copy()
@@ -200,6 +241,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             {"name": "Hyper Beam", "level": 40}
         ]
         next_evolution = get_pokemon_evolution_target(name_clean, max_level=level_cap)
+        next_evolution_level = get_pokemon_next_evolution_level(name_clean)
         res = {
             "id": random.randint(1, 151),
             "name": name_clean,
@@ -216,6 +258,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "selected_moves": [m["name"] for m in default_moves if m["level"] <= level_cap][-4:],
             "can_evolve": bool(next_evolution),
             "evolution_target": next_evolution,
+            "next_evolution_level": next_evolution_level,
         }
         POKE_CACHE[cache_key] = res
         return res.copy()

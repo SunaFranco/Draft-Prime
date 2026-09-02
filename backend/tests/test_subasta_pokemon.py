@@ -80,6 +80,12 @@ class TestSubastaPokemon(unittest.TestCase):
         evolve_player_pokemon(player_state, 100)
         self.assertTrue(all(p["level"] == 100 for p in player_state["pokemon"]))
 
+    def test_gothita_evolution_uses_next_min_level_gate(self):
+        poke = poke_api.fetch_pokemon_data("Gothita", level_cap=40)
+        self.assertEqual(poke.get("evolution_target"), "gothorita")
+        self.assertEqual(poke.get("next_evolution_level"), 32)
+        self.assertTrue(poke.get("can_evolve"))
+
     def test_evolution_replaces_species_and_keeps_ability_slot(self):
         original = {
             "name": "Charmander",

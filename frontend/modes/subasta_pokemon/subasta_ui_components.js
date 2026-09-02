@@ -339,13 +339,14 @@ export function renderMyPokemonInventory(data, sessionClient) {
           const itemHtml = itemName && itemName !== 'Sin ítem' && itemName !== 'Sin item'
             ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>`
             : itemName;
+          const nextEvolutionLevel = Number(poke.next_evolution_level ?? 0);
           const canEvolve = (() => {
             const currentYear = Number(data.current_year || 1);
             const evolutionAllowed = Boolean(poke.can_evolve || poke.evolution_target);
             if (!evolutionAllowed) return false;
             if (currentYear === 1) return false;
-            if (currentYear === 2) return poke.level >= 40;
-            return poke.level >= 100;
+            if (currentYear === 2) return poke.level >= (nextEvolutionLevel || 40);
+            return poke.level >= (nextEvolutionLevel || 100);
           })();
 
           return `
