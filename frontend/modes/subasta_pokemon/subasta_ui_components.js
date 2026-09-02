@@ -261,7 +261,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
   if (pokemonList.length === 0) {
     return `
       <div class="card inventory-card">
-        <h3>🎒 Mis Pokémon Conseguidos</h3>
+        <h3>Mis Pokémon Conseguidos</h3>
         <p class="text-muted">Aún no has conseguido ningún Pokémon en las subastas.</p>
       </div>
     `;
@@ -269,13 +269,21 @@ export function renderMyPokemonInventory(data, sessionClient) {
 
   return `
     <div class="card inventory-card">
-      <h3>🎒 Mis Pokémon Conseguidos (Level Cap: Nv. ${levelCap})</h3>
+      <h3>Mis Pokémon Conseguidos (Level Cap: Nv. ${levelCap})</h3>
       <div class="inventory-grid">
         ${pokemonList.map((poke, pokeIdx) => {
           const levelUpMoves = (poke.level_up_moves || []).filter((m) => m.level <= levelCap);
           const selectedMoves = poke.selected_moves || [];
           const isSaved = selectedMoves.length >= 4;
           const itemName = poke.item || poke.held_item || 'Sin ítem';
+          const abilityName = poke.ability || 'Desconocida';
+          const normalizeWikidexName = (name) => encodeURI(String(name).trim().replace(/\s+/g, "_").replace(/[()]/g, ""));
+          const abilityHtml = abilityName !== 'Desconocida'
+            ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(abilityName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${abilityName}</a>`
+            : abilityName;
+          const itemHtml = itemName && itemName !== 'Sin ítem' && itemName !== 'Sin item'
+            ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>`
+            : itemName;
 
           return `
             <div class="poke-inventory-item" data-poke-idx="${pokeIdx}">
@@ -283,25 +291,28 @@ export function renderMyPokemonInventory(data, sessionClient) {
                 ${poke.image_url ? `<img src="${poke.image_url}" class="poke-thumb" />` : ''}
                 <div>
                   <span class="badge">Nv. ${poke.level || levelCap}</span>
-                  <span class="badge badge-green">Habilidad: ${poke.ability || 'Desconocida'}</span>
+                  <span class="badge badge-green">Habilidad: ${abilityHtml}</span>
                 </div>
               </div>
 
               <div class="poke-item-line">
-                <span class="badge badge-item"><strong>Ítem:</strong> ${itemName}</span>
+                <span class="badge badge-item"><strong>Ítem:</strong> ${itemHtml}</span>
               </div>
 
               <div class="moves-selector-box ${isSaved ? 'moves-saved' : ''}" data-poke-idx="${pokeIdx}">
                 <div class="moves-summary-panel">
-                  <h5>⚔️ 4 Movimientos Elegidos:</h5>
+                  <h5>Movimientos:</h5>
                   <div class="saved-moves-list">
-                    ${selectedMoves.map((moveName) => `<span class="move-pill">${moveName}</span>`).join("")}
+                    ${selectedMoves.map((moveName) => {
+                      const wikidexMoveName = encodeURI(String(moveName).trim().replace(/\s+/g, "_").replace(/[()]/g, ""));
+                      return `<a href="https://www.wikidex.net/wiki/${wikidexMoveName}" target="_blank" rel="noopener noreferrer" class="move-pill move-pill--link">${moveName}</a>`;
+                    }).join("")}
                   </div>
                   <button class="btn btn-small btn-secondary btn-modify-moves" data-poke-idx="${pokeIdx}">✏️ Modificar movimientos</button>
                 </div>
 
                 <div class="moves-editor-panel">
-                  <h5>⚔️ Selecciona hasta 4 Movimientos (por nivel):</h5>
+                  <h5>Selecciona hasta 4 Movimientos:</h5>
                   <div class="moves-checkboxes">
                     ${levelUpMoves.map((m) => {
                       const isChecked = selectedMoves.includes(m.name) ? 'checked' : '';
@@ -313,7 +324,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
                       `;
                     }).join("")}
                   </div>
-                  <button class="btn btn-small btn-primary btn-save-moves" data-poke-idx="${pokeIdx}">💾 Guardar 4 Movimientos</button>
+                  <button class="btn btn-small btn-primary btn-save-moves" data-poke-idx="${pokeIdx}">💾 Guardar</button>
                 </div>
               </div>
             </div>
