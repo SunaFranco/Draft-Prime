@@ -82,43 +82,44 @@ class TestSubastaPokemon(unittest.TestCase):
 
     def test_evolution_replaces_species_and_keeps_ability_slot(self):
         original = {
-            "name": "Pikachu",
+            "name": "Charmander",
             "level": 35,
-            "ability": "Lightning Rod",
-            "abilities": ["Static", "Lightning Rod"],
+            "ability": "Blaze",
+            "abilities": ["Blaze", "Solar Power"],
             "image_url": "old-sprite.png",
-            "selected_moves": ["Quick Attack"],
+            "selected_moves": ["Ember"],
             "level_up_moves": [
-                {"name": "Quick Attack", "level": 1},
-                {"name": "Thunderbolt", "level": 15},
-                {"name": "Volt Tackle", "level": 30}
+                {"name": "Ember", "level": 1},
+                {"name": "Flame Burst", "level": 15},
+                {"name": "Flare Blitz", "level": 35}
             ]
         }
 
         evolved_data = {
-            "name": "Raichu",
+            "name": "Charmeleon",
             "region": "Kanto",
-            "types": ["Electric"],
-            "primary_type": "Electric",
-            "abilities": ["Static", "Surge Surfer"],
-            "ability": "Static",
+            "types": ["Fire"],
+            "primary_type": "Fire",
+            "abilities": ["Blaze", "Solar Power"],
+            "ability": "Solar Power",
             "image_url": "new-sprite.png",
             "level_up_moves": [
-                {"name": "Quick Attack", "level": 1},
-                {"name": "Thunderbolt", "level": 15},
-                {"name": "Volt Tackle", "level": 20},
-                {"name": "Surf", "level": 25}
+                {"name": "Ember", "level": 1},
+                {"name": "Flame Burst", "level": 15},
+                {"name": "Flare Blitz", "level": 20},
+                {"name": "Dragon Claw", "level": 25}
             ]
         }
 
-        with patch("backend.modes.subasta_pokemon.handler.poke_api.fetch_pokemon_data", return_value=evolved_data):
+        with patch("backend.modes.subasta_pokemon.handler.poke_api.fetch_pokemon_data", return_value=evolved_data), \
+             patch("backend.modes.subasta_pokemon.handler.poke_api.get_pokemon_evolution_target", return_value="charmeleon"):
             result = evolve_single_pokemon(original, 40)
 
         self.assertTrue(result)
-        self.assertEqual(original["name"], "Raichu")
+        self.assertEqual(original["name"], "Charmeleon")
         self.assertEqual(original["image_url"], "new-sprite.png")
-        self.assertEqual(original["ability"], "Surge Surfer")
-        self.assertIn("Surge Surfer", original["abilities"])
+        self.assertEqual(original["ability"], "Solar Power")
+        self.assertIn("Solar Power", original["abilities"])
         self.assertGreaterEqual(len(original["selected_moves"]), 1)
 
     def test_buyout_immediately_finishes_round(self):

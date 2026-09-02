@@ -81,6 +81,49 @@ def clean_poke_api_name(name: str) -> str:
     return s
 
 
+def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Optional[str]:
+    """Devuelve la siguiente evolución por nivel-up solo si corresponde al límite del año actual."""
+    try:
+        slug = clean_poke_api_name(name_or_id)
+        species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(slug)}"
+        req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+        with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
+            species = json.loads(resp.read().decode())
+        chain_url = species.get("evolution_chain", {}).get("url")
+        if not chain_url:
+            return None
+
+        chain_req = urllib.request.Request(chain_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+        with urllib.request.urlopen(chain_req, context=ssl.create_default_context(), timeout=5) as chain_resp:
+            evo_data = json.loads(chain_resp.read().decode())
+
+        current = evo_data.get("chain")
+        current_name = current.get("species", {}).get("name", "") if current else ""
+        if not current_name:
+            return None
+
+        target_name = None
+        while current:
+            species_name = current.get("species", {}).get("name", "")
+            if species_name and clean_poke_api_name(species_name) == slug:
+                candidates = current.get("evolves_to", [])
+                for candidate in candidates:
+                    details = (candidate.get("evolution_details") or [{}])[0]
+                    trigger = (details.get("trigger") or {}).get("name")
+                    min_level = details.get("min_level")
+                    if trigger == "level-up" and (min_level is None or int(min_level) <= int(max_level)):
+                        target_name = candidate.get("species", {}).get("name")
+                        return target_name
+                break
+            if current.get("evolves_to"):
+                current = current["evolves_to"][0]
+            else:
+                break
+        return target_name
+    except Exception:
+        return None
+
+
 def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
     """Consulta datos de Pokémon desde PokeAPI con fallback en caso de error/offline."""
     key = str(name_or_id).lower().strip()
