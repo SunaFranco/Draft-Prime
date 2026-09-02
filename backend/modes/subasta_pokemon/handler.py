@@ -83,9 +83,9 @@ def init_subasta_round(session: dict):
         "high_bidder": assigned_host_player,
         "assigned_player": assigned_host_player,
         "folded_players": [],
-        "buyout_multiplier": subasta_state["buyout_multiplier"],
-        "buyout_price": int(base_price * subasta_state["buyout_multiplier"]),
-        "secret_fee": subasta_state["secret_fee"],
+        "buyout_multiplier": subasta_state.get("buyout_multiplier", 10.0),
+        "buyout_price": int(base_price * subasta_state.get("buyout_multiplier", 10.0)),
+        "secret_fee": subasta_state.get("secret_fee", 500),
         "hints": poke_api.get_hints_for_multiplier(poke_data, 1.0),
         "finished": False,
         "winner": None,
@@ -372,11 +372,15 @@ class SubastaPokemonMode(BaseGameMode):
             if not auction or auction.get("finished"):
                 return True
 
+            if username == auction.get("high_bidder"):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No puedes retirarte mientras eres el mayor pujador."}})
+                return True
+
             if username not in auction["folded_players"]:
                 auction["folded_players"].append(username)
 
             active_players = [u for u in subasta_state["player_order"] if u not in auction["folded_players"]]
-            if len(active_players) <= 1:
+            if len(active_players) <= 1 and auction.get("high_bidder") in active_players:
                 winner = auction["high_bidder"]
                 auction["winner"] = winner
                 auction["awaiting_secret_choice"] = True

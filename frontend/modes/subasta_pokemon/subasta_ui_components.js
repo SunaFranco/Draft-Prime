@@ -56,6 +56,8 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const isAuctionFinished = Boolean(auction.finished);
   const isWinnerPendingSecret = auction.awaiting_secret_choice && auction.winner === sessionClient.currentUsername;
   const isFolded = (auction.folded_players || []).includes(sessionClient.currentUsername);
+  const isHighBidder = auction.high_bidder === sessionClient.currentUsername;
+  const canFold = !isFolded && !isHighBidder && !isWinnerPendingSecret;
   const revealHoldUntil = Number(auction.reveal_hold_until || 0) * 1000;
   const revealCountdownMs = revealHoldUntil > 0 ? Math.max(0, revealHoldUntil - Date.now()) : 0;
   const revealPercent = revealHoldUntil > 0 ? Math.max(0, Math.min(100, (revealCountdownMs / 5000) * 100)) : 0;
@@ -140,7 +142,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
 
             <div class="btn-group">
               <button id="btn-buyout" class="btn btn-warning" ${isFolded ? "disabled" : ""}>⚡ Compra Directa ($${auction.buyout_price || 3000})</button>
-              <button id="btn-fold" class="btn btn-danger" ${isFolded ? "disabled" : ""}>${isFolded ? "Retirado" : "🚪 Retirarse"}</button>
+              <button id="btn-fold" class="btn btn-danger" ${!canFold ? "disabled" : ""}>${isFolded ? "Retirado" : isHighBidder ? "🔒 Mayor Pujador" : "🚪 Retirarse"}</button>
             </div>
           </div>
         `}
