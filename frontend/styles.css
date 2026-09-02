@@ -622,6 +622,21 @@ button.btn-danger:hover {
   background: #000;
   border: 3px solid var(--border-neon);
   box-shadow: 4px 4px 0px #00ff66;
+  overflow: hidden;
+}
+
+.poke-image-wrapper--revealed {
+  background: #000;
+  border-color: var(--border-neon);
+}
+
+.poke-thumb--revealed {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  display: block;
 }
 
 .poke-unknown-avatar {
@@ -663,6 +678,24 @@ button.btn-danger:hover {
   color: var(--accent-gold);
   margin: 1rem 0;
   text-shadow: 2px 2px 0px #000;
+}
+
+.current-bid-display--win {
+  color: #22c55e;
+  text-shadow: 2px 2px 0px rgba(0,0,0,0.8);
+}
+
+.current-bid-display--lose {
+  color: #ef4444;
+  text-shadow: 2px 2px 0px rgba(0,0,0,0.8);
+}
+
+.high-bidder-display--win {
+  color: #22c55e;
+}
+
+.high-bidder-display--lose {
+  color: #ef4444;
 }
 
 .secret-choice-modal {

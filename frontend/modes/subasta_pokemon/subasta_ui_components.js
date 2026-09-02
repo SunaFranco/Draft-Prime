@@ -81,9 +81,9 @@ export function renderAuctionView(data, sessionClient, isHost) {
       <!-- Tarjeta del Pokémon Subastado -->
       <div class="card auction-poke-card">
         <h3>${isPokemonRevealed ? `🔍 ${poke.name}` : "🔍 Pokémon Incógnito"}</h3>
-        <div class="poke-image-wrapper">
+        <div class="poke-image-wrapper ${isPokemonRevealed ? 'poke-image-wrapper--revealed' : ''}">
           ${isPokemonRevealed
-            ? `<img src="${poke.image_url}" alt="${poke.name}" class="poke-thumb" style="max-width: 180px; width: 100%; object-fit: contain;" />`
+            ? `<img src="${poke.image_url}" alt="${poke.name}" class="poke-thumb poke-thumb--revealed" />`
             : `<div class="poke-unknown-avatar">❓</div>`}
         </div>
         ${isPokemonRevealed ? `<p class="base-price"><strong>Adjudicado a:</strong> ${auction.winner || "Ninguno"}</p>` : `<p class="base-price">Precio Inicial: <strong>$${auction.base_price || 1000}</strong></p>`}
@@ -115,8 +115,8 @@ export function renderAuctionView(data, sessionClient, isHost) {
       <!-- Panel de Puja y Estado -->
       <div class="card auction-controls-card">
         <h3>🔥 Estado de la Puja</h3>
-        <p class="current-bid-display">Puja Actual: <span>$${auction.current_bid || 0}</span></p>
-        <p class="high-bidder-display">Mayor Pujador: <strong>${auction.high_bidder || "Ninguno"}</strong></p>
+        <p class="current-bid-display ${auction.high_bidder === sessionClient.currentUsername ? 'current-bid-display--win' : 'current-bid-display--lose'}">Puja Actual: <span>$${auction.current_bid || 0}</span></p>
+        <p class="high-bidder-display">Mayor Pujador: <strong class="${auction.high_bidder === sessionClient.currentUsername ? 'high-bidder-display--win' : 'high-bidder-display--lose'}">${auction.high_bidder || "Ninguno"}</strong></p>
 
         ${isAuctionFinished && !isWinnerPendingSecret ? `
           <div class="secret-choice-modal">
