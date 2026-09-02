@@ -108,8 +108,10 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             highest_stat_val = stats.get(highest_stat_name, 50)
 
             sprites = data.get("sprites", {})
+            other_sprites = sprites.get("other", {})
             image_url = (
-                sprites.get("other", {}).get("official-artwork", {}).get("front_default")
+                other_sprites.get("official-artwork", {}).get("front_default")
+                or other_sprites.get("dream_world", {}).get("front_default")
                 or sprites.get("front_default")
                 or ""
             )
@@ -161,7 +163,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "ability": random.choice(["Overgrow", "Chlorophyll"]),
             "stats": {"hp": 60, "attack": 75, "defense": 70, "speed": 80},
             "highest_stat": "ATTACK (75)",
-            "image_url": f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png",
+            "image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png",
             "level": level_cap,
             "level_up_moves": default_moves,
             "selected_moves": [m["name"] for m in default_moves if m["level"] <= level_cap][-4:]
