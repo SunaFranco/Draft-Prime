@@ -90,7 +90,8 @@ def init_subasta_round(session: dict):
         "finished": False,
         "winner": None,
         "awaiting_secret_choice": False,
-        "reveal_hold_until": None
+        "reveal_hold_until": None,
+        "publicly_revealed": False
     }
 
 
@@ -421,12 +422,18 @@ class SubastaPokemonMode(BaseGameMode):
                     cost += auction["secret_fee"]
                     won_pokemon = auction["pokemon"].copy()
                     won_pokemon["is_hidden"] = True
+                    auction["pokemon"]["is_hidden"] = True
+                    auction["publicly_revealed"] = False
                 else:
                     won_pokemon = auction["pokemon"].copy()
                     won_pokemon["is_hidden"] = False
+                    auction["pokemon"]["is_hidden"] = False
+                    auction["publicly_revealed"] = True
             else:
                 won_pokemon = auction["pokemon"].copy()
                 won_pokemon["is_hidden"] = False
+                auction["pokemon"]["is_hidden"] = False
+                auction["publicly_revealed"] = True
 
             player["money"] -= cost
             player["pokemon"].append(won_pokemon)
@@ -438,6 +445,8 @@ class SubastaPokemonMode(BaseGameMode):
             # Cuando el ganador elige revelar, damos 5 segundos para que todos lo vean antes de avanzar.
             if not keep_secret:
                 auction["reveal_hold_until"] = time.time() + self.reveal_hold_seconds
+                auction["pokemon"]["is_hidden"] = False
+                auction["publicly_revealed"] = True
                 save_game_session(session_id, self.key, subasta_state)
                 await self._broadcast_subasta_state(session, manager)
                 asyncio.create_task(self._advance_after_reveal_delay(session, session_id, manager))

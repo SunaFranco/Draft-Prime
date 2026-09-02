@@ -59,14 +59,14 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const revealHoldUntil = Number(auction.reveal_hold_until || 0) * 1000;
   const revealCountdownMs = revealHoldUntil > 0 ? Math.max(0, revealHoldUntil - Date.now()) : 0;
   const revealPercent = revealHoldUntil > 0 ? Math.max(0, Math.min(100, (revealCountdownMs / 5000) * 100)) : 0;
+  const isPubliclyRevealed = Boolean(auction.publicly_revealed === true || (auction.finished && !poke.is_hidden && poke.name && poke.image_url));
   const isPokemonRevealed = Boolean(
     !auction.awaiting_secret_choice &&
     auction.finished &&
     poke &&
-    !poke.is_hidden &&
     poke.name &&
     poke.image_url &&
-    (!auction.reveal_hold_until || revealCountdownMs <= 5000)
+    (isPubliclyRevealed || (!auction.reveal_hold_until || revealCountdownMs <= 5000))
   );
 
   let html = `
