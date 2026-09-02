@@ -73,6 +73,13 @@ def init_subasta_round(session: dict):
     turn_idx = subasta_state["auction_turn_index"] % len(order)
     assigned_host_player = order[turn_idx]
 
+    year_starting_money = subasta_state.get("year_starting_money", {}).get(
+        current_year,
+        subasta_state.get("starting_money", 10000)
+    )
+    pok_per_player = max(1, subasta_state.get("pok_per_player", 2))
+    buyout_price = max(1000, int((year_starting_money * 2) / pok_per_player))
+
     subasta_state["current_auction"] = {
         "pokemon": poke_data,
         "base_price": base_price,
@@ -81,7 +88,7 @@ def init_subasta_round(session: dict):
         "assigned_player": assigned_host_player,
         "folded_players": [],
         "buyout_multiplier": subasta_state.get("buyout_multiplier", 10.0),
-        "buyout_price": int(base_price * subasta_state.get("buyout_multiplier", 10.0)),
+        "buyout_price": buyout_price,
         "secret_fee": subasta_state.get("secret_fee", 500),
         "hints": poke_api.get_hints_for_multiplier(poke_data, 1.0),
         "finished": False,
