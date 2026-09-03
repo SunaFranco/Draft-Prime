@@ -601,6 +601,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
             <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="shop-menu" aria-expanded="false">🛒 Tienda</button>
             <div class="backpack-menu shop-menu" data-menu="shop-menu">
               <h4>Tienda</h4>
+              <p class="shop-balance">Dinero actual: <strong>$${myData.money || 0}</strong></p>
               <div class="shop-items">
                 ${shopItems.map((shopItem) => `
                   <div class="shop-item-row">
