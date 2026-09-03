@@ -31,6 +31,22 @@ function buildItemSpriteUrl(name) {
   return slug ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(slug)}.png` : "";
 }
 
+export const NATURE_EFFECTS = {
+  Hardy: ["", ""], Lonely: ["Attack", "Defense"], Brave: ["Attack", "Speed"], Adamant: ["Attack", "Sp. Atk"], Naughty: ["Attack", "Sp. Def"],
+  Bold: ["Defense", "Attack"], Docile: ["", ""], Relaxed: ["Defense", "Speed"], Impish: ["Defense", "Sp. Atk"], Lax: ["Defense", "Sp. Def"],
+  Timid: ["Speed", "Attack"], Hasty: ["Speed", "Defense"], Serious: ["", ""], Jolly: ["Speed", "Sp. Atk"], Naive: ["Speed", "Sp. Def"],
+  Modest: ["Sp. Atk", "Attack"], Mild: ["Sp. Atk", "Defense"], Quiet: ["Sp. Atk", "Speed"], Bashful: ["", ""], Rash: ["Sp. Atk", "Sp. Def"],
+  Calm: ["Sp. Def", "Attack"], Gentle: ["Sp. Def", "Defense"], Sassy: ["Sp. Def", "Speed"], Careful: ["Sp. Def", "Sp. Atk"], Quirky: ["", ""],
+};
+
+export function formatNature(nature) {
+  const name = nature || "Desconocida";
+  const effects = NATURE_EFFECTS[name];
+  if (!effects) return name;
+  if (!effects[0]) return `${name} (sin cambios)`;
+  return `${name} (+${effects[0]}, -${effects[1]})`;
+}
+
 export function renderConfigForm(containerEl, data, isHost) {
   const defaults = {
     starting_money: 10000,
@@ -236,7 +252,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const myData = data.my_data || {};
   const isResolved = myData.resolved_turn;
   const pokemonList = myData.pokemon || [];
-  const natureNames = ["Hardy", "Lonely", "Brave", "Adamant", "Naughty", "Bold", "Docile", "Relaxed", "Impish", "Lax", "Timid", "Hasty", "Serious", "Jolly", "Naive", "Modest", "Mild", "Quiet", "Bashful", "Rash", "Calm", "Gentle", "Sassy", "Careful", "Quirky"];
+  const natureNames = Object.keys(NATURE_EFFECTS);
   const isNatureChange = turnEvent.type === "nature_change";
 
   return `
@@ -256,11 +272,11 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
           <div class="nature-change-form">
             <label for="nature-change-pokemon">Pokémon:</label>
             <select id="nature-change-pokemon" ${pokemonList.length ? "" : "disabled"}>
-              ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`} — ${poke.nature || "Desconocida"}</option>`).join("")}
+              ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`} — ${formatNature(poke.nature)}</option>`).join("")}
             </select>
             <label for="nature-change-nature">Nueva naturaleza:</label>
             <select id="nature-change-nature" ${pokemonList.length ? "" : "disabled"}>
-              ${natureNames.filter((nature) => nature !== (pokemonList[0]?.nature || "")).map((nature) => `<option value="${nature}">${nature}</option>`).join("")}
+              ${natureNames.filter((nature) => nature !== (pokemonList[0]?.nature || "")).map((nature) => `<option value="${nature}">${formatNature(nature)}</option>`).join("")}
             </select>
             <button id="btn-change-nature" class="btn btn-primary btn-large" ${pokemonList.length ? "" : "disabled"}>Cambiar naturaleza</button>
           </div>
@@ -439,7 +455,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
           const isSaved = selectedMoves.length >= requiredMoves;
           const itemName = poke.item || poke.held_item || 'Sin ítem';
           const abilityName = poke.ability || 'Desconocida';
-          const natureName = poke.nature || 'Desconocida';
+          const natureName = formatNature(poke.nature);
           const normalizeWikidexName = (name) => encodeURI(String(name).trim().replace(/\s+/g, "_").replace(/[()]/g, ""));
           const abilityHtml = abilityName !== 'Desconocida'
             ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(abilityName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${abilityName}</a>`

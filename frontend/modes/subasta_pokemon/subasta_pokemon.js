@@ -12,6 +12,8 @@ import {
   renderExportView,
   renderAdminAndStandingsView,
   renderMyPokemonInventory,
+  NATURE_EFFECTS,
+  formatNature,
 } from "./subasta_ui_components.js";
 
 export class SubastaPokemonModeUI extends BaseGameModeUI {
@@ -174,13 +176,13 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     if (btnChangeNature) {
       const pokemonSelect = document.getElementById("nature-change-pokemon");
       const natureSelect = document.getElementById("nature-change-nature");
-      const natureNames = ["Hardy", "Lonely", "Brave", "Adamant", "Naughty", "Bold", "Docile", "Relaxed", "Impish", "Lax", "Timid", "Hasty", "Serious", "Jolly", "Naive", "Modest", "Mild", "Quiet", "Bashful", "Rash", "Calm", "Gentle", "Sassy", "Careful", "Quirky"];
+      const natureNames = Object.keys(NATURE_EFFECTS);
       const updateNatureOptions = () => {
         const selectedPokemon = state.my_data?.pokemon?.[parseInt(pokemonSelect.value, 10)];
         const currentNature = selectedPokemon?.nature || "";
         natureSelect.innerHTML = natureNames
           .filter((nature) => nature !== currentNature)
-          .map((nature) => `<option value="${nature}">${nature}</option>`)
+          .map((nature) => `<option value="${nature}">${formatNature(nature)}</option>`)
           .join("");
       };
       if (pokemonSelect && natureSelect) {
