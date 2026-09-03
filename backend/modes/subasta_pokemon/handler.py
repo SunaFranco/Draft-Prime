@@ -127,12 +127,17 @@ def remove_item_from_inventory(player: dict, item_name: str, qty: int = 1):
 
 def add_tm_to_pokemon(pokemon: dict, move_name: str) -> bool:
     """Añade permanentemente una MT al movepool del Pokémon."""
-    tm_moves = pokemon.setdefault("tm_moves", [])
-    level_up_moves = pokemon.setdefault("level_up_moves", [])
-    if move_name in tm_moves or any(move.get("name") == move_name for move in level_up_moves):
+    learned_tm_moves = pokemon.setdefault("learned_tm_moves", [])
+    selected_moves = pokemon.get("selected_moves") or []
+    if move_name in learned_tm_moves or move_name in selected_moves:
         return False
-    tm_moves.append(move_name)
-    level_up_moves.append({"name": move_name, "level": 0, "source": "tm"})
+    if move_name not in pokemon.get("tm_moves", []):
+        return False
+
+    learned_tm_moves.append(move_name)
+    level_up_moves = pokemon.setdefault("level_up_moves", [])
+    if not any(move.get("name") == move_name for move in level_up_moves):
+        level_up_moves.append({"name": move_name, "level": 0, "source": "tm"})
     return True
 
 

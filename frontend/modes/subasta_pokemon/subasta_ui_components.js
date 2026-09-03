@@ -8,6 +8,11 @@ function buildWikidexUrl(name) {
   return `https://www.wikidex.net/wiki/${encodeURI(formatted)}`;
 }
 
+function getItemWikiName(itemName) {
+  const name = String(itemName || "");
+  return name.startsWith("MT ") ? name.slice(3) : name;
+}
+
 function normalizeItemMap(items) {
   if (!items) return {};
   if (Array.isArray(items)) {
@@ -562,14 +567,15 @@ export function renderMyPokemonInventory(data, sessionClient) {
         }).join("") : '<p class="text-muted">Aún no has conseguido ningún Pokémon en las subastas.</p>'}
       </div>
 
-      <div class="backpack-panel">
-        <button type="button" class="btn btn-secondary backpack-toggle" aria-expanded="false">🎒 Mochila</button>
-        <div class="backpack-menu">
+      <div class="inventory-actions">
+        <div class="backpack-panel">
+          <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="backpack-menu" aria-expanded="false">🎒 Mochila</button>
+          <div class="backpack-menu" data-menu="backpack-menu">
           <h4>Mochila</h4>
           ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
             <div class="bag-item-row">
               <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
-              <a href="${buildWikidexUrl(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>
+              <a href="${buildWikidexUrl(getItemWikiName(itemName))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(itemName)}</a>
               <span class="item-qty">x${qty}</span>
               ${pokemonList.length && itemName === "Capsula Habilidad" ? `<select class="ability-capsule-pokemon-select" data-item-name="${itemName}">
                 ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
@@ -587,23 +593,28 @@ export function renderMyPokemonInventory(data, sessionClient) {
             </div>
           `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
 
-          ${shopOpen ? `
-            <div class="shop-panel">
+          </div>
+        </div>
+
+        ${shopOpen ? `
+          <div class="backpack-panel">
+            <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="shop-menu" aria-expanded="false">🛒 Tienda</button>
+            <div class="backpack-menu shop-menu" data-menu="shop-menu">
               <h4>Tienda</h4>
               <div class="shop-items">
                 ${shopItems.map((shopItem) => `
                   <div class="shop-item-row">
                     <img src="${buildItemSpriteUrl(shopItem.name)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
-                    <a href="${buildWikidexUrl(shopItem.name)}" target="_blank" rel="noopener noreferrer" class="badge-link">${shopItem.name}</a>
+                    <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
                     <span>$${shopItem.price}</span>
                     <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
                   </div>
                 `).join("")}
               </div>
             </div>
-          ` : ""}
+          </div>
+        ` : ""}
         </div>
-      </div>
     </div>
   `;
 }

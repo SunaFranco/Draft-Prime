@@ -286,9 +286,9 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
-    document.querySelectorAll(".backpack-toggle").forEach((btn) => {
+    document.querySelectorAll(".inventory-menu-toggle").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const menu = btn.parentElement?.querySelector(".backpack-menu");
+        const menu = btn.parentElement?.querySelector(`[data-menu="${btn.dataset.menuTarget}"]`);
         if (!menu) return;
         const isOpen = menu.classList.toggle("backpack-menu--open");
         btn.setAttribute("aria-expanded", String(isOpen));
