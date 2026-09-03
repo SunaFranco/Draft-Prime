@@ -111,7 +111,7 @@ def get_pokemon_evolution_details(name_or_id: str, max_level: int = 40) -> Optio
                     trigger = (details.get("trigger") or {}).get("name")
                     min_level = details.get("min_level")
                     item = details.get("item") or details.get("held_item") or {}
-                    item_name = item.get("name")
+                    item_name = item.get("name") if trigger == "use-item" else None
                     if trigger == "level-up" and item_name is None and min_level is not None and int(min_level) > int(max_level):
                         continue
                     if trigger in ("level-up", "use-item", "trade"):
