@@ -180,11 +180,15 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             poke_id = data.get("id", 1)
             name = str(name_or_id).capitalize()
             types = [t["type"]["name"].capitalize() for t in data.get("types", [])]
-            abilities = [a["ability"]["name"].replace("-", " ").capitalize() for a in data.get("abilities", [])]
+            ability_entries = data.get("abilities", [])
+            abilities = [a["ability"]["name"].replace("-", " ").capitalize() for a in ability_entries]
+            ability_slots = [a.get("slot") for a in ability_entries]
             stats = {s["stat"]["name"]: s["base_stat"] for s in data.get("stats", [])}
 
             # Asignar HABILIDAD FIJA aleatoria entre sus habilidades disponibles
-            assigned_ability = random.choice(abilities) if abilities else "Desconocida"
+            assigned_index = random.randrange(len(ability_entries)) if ability_entries else None
+            assigned_ability = abilities[assigned_index] if assigned_index is not None else "Desconocida"
+            ability_slot = ability_entries[assigned_index].get("slot") if assigned_index is not None else None
 
             highest_stat_name = max(stats, key=stats.get) if stats else "hp"
             highest_stat_val = stats.get(highest_stat_name, 50)
@@ -216,7 +220,9 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "types": types,
                 "primary_type": types[0] if types else "Normal",
                 "abilities": abilities,
+                "ability_slots": ability_slots,
                 "ability": assigned_ability,  # Habilidad Fija asignada en subasta
+                "ability_slot": ability_slot,
                 "stats": stats,
                 "highest_stat": f"{highest_stat_name.upper()} ({highest_stat_val})",
                 "image_url": image_url,
@@ -242,14 +248,18 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
         ]
         next_evolution = get_pokemon_evolution_target(name_clean, max_level=level_cap)
         next_evolution_level = get_pokemon_next_evolution_level(name_clean)
+        fallback_abilities = ["Overgrow", "Chlorophyll"]
+        fallback_ability_index = random.randrange(len(fallback_abilities))
         res = {
             "id": random.randint(1, 151),
             "name": name_clean,
             "region": "Kanto",
             "types": ["Normal"],
             "primary_type": "Normal",
-            "abilities": ["Overgrow", "Chlorophyll"],
-            "ability": random.choice(["Overgrow", "Chlorophyll"]),
+            "abilities": fallback_abilities,
+            "ability": fallback_abilities[fallback_ability_index],
+            "ability_slots": [1, 3],
+            "ability_slot": [1, 3][fallback_ability_index],
             "stats": {"hp": 60, "attack": 75, "defense": 70, "speed": 80},
             "highest_stat": "ATTACK (75)",
             "image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png",

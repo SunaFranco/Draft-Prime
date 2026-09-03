@@ -218,12 +218,17 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
     merged_level_up_moves = inherited_moves + evolution_moves
 
     original_abilities = poke.get("abilities") or []
+    original_ability = poke.get("ability")
+    original_slot = poke.get("ability_slot")
+    if original_slot is None and original_ability in original_abilities:
+        original_index = original_abilities.index(original_ability)
+        original_slot = (poke.get("ability_slots") or [])[original_index] if original_index < len(poke.get("ability_slots") or []) else original_index + 1
     evo_abilities = updated.get("abilities") or []
     if evo_abilities:
-        if len(original_abilities) > 1 and len(evo_abilities) > 1:
-            updated["ability"] = evo_abilities[1]
-        else:
-            updated["ability"] = evo_abilities[0]
+        evo_slots = updated.get("ability_slots") or list(range(1, len(evo_abilities) + 1))
+        evo_index = evo_slots.index(original_slot) if original_slot in evo_slots else 0
+        updated["ability"] = evo_abilities[evo_index]
+        updated["ability_slot"] = evo_slots[evo_index]
 
     next_evolution = poke_api.get_pokemon_evolution_target(updated["name"], max_level=max_lvl)
     next_level = poke_api.get_pokemon_next_evolution_level(updated["name"])
@@ -235,7 +240,9 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "types": updated.get("types", []),
         "primary_type": updated.get("primary_type", updated.get("types", ["Normal"])[0] if updated.get("types") else "Normal"),
         "abilities": updated.get("abilities", []),
+        "ability_slots": updated.get("ability_slots", []),
         "ability": updated.get("ability", updated.get("abilities", ["Desconocida"])[0]),
+        "ability_slot": updated.get("ability_slot", 1),
         "stats": updated.get("stats", {}),
         "highest_stat": updated.get("highest_stat", "HP (50)"),
         "image_url": updated.get("image_url", ""),
