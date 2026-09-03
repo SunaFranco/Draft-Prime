@@ -262,7 +262,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const pokemonList = myData.pokemon || [];
   const natureNames = Object.keys(NATURE_EFFECTS);
   const isNatureChange = turnEvent.type === "nature_change";
-  const isItemReward = ["item_grant", "mixed_grant", "tm_booster_pack"].includes(turnEvent.type)
+  const isItemReward = turnEvent.reward_is_random === true
     && (turnEvent.granted_item || turnEvent.granted_items?.length);
 
   return `

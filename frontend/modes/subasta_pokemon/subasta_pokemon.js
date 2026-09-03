@@ -237,7 +237,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     if (btnResolveEvent) {
       btnResolveEvent.addEventListener("click", () => {
         const event = state.current_turn_event || {};
-        const isRouletteEvent = ["item_grant", "mixed_grant", "tm_booster_pack"].includes(event.type)
+        const isRouletteEvent = event.reward_is_random === true
           && (event.granted_item || event.granted_items?.length);
         if (isRouletteEvent) {
           btnResolveEvent.disabled = true;

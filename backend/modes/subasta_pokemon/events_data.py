@@ -113,8 +113,10 @@ def get_random_event_for_year(year: int, turn: int = 1) -> dict:
     event = random.choice(pool).copy()
     if event.get("type") == "tm_booster_pack":
         event["granted_items"] = random.sample(list(TM_MOVES), min(TM_BOOSTER_PACK_SIZE, len(TM_MOVES)))
+        event["reward_is_random"] = True
     if event.get("type") in ("item_grant", "mixed_grant") and not event.get("granted_item"):
         event["granted_item"] = random.choice(ITEMS_POOL)
+        event["reward_is_random"] = True
 
     return event
 
