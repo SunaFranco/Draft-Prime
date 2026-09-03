@@ -409,7 +409,11 @@ export function renderMyPokemonInventory(data, sessionClient) {
               </div>
 
               <div class="poke-item-line">
-                <span class="badge badge-item"><strong>Ítem:</strong> ${itemHtml}</span>
+                <span class="badge badge-item"><strong>Ítem:</strong> ${itemHtml}
+                  ${itemName !== 'Sin ítem' && itemName !== 'Sin item'
+                    ? `<button type="button" class="btn-remove-item" data-poke-idx="${pokeIdx}" aria-label="Quitar ${itemName}" title="Quitar objeto">✕</button>`
+                    : ''}
+                </span>
                 ${bagEntries.length ? `
                   <div class="item-equip-box">
                     <select class="poke-item-select" data-poke-idx="${pokeIdx}">

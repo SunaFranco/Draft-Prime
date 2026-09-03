@@ -217,6 +217,13 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
+    document.querySelectorAll(".btn-remove-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const pokeIdx = parseInt(btn.getAttribute("data-poke-idx"), 10);
+        sessionClient.send({ action: "subasta_item_remove", poke_index: pokeIdx });
+      });
+    });
+
     document.querySelectorAll(".backpack-toggle").forEach((btn) => {
       btn.addEventListener("click", () => {
         const menu = btn.parentElement?.querySelector(".backpack-menu");

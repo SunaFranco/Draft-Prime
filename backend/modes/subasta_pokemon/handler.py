@@ -125,6 +125,21 @@ def assign_item_to_pokemon(player: dict, pok_idx: int, item_name: str) -> bool:
     return True
 
 
+def remove_item_from_pokemon(player: dict, pok_idx: int) -> bool:
+    if pok_idx < 0 or pok_idx >= len(player.get("pokemon", [])):
+        return False
+
+    poke = player["pokemon"][pok_idx]
+    current_item = poke.get("item") or poke.get("held_item")
+    if not current_item:
+        return False
+
+    add_item_to_inventory(player, current_item)
+    poke["item"] = None
+    poke["held_item"] = None
+    return True
+
+
 def init_subasta_round(session: dict):
     """Inicializa una nueva ronda de subasta para un Pokémon."""
     subasta_state = session["subasta"]
@@ -804,6 +819,18 @@ class SubastaPokemonMode(BaseGameMode):
 
             if not assign_item_to_pokemon(player, poke_idx, item_name):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes ese objeto o el Pokémon es inválido."}})
+                return True
+
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_item_remove":
+            poke_idx = int(message.get("pokemon_index", message.get("poke_index", -1)))
+            player = subasta_state["players"].get(username)
+
+            if not player or not remove_item_from_pokemon(player, poke_idx):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "El Pokémon no tiene un objeto equipado o es inválido."}})
                 return True
 
             save_game_session(session_id, self.key, subasta_state)
