@@ -174,7 +174,7 @@ def init_subasta_round(session: dict):
 
 
 def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
-    """Evoluciona un Pokémon reemplazando la especie completa y manteniendo los ataques válidos."""
+    """Evoluciona un Pokémon y conserva los cuatro movimientos elegidos."""
     evo_map = EVOLUTION_MAP_LVL_40 if max_lvl == 40 else EVOLUTION_MAP_LVL_100
     current_name = poke.get("name")
     current_item = poke.get("item") or poke.get("held_item")
@@ -188,10 +188,19 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
 
     updated = poke_api.fetch_pokemon_data(target_name, level_cap=max_lvl)
     previous_selected = poke.get("selected_moves", []) or []
-    valid_new_moves = [m["name"] for m in updated.get("level_up_moves", []) if m.get("level", 0) <= max_lvl]
-    preserved = [move for move in previous_selected if move in valid_new_moves]
-    remaining = [move for move in valid_new_moves if move not in preserved]
-    merged_selected = (preserved + remaining)[:4]
+    previous_moves_by_name = {
+        move.get("name"): move
+        for move in (poke.get("level_up_moves", []) or [])
+        if move.get("name")
+    }
+    evolution_moves = updated.get("level_up_moves", [])
+    evolution_move_names = {move.get("name") for move in evolution_moves}
+    inherited_moves = [
+        previous_moves_by_name.get(move_name, {"name": move_name, "level": 0})
+        for move_name in previous_selected
+        if move_name not in evolution_move_names
+    ]
+    merged_level_up_moves = inherited_moves + evolution_moves
 
     original_abilities = poke.get("abilities") or []
     evo_abilities = updated.get("abilities") or []
@@ -216,8 +225,8 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "highest_stat": updated.get("highest_stat", "HP (50)"),
         "image_url": updated.get("image_url", ""),
         "level": max_lvl,
-        "level_up_moves": updated.get("level_up_moves", []),
-        "selected_moves": merged_selected if merged_selected else updated.get("selected_moves", []),
+        "level_up_moves": merged_level_up_moves,
+        "selected_moves": previous_selected[:4] if previous_selected else updated.get("selected_moves", []),
         "item": current_item,
         "held_item": current_item,
         "can_evolve": bool(next_evolution) and (next_level is None or next_level <= max_lvl),
@@ -861,15 +870,7 @@ class SubastaPokemonMode(BaseGameMode):
                     return True
 
                 if evolve_single_pokemon(poke, target_limit):
-                    existing_selected = poke.get("selected_moves", []) or []
-                    level_up_moves = poke.get("level_up_moves", []) or []
-                    allowed = [m["name"] for m in level_up_moves if m.get("level", 0) <= target_limit]
-                    filtered = [move for move in existing_selected if move in allowed]
-                    if len(filtered) < 4:
-                        for move in allowed:
-                            if move not in filtered and len(filtered) < 4:
-                                filtered.append(move)
-                    poke["selected_moves"] = filtered[:4]
+                    poke["selected_moves"] = (poke.get("selected_moves", []) or [])[:4]
 
                 save_game_session(session_id, self.key, subasta_state)
                 await self._broadcast_subasta_state(session, manager)
