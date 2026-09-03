@@ -922,6 +922,16 @@ class SubastaPokemonMode(BaseGameMode):
             await self._broadcast_subasta_state(session, manager)
             return True
 
+        elif action == "subasta_trade_cancel":
+            trade = subasta_state.get("trade_session")
+            if not trade or trade.get("status") != "confirming" or username != trade.get("initiator"):
+                return True
+
+            subasta_state["trade_session"] = None
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
         elif action in ("subasta_item_assign", "subasta_item_equip"):
             item_name = message.get("item_name") or message.get("item")
             poke_idx = int(message.get("pokemon_index", message.get("poke_index", -1)))

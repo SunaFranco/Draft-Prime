@@ -404,6 +404,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
           ${tradeSession.target_pokemon ? `
             <p><strong>${tradeSession.initiator_pokemon.name}</strong> ↔ <strong>${tradeSession.target_pokemon.name}</strong></p>
             <button class="btn btn-small btn-primary" id="btn-confirm-trade">Confirmar intercambio</button>
+            ${tradeSession.initiator === currentUsername ? '<button class="btn btn-small btn-danger" id="btn-cancel-trade">Rechazar intercambio</button>' : ''}
             <p>${Object.keys(tradeSession.confirms || {}).length}/2 confirmaciones</p>
           ` : tradeSession.target === currentUsername ? `
             <p>Elige uno de tus Pokémon para ofrecerlo:</p>

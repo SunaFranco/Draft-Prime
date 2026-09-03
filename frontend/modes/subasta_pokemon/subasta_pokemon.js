@@ -114,6 +114,13 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     }
 
+    const cancelTradeButton = document.getElementById("btn-cancel-trade");
+    if (cancelTradeButton) {
+      cancelTradeButton.addEventListener("click", () => {
+        sessionClient.send({ action: "subasta_trade_cancel" });
+      });
+    }
+
     // Puja Personalizada
     const btnBidCustom = document.getElementById("btn-bid-custom");
     if (btnBidCustom) {
