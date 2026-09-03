@@ -367,6 +367,16 @@ export function renderMyPokemonInventory(data, sessionClient) {
     { name: "Choice Scarf", price: 2000 },
     { name: "Eviolite", price: 1500 },
     { name: "Rocky Helmet", price: 1400 },
+    { name: "Fire Stone", price: 2000 },
+    { name: "Water Stone", price: 2000 },
+    { name: "Thunder Stone", price: 2000 },
+    { name: "Leaf Stone", price: 2000 },
+    { name: "Moon Stone", price: 2000 },
+    { name: "Sun Stone", price: 2000 },
+    { name: "Shiny Stone", price: 2000 },
+    { name: "Dusk Stone", price: 2000 },
+    { name: "Dawn Stone", price: 2000 },
+    { name: "Ice Stone", price: 2000 },
   ];
 
   return `

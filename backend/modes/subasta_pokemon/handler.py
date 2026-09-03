@@ -62,6 +62,16 @@ ITEM_SHOP_PRICES = {
     "Heavy-Duty Boots": 1600,
     "Focus Sash": 1700,
     "Assault Vest": 1800,
+    "Fire Stone": 2000,
+    "Water Stone": 2000,
+    "Thunder Stone": 2000,
+    "Leaf Stone": 2000,
+    "Moon Stone": 2000,
+    "Sun Stone": 2000,
+    "Shiny Stone": 2000,
+    "Dusk Stone": 2000,
+    "Dawn Stone": 2000,
+    "Ice Stone": 2000,
 }
 
 
