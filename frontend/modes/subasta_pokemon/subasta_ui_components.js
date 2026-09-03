@@ -355,7 +355,8 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
 export function renderMyPokemonInventory(data, sessionClient) {
   const myData = data.my_data || {};
   const pokemonList = myData.pokemon || [];
-  const bagEntries = Object.entries(normalizeItemMap(myData.items || {}));
+  const bagItems = normalizeItemMap(myData.items || {});
+  const bagEntries = Object.entries(bagItems);
   const levelCap = data.current_year === 1 ? 20 : (data.current_year === 2 ? 40 : 100);
   const shopOpen = [4, 8, 12, 13].includes(Number(data.stage || 0));
   const shopItems = [
@@ -375,7 +376,8 @@ export function renderMyPokemonInventory(data, sessionClient) {
         ${pokemonList.length ? pokemonList.map((poke, pokeIdx) => {
           const levelUpMoves = (poke.level_up_moves || []).filter((m) => m.level <= levelCap);
           const selectedMoves = poke.selected_moves || [];
-          const isSaved = selectedMoves.length >= 4;
+          const requiredMoves = Math.min(4, levelUpMoves.length);
+          const isSaved = selectedMoves.length >= requiredMoves;
           const itemName = poke.item || poke.held_item || 'Sin ítem';
           const abilityName = poke.ability || 'Desconocida';
           const normalizeWikidexName = (name) => encodeURI(String(name).trim().replace(/\s+/g, "_").replace(/[()]/g, ""));
@@ -386,15 +388,21 @@ export function renderMyPokemonInventory(data, sessionClient) {
             ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>`
             : itemName;
           const nextEvolutionLevel = Number(poke.next_evolution_level ?? 0);
+          const evolutionItem = poke.evolution_item || '';
+          const hasEvolutionItem = evolutionItem && (bagItems[evolutionItem] || 0) > 0;
           const canEvolve = (() => {
             const currentYear = Number(data.current_year || 1);
             const evolutionAllowed = Boolean(poke.can_evolve || poke.evolution_target);
             if (!evolutionAllowed) return false;
-            if (currentYear === 1) return false;
 
-            const requiredLevel = nextEvolutionLevel > 0 ? nextEvolutionLevel : (currentYear === 2 ? 40 : 100);
-            return poke.level >= requiredLevel;
+            if (evolutionItem && !hasEvolutionItem) return false;
+            if (currentYear === 1 && !evolutionItem) return false;
+            if (nextEvolutionLevel > 0) return poke.level >= nextEvolutionLevel;
+            return evolutionItem || poke.level >= (currentYear === 2 ? 40 : 100);
           })();
+          const evolutionButtonContent = evolutionItem
+            ? `<img src="${buildItemSpriteUrl(evolutionItem)}" alt="${evolutionItem}" /> Evolucionar`
+            : '✨ Evolucionar';
 
           return `
             <div class="poke-inventory-item" data-poke-idx="${pokeIdx}">
@@ -425,7 +433,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
                 ` : ""}
               </div>
 
-              ${canEvolve ? `<button class="btn btn-small btn-primary btn-evolve-pokemon" data-poke-idx="${pokeIdx}">✨ Evolucionar</button>` : ""}
+              ${canEvolve ? `<button class="btn btn-small btn-primary btn-evolve-pokemon" data-poke-idx="${pokeIdx}" title="Evolucionar con ${evolutionItem || 'nivel'}">${evolutionButtonContent}</button>` : ""}
 
               <div class="moves-selector-box ${isSaved ? 'moves-saved' : ''}" data-poke-idx="${pokeIdx}">
                 <div class="moves-summary-panel">

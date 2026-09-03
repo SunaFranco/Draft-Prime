@@ -230,8 +230,9 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         updated["ability"] = evo_abilities[evo_index]
         updated["ability_slot"] = evo_slots[evo_index]
 
-    next_evolution = poke_api.get_pokemon_evolution_target(updated["name"], max_level=max_lvl)
-    next_level = poke_api.get_pokemon_next_evolution_level(updated["name"])
+    evolution_details = poke_api.get_pokemon_evolution_details(updated["name"], max_level=max_lvl)
+    next_evolution = evolution_details.get("target") if evolution_details else None
+    next_level = evolution_details.get("level") if evolution_details else None
     poke.clear()
     poke.update({
         "id": updated.get("id"),
@@ -254,17 +255,20 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "can_evolve": bool(next_evolution) and (next_level is None or next_level <= max_lvl),
         "evolution_target": next_evolution,
         "next_evolution_level": next_level,
+        "evolution_item": evolution_details.get("item") if evolution_details else None,
     })
     return True
 
 
 def refresh_pokemon_evolution_status(poke: dict, max_lvl: int):
     """Actualiza si el Pokémon puede evolucionar al cambiar de año."""
-    target_name = poke_api.get_pokemon_evolution_target(poke.get("name"), max_level=max_lvl)
-    next_level = poke_api.get_pokemon_next_evolution_level(poke.get("name"))
+    evolution_details = poke_api.get_pokemon_evolution_details(poke.get("name"), max_level=max_lvl)
+    target_name = evolution_details.get("target") if evolution_details else None
+    next_level = evolution_details.get("level") if evolution_details else None
     poke["can_evolve"] = bool(target_name) and (next_level is None or next_level <= max_lvl)
     poke["evolution_target"] = target_name
     poke["next_evolution_level"] = next_level
+    poke["evolution_item"] = evolution_details.get("item") if evolution_details else None
     return poke["can_evolve"]
 
 
@@ -898,12 +902,27 @@ class SubastaPokemonMode(BaseGameMode):
                 current_level = poke.get("level", 1)
                 target_year = subasta_state.get("current_year", 1)
                 target_limit = 40 if target_year == 2 else 100
+                evolution_details = poke_api.get_pokemon_evolution_details(poke.get("name"), max_level=target_limit)
+                evolution_item = evolution_details.get("item") if evolution_details else None
+                evolution_level = evolution_details.get("level") if evolution_details else None
+                inventory = normalize_item_inventory(player.get("items", {}))
 
-                if current_level < target_limit:
+                if not evolution_details:
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon no tiene una evolución disponible."}})
+                    return True
+                if evolution_item and inventory.get(evolution_item, 0) <= 0:
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Necesitas {evolution_item} para evolucionar este Pokémon."}})
+                    return True
+                if evolution_level is not None and current_level < evolution_level:
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Este Pokémon necesita llegar al nivel {evolution_level}."}})
+                    return True
+                if not evolution_item and current_level < target_limit:
                     await manager.send_personal(websocket, {"event": "error", "data": {"message": "Tu Pokémon aún no está listo para evolucionar."}})
                     return True
 
                 if evolve_single_pokemon(poke, target_limit):
+                    if evolution_item:
+                        remove_item_from_inventory(player, evolution_item)
                     poke["selected_moves"] = (poke.get("selected_moves", []) or [])[:4]
 
                 save_game_session(session_id, self.key, subasta_state)

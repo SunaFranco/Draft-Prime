@@ -81,8 +81,8 @@ def clean_poke_api_name(name: str) -> str:
     return s
 
 
-def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Optional[str]:
-    """Devuelve la siguiente evolución por nivel-up solo si corresponde al límite del año actual."""
+def get_pokemon_evolution_details(name_or_id: str, max_level: int = 40) -> Optional[dict]:
+    """Devuelve objetivo y condiciones de la siguiente evolución aplicable."""
     try:
         slug = clean_poke_api_name(name_or_id)
         species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(slug)}"
@@ -102,8 +102,6 @@ def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Option
         if not current_name:
             return None
 
-        target_name = None
-        target_level = None
         while current:
             species_name = current.get("species", {}).get("name", "")
             if species_name and clean_poke_api_name(species_name) == slug:
@@ -112,18 +110,29 @@ def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Option
                     details = (candidate.get("evolution_details") or [{}])[0]
                     trigger = (details.get("trigger") or {}).get("name")
                     min_level = details.get("min_level")
-                    if trigger == "level-up" and (min_level is None or int(min_level) <= int(max_level)):
-                        target_name = candidate.get("species", {}).get("name")
-                        target_level = int(min_level) if min_level is not None else None
-                        return target_name
+                    item = details.get("item") or {}
+                    item_name = item.get("name")
+                    if trigger == "level-up" and item_name is None and min_level is not None and int(min_level) > int(max_level):
+                        continue
+                    if trigger in ("level-up", "use-item"):
+                        return {
+                            "target": candidate.get("species", {}).get("name"),
+                            "level": int(min_level) if min_level is not None else None,
+                            "item": item_name.replace("-", " ").title() if item_name else None,
+                        }
                 break
             if current.get("evolves_to"):
                 current = current["evolves_to"][0]
             else:
                 break
-        return target_name
+        return None
     except Exception:
         return None
+
+
+def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Optional[str]:
+    details = get_pokemon_evolution_details(name_or_id, max_level)
+    return details.get("target") if details else None
 
 
 def get_pokemon_next_evolution_level(name_or_id: str) -> Optional[int]:
@@ -211,8 +220,9 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                     {"name": "Iron Tail", "level": 20}
                 ]
 
-            next_evolution = get_pokemon_evolution_target(name, max_level=level_cap)
-            next_evolution_level = get_pokemon_next_evolution_level(name)
+            evolution_details = get_pokemon_evolution_details(name, max_level=level_cap)
+            next_evolution = evolution_details.get("target") if evolution_details else None
+            next_evolution_level = evolution_details.get("level") if evolution_details else None
             res = {
                 "id": poke_id,
                 "name": name,
@@ -232,6 +242,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "can_evolve": bool(next_evolution),
                 "evolution_target": next_evolution,
                 "next_evolution_level": next_evolution_level,
+                "evolution_item": evolution_details.get("item") if evolution_details else None,
             }
             POKE_CACHE[cache_key] = res
             return res.copy()
@@ -246,8 +257,9 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             {"name": "Body Slam", "level": 20},
             {"name": "Hyper Beam", "level": 40}
         ]
-        next_evolution = get_pokemon_evolution_target(name_clean, max_level=level_cap)
-        next_evolution_level = get_pokemon_next_evolution_level(name_clean)
+        evolution_details = get_pokemon_evolution_details(name_clean, max_level=level_cap)
+        next_evolution = evolution_details.get("target") if evolution_details else None
+        next_evolution_level = evolution_details.get("level") if evolution_details else None
         fallback_abilities = ["Overgrow", "Chlorophyll"]
         fallback_ability_index = random.randrange(len(fallback_abilities))
         res = {
@@ -269,6 +281,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "can_evolve": bool(next_evolution),
             "evolution_target": next_evolution,
             "next_evolution_level": next_evolution_level,
+            "evolution_item": evolution_details.get("item") if evolution_details else None,
         }
         POKE_CACHE[cache_key] = res
         return res.copy()

@@ -614,6 +614,12 @@ button.btn-danger:hover {
   background: #ff3366;
 }
 
+.btn-evolve-pokemon img {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+
 .badge-link,
 .move-link {
   display: inline-block;
