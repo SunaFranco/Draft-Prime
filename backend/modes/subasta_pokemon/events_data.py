@@ -10,6 +10,8 @@ ITEMS_POOL = [
     "Focus Sash", "Assault Vest", "Heavy-Duty Boots", "Eviolite", "Rocky Helmet"
 ]
 
+CABLE_LINK_ITEM = "Cable Link"
+
 EVENTS_YEAR_1 = [
     {
         "id": "e1_objeto",
@@ -68,8 +70,17 @@ EVENTS_YEAR_3 = [
 ]
 
 
-def get_random_event_for_year(year: int) -> dict:
+def get_random_event_for_year(year: int, turn: int = 1) -> dict:
     """Devuelve un evento aleatorio según el año actual."""
+    if year == 1 and turn == 1:
+        return {
+            "id": "e1_cable_link",
+            "title": "🔗 Cable Link",
+            "description": "Encontraste un Cable Link. Puedes usarlo para intercambiar un Pokémon en la fase de preparación.",
+            "type": "item_grant",
+            "granted_item": CABLE_LINK_ITEM,
+        }
+
     if year == 1:
         pool = EVENTS_YEAR_1
     elif year == 2:

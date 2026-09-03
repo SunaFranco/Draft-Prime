@@ -86,6 +86,34 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
   attachEventListeners(state, sessionClient, isHost) {
     this.startRevealCountdown(state);
 
+    const startTradeButton = document.getElementById("btn-start-trade");
+    if (startTradeButton) {
+      startTradeButton.addEventListener("click", () => {
+        sessionClient.send({
+          action: "subasta_trade_start",
+          target_username: document.getElementById("trade-target-player").value,
+          poke_index: parseInt(document.getElementById("trade-own-pokemon").value, 10),
+        });
+      });
+    }
+
+    const selectTradeButton = document.getElementById("btn-select-trade-pokemon");
+    if (selectTradeButton) {
+      selectTradeButton.addEventListener("click", () => {
+        sessionClient.send({
+          action: "subasta_trade_select",
+          poke_index: parseInt(document.getElementById("trade-target-pokemon").value, 10),
+        });
+      });
+    }
+
+    const confirmTradeButton = document.getElementById("btn-confirm-trade");
+    if (confirmTradeButton) {
+      confirmTradeButton.addEventListener("click", () => {
+        sessionClient.send({ action: "subasta_trade_confirm" });
+      });
+    }
+
     // Puja Personalizada
     const btnBidCustom = document.getElementById("btn-bid-custom");
     if (btnBidCustom) {

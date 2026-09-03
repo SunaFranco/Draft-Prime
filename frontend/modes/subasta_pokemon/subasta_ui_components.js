@@ -357,6 +357,10 @@ export function renderMyPokemonInventory(data, sessionClient) {
   const pokemonList = myData.pokemon || [];
   const bagItems = normalizeItemMap(myData.items || {});
   const bagEntries = Object.entries(bagItems);
+  const currentUsername = sessionClient.currentUsername;
+  const tradeSession = data.trade_session;
+  const preparationStage = [4, 8, 12, 13].includes(Number(data.stage || 0));
+  const tradeTargets = Object.keys(data.all_players || {}).filter((username) => username !== currentUsername);
   const levelCap = data.current_year === 1 ? 20 : (data.current_year === 2 ? 40 : 100);
   const shopOpen = [4, 8, 12, 13].includes(Number(data.stage || 0));
   const shopItems = [
@@ -382,6 +386,35 @@ export function renderMyPokemonInventory(data, sessionClient) {
   return `
     <div class="card inventory-card">
       <h3>Mis Pokémon Conseguidos (Level Cap: Nv. ${levelCap})</h3>
+      ${preparationStage && (!tradeSession || ['completed', 'cancelled'].includes(tradeSession.status)) && bagItems["Cable Link"] && tradeTargets.length && pokemonList.length ? `
+        <div class="trade-panel">
+          <h4>🔗 Intercambio con Cable Link</h4>
+          <select id="trade-target-player">
+            ${tradeTargets.map((username) => `<option value="${username}">${username}</option>`).join("")}
+          </select>
+          <select id="trade-own-pokemon">
+            ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+          </select>
+          <button class="btn btn-small btn-primary" id="btn-start-trade">Usar Cable Link</button>
+        </div>
+      ` : ""}
+      ${tradeSession && tradeSession.status !== 'completed' && tradeSession.status !== 'cancelled' && (tradeSession.initiator === currentUsername || tradeSession.target === currentUsername) ? `
+        <div class="trade-panel">
+          <h4>🔗 Intercambio: ${tradeSession.initiator} ↔ ${tradeSession.target}</h4>
+          ${tradeSession.target_pokemon ? `
+            <p><strong>${tradeSession.initiator_pokemon.name}</strong> ↔ <strong>${tradeSession.target_pokemon.name}</strong></p>
+            <button class="btn btn-small btn-primary" id="btn-confirm-trade">Confirmar intercambio</button>
+            <p>${Object.keys(tradeSession.confirms || {}).length}/2 confirmaciones</p>
+          ` : tradeSession.target === currentUsername ? `
+            <p>Elige uno de tus Pokémon para ofrecerlo:</p>
+            <select id="trade-target-pokemon">
+              ${(pokemonList || []).map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+            </select>
+            <button class="btn btn-small btn-primary" id="btn-select-trade-pokemon">Elegir Pokémon</button>
+          ` : '<p>Esperando a que el otro jugador elija su Pokémon.</p>'}
+        </div>
+      ` : ""}
+      ${tradeSession && tradeSession.status === 'completed' && (tradeSession.initiator === currentUsername || tradeSession.target === currentUsername) ? '<div class="trade-panel"><strong>Intercambio realizado.</strong> Los dos Pokémon han cambiado de entrenador.</div>' : ""}
       <div class="inventory-grid">
         ${pokemonList.length ? pokemonList.map((poke, pokeIdx) => {
           const levelUpMoves = (poke.level_up_moves || []).filter((m) => m.level <= levelCap);
@@ -406,9 +439,10 @@ export function renderMyPokemonInventory(data, sessionClient) {
             if (!evolutionAllowed) return false;
 
             if (evolutionItem && !hasEvolutionItem) return false;
+            if (poke.evolution_trade && !poke.received_by_trade) return false;
             if (currentYear === 1 && !evolutionItem) return false;
             if (nextEvolutionLevel > 0) return poke.level >= nextEvolutionLevel;
-            return evolutionItem || poke.level >= (currentYear === 2 ? 40 : 100);
+            return evolutionItem || poke.evolution_trade || poke.level >= (currentYear === 2 ? 40 : 100);
           })();
           const evolutionButtonContent = evolutionItem
             ? `<img src="${buildItemSpriteUrl(evolutionItem)}" alt="${evolutionItem}" /> Evolucionar`

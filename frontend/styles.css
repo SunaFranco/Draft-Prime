@@ -880,6 +880,31 @@ button.btn-danger:hover {
   margin: 0.5rem 0 0.25rem;
 }
 
+.trade-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  padding: 0.8rem;
+  border: 2px solid var(--border-bright);
+  background: #111827;
+}
+
+.trade-panel h4,
+.trade-panel p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.trade-panel select {
+  min-width: 150px;
+}
+
+.trade-panel .btn {
+  margin: 0;
+}
+
 .backpack-panel {
   position: relative;
   display: flex;

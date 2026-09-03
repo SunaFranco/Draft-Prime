@@ -110,15 +110,16 @@ def get_pokemon_evolution_details(name_or_id: str, max_level: int = 40) -> Optio
                     details = (candidate.get("evolution_details") or [{}])[0]
                     trigger = (details.get("trigger") or {}).get("name")
                     min_level = details.get("min_level")
-                    item = details.get("item") or {}
+                    item = details.get("item") or details.get("held_item") or {}
                     item_name = item.get("name")
                     if trigger == "level-up" and item_name is None and min_level is not None and int(min_level) > int(max_level):
                         continue
-                    if trigger in ("level-up", "use-item"):
+                    if trigger in ("level-up", "use-item", "trade"):
                         return {
                             "target": candidate.get("species", {}).get("name"),
                             "level": int(min_level) if min_level is not None else None,
                             "item": item_name.replace("-", " ").title() if item_name else None,
+                            "trade": trigger == "trade",
                         }
                 break
             if current.get("evolves_to"):
@@ -243,6 +244,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "evolution_target": next_evolution,
                 "next_evolution_level": next_evolution_level,
                 "evolution_item": evolution_details.get("item") if evolution_details else None,
+                "evolution_trade": bool(evolution_details and evolution_details.get("trade")),
             }
             POKE_CACHE[cache_key] = res
             return res.copy()
@@ -282,6 +284,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "evolution_target": next_evolution,
             "next_evolution_level": next_evolution_level,
             "evolution_item": evolution_details.get("item") if evolution_details else None,
+            "evolution_trade": bool(evolution_details and evolution_details.get("trade")),
         }
         POKE_CACHE[cache_key] = res
         return res.copy()

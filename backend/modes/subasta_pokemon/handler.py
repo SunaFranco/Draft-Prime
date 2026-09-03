@@ -243,6 +243,8 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
     evolution_details = poke_api.get_pokemon_evolution_details(updated["name"], max_level=max_lvl)
     next_evolution = evolution_details.get("target") if evolution_details else None
     next_level = evolution_details.get("level") if evolution_details else None
+    evolution_trade = bool(evolution_details and evolution_details.get("trade"))
+    received_by_trade = bool(poke.get("received_by_trade"))
     poke.clear()
     poke.update({
         "id": updated.get("id"),
@@ -262,10 +264,12 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "selected_moves": previous_selected[:4] if previous_selected else updated.get("selected_moves", []),
         "item": current_item,
         "held_item": current_item,
-        "can_evolve": bool(next_evolution) and (next_level is None or next_level <= max_lvl),
+        "can_evolve": bool(next_evolution) and (not evolution_trade or received_by_trade) and (next_level is None or next_level <= max_lvl),
         "evolution_target": next_evolution,
         "next_evolution_level": next_level,
         "evolution_item": evolution_details.get("item") if evolution_details else None,
+        "evolution_trade": evolution_trade,
+        "received_by_trade": received_by_trade,
     })
     return True
 
@@ -275,10 +279,12 @@ def refresh_pokemon_evolution_status(poke: dict, max_lvl: int):
     evolution_details = poke_api.get_pokemon_evolution_details(poke.get("name"), max_level=max_lvl)
     target_name = evolution_details.get("target") if evolution_details else None
     next_level = evolution_details.get("level") if evolution_details else None
-    poke["can_evolve"] = bool(target_name) and (next_level is None or next_level <= max_lvl)
+    requires_trade = bool(evolution_details and evolution_details.get("trade"))
+    poke["can_evolve"] = bool(target_name) and (not requires_trade or poke.get("received_by_trade")) and (next_level is None or next_level <= max_lvl)
     poke["evolution_target"] = target_name
     poke["next_evolution_level"] = next_level
     poke["evolution_item"] = evolution_details.get("item") if evolution_details else None
+    poke["evolution_trade"] = requires_trade
     return poke["can_evolve"]
 
 
@@ -419,7 +425,8 @@ class SubastaPokemonMode(BaseGameMode):
             "showdown_text": showdown_text,
             "standings": subasta_state.get("standings", []),
             "match_history": subasta_state.get("match_history", []),
-            "event_finished": subasta_state.get("event_finished", False)
+            "event_finished": subasta_state.get("event_finished", False),
+            "trade_session": subasta_state.get("trade_session")
         }
 
     def validate_config(self, message: dict) -> dict:
@@ -496,6 +503,7 @@ class SubastaPokemonMode(BaseGameMode):
             },
             "current_auction": {},
             "current_turn_events": {},
+            "trade_session": None,
             "standings": [{"username": u, "points": 0} for u in order],
             "match_history": [],
             "event_finished": False
@@ -726,6 +734,8 @@ class SubastaPokemonMode(BaseGameMode):
             if cur < 13:
                 next_stage = cur + 1
                 subasta_state["current_stage"] = next_stage
+                if next_stage not in (4, 8, 12, 13):
+                    subasta_state["trade_session"] = None
 
                 # Transiciones especiales (Inicio de Año 2 y 3)
                 if next_stage == 5:  # Inicio Año 2
@@ -801,6 +811,8 @@ class SubastaPokemonMode(BaseGameMode):
             if current_stage not in (4, 8, 12):
                 return True
 
+            subasta_state["trade_session"] = None
+
             if current_stage == 12:
                 subasta_state["current_stage"] = 13
                 subasta_state["event_finished"] = True
@@ -823,6 +835,81 @@ class SubastaPokemonMode(BaseGameMode):
                     subasta_state["current_stage"] = 10
                     init_subasta_round(session)
 
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_trade_start":
+            if subasta_state.get("current_stage") not in (4, 8, 12, 13):
+                return True
+            player = subasta_state["players"].get(username)
+            target_username = message.get("target_username")
+            poke_idx = int(message.get("poke_index", -1))
+            inventory = normalize_item_inventory(player.get("items", {})) if player else {}
+            if subasta_state.get("trade_session"):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Ya hay un intercambio en curso."}})
+                return True
+            if not player or target_username not in subasta_state["players"] or target_username == username:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "El jugador elegido no es válido."}})
+                return True
+            if inventory.get("Cable Link", 0) <= 0 or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas un Cable Link y un Pokémon válido."}})
+                return True
+            offered = player["pokemon"][poke_idx].copy()
+            subasta_state["trade_session"] = {
+                "status": "selecting",
+                "initiator": username,
+                "target": target_username,
+                "initiator_poke_index": poke_idx,
+                "target_poke_index": None,
+                "initiator_pokemon": offered,
+                "target_pokemon": None,
+                "confirms": {},
+            }
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_trade_select":
+            trade = subasta_state.get("trade_session")
+            player = subasta_state["players"].get(username)
+            poke_idx = int(message.get("poke_index", -1))
+            if not trade or trade.get("status") != "selecting" or trade.get("target") != username:
+                return True
+            if not player or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                return True
+            trade["target_poke_index"] = poke_idx
+            trade["target_pokemon"] = player["pokemon"][poke_idx].copy()
+            trade["status"] = "confirming"
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_trade_confirm":
+            trade = subasta_state.get("trade_session")
+            if not trade or trade.get("status") != "confirming" or username not in (trade.get("initiator"), trade.get("target")):
+                return True
+            trade.setdefault("confirms", {})[username] = True
+            if len(trade["confirms"]) == 2:
+                initiator = subasta_state["players"][trade["initiator"]]
+                target = subasta_state["players"][trade["target"]]
+                initiator_idx = trade["initiator_poke_index"]
+                target_idx = trade["target_poke_index"]
+                if (0 <= initiator_idx < len(initiator["pokemon"]) and
+                        0 <= target_idx < len(target["pokemon"]) and
+                        normalize_item_inventory(initiator.get("items", {})).get("Cable Link", 0) > 0):
+                    initiator_pokemon = initiator["pokemon"][initiator_idx]
+                    target_pokemon = target["pokemon"][target_idx]
+                    initiator["pokemon"][initiator_idx], target["pokemon"][target_idx] = target_pokemon, initiator_pokemon
+                    initiator["pokemon"][initiator_idx]["received_by_trade"] = True
+                    target["pokemon"][target_idx]["received_by_trade"] = True
+                    target_limit = get_year_level_cap(subasta_state.get("current_year", 1))
+                    refresh_pokemon_evolution_status(initiator["pokemon"][initiator_idx], target_limit)
+                    refresh_pokemon_evolution_status(target["pokemon"][target_idx], target_limit)
+                    remove_item_from_inventory(initiator, "Cable Link")
+                    trade["status"] = "completed"
+                else:
+                    trade["status"] = "cancelled"
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True
@@ -915,10 +1002,14 @@ class SubastaPokemonMode(BaseGameMode):
                 evolution_details = poke_api.get_pokemon_evolution_details(poke.get("name"), max_level=target_limit)
                 evolution_item = evolution_details.get("item") if evolution_details else None
                 evolution_level = evolution_details.get("level") if evolution_details else None
+                requires_trade = bool(evolution_details and evolution_details.get("trade"))
                 inventory = normalize_item_inventory(player.get("items", {}))
 
                 if not evolution_details:
                     await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon no tiene una evolución disponible."}})
+                    return True
+                if requires_trade and not poke.get("received_by_trade"):
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon debe llegar mediante un intercambio."}})
                     return True
                 if evolution_item and inventory.get(evolution_item, 0) <= 0:
                     await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Necesitas {evolution_item} para evolucionar este Pokémon."}})
@@ -945,8 +1036,9 @@ class SubastaPokemonMode(BaseGameMode):
     def _generate_turn_events(self, subasta_state: dict):
         """Genera un nuevo evento para cada jugador en el turno actual."""
         year = subasta_state["current_year"]
+        turn = subasta_state.get("current_turn", 1)
         subasta_state["current_turn_events"] = {
-            u: events_data.get_random_event_for_year(year) for u in subasta_state["players"].keys()
+            u: events_data.get_random_event_for_year(year, turn) for u in subasta_state["players"].keys()
         }
 
     async def _broadcast_subasta_state(self, session: dict, manager: Any):
