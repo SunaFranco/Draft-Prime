@@ -708,6 +708,14 @@ class SubastaPokemonMode(BaseGameMode):
 
             if player and event and not player.get("resolved_turn"):
                 summary = events_data.apply_event_to_player(player, event)
+                if event.get("granted_pokemon"):
+                    granted_pokemon = poke_api.fetch_pokemon_data(
+                        event["granted_pokemon"],
+                        level_cap=get_year_level_cap(subasta_state.get("current_year", 1)),
+                    )
+                    granted_pokemon["is_hidden"] = False
+                    player.setdefault("pokemon", []).append(granted_pokemon)
+                    summary["pokemon_count"] = len(player["pokemon"])
                 player["resolved_turn"] = True
 
                 # Si todos resolvieron el turno actual

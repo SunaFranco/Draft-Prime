@@ -80,6 +80,22 @@ def get_random_event_for_year(year: int, turn: int = 1) -> dict:
             "type": "item_grant",
             "granted_item": CABLE_LINK_ITEM,
         }
+    if year == 1 and turn == 2:
+        return {
+            "id": "e1_electabuzz_test",
+            "title": "⚡ Encuentro de Prueba",
+            "description": "Encontraste un Electabuzz para probar las evoluciones por intercambio.",
+            "type": "pokemon_grant",
+            "granted_pokemon": "Electabuzz",
+        }
+    if year == 1 and turn == 3:
+        return {
+            "id": "e1_magmar_test",
+            "title": "🔥 Encuentro de Prueba",
+            "description": "Encontraste un Magmar para probar las evoluciones por intercambio.",
+            "type": "pokemon_grant",
+            "granted_pokemon": "Magmar",
+        }
 
     if year == 1:
         pool = EVENTS_YEAR_1
@@ -125,6 +141,9 @@ def apply_event_to_player(player_state: dict, event: dict) -> dict:
         items[item] = items.get(item, 0) + 1
         player_state["items"] = items
         msg_parts.append(f"Objeto obtenido: {item}.")
+
+    if event.get("granted_pokemon"):
+        msg_parts.append(f"Pokémon obtenido: {event['granted_pokemon']}.")
 
     if "xp_bonus" in event and player_state.get("pokemon"):
         bonus = event["xp_bonus"]
