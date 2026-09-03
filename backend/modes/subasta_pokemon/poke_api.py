@@ -20,6 +20,19 @@ POKEMON_NATURES = [
     "Calm", "Gentle", "Sassy", "Careful", "Quirky",
 ]
 
+TM_MOVES = {
+    "MT Earthquake": "Earthquake",
+    "MT Ice Beam": "Ice Beam",
+    "MT Flamethrower": "Flamethrower",
+    "MT Thunderbolt": "Thunderbolt",
+    "MT Psychic": "Psychic",
+    "MT Shadow Ball": "Shadow Ball",
+    "MT Protect": "Protect",
+    "MT Substitute": "Substitute",
+    "MT Swords Dance": "Swords Dance",
+    "MT Calm Mind": "Calm Mind",
+}
+
 # Muestras base por Tiers para garantizar funcionamiento rápido y offline si la API no responde
 SAMPLE_POKEMON_POOLS = {
     "normal": [
@@ -77,6 +90,20 @@ def extract_level_up_moves(moves_data: List[dict]) -> List[dict]:
 
     level_moves.sort(key=lambda x: x["level"])
     return level_moves
+
+
+def extract_tm_moves(moves_data: List[dict]) -> List[str]:
+    """Extrae los movimientos que el Pokémon puede aprender mediante MT."""
+    tm_moves = []
+    seen = set()
+    for move_data in moves_data:
+        move_name = move_data.get("move", {}).get("name", "").replace("-", " ").title()
+        if not move_name or move_name in seen:
+            continue
+        if any(detail.get("move_learn_method", {}).get("name") == "machine" for detail in move_data.get("version_group_details", [])):
+            seen.add(move_name)
+            tm_moves.append(move_name)
+    return tm_moves
 
 
 def clean_poke_api_name(name: str) -> str:
@@ -222,6 +249,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             )
 
             level_up_moves = extract_level_up_moves(data.get("moves", []))
+            tm_moves = extract_tm_moves(data.get("moves", []))
             if not level_up_moves:
                 level_up_moves = [
                     {"name": "Tackle", "level": 1},
@@ -249,6 +277,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "image_url": image_url,
                 "level": level_cap,
                 "level_up_moves": level_up_moves,
+                "tm_moves": tm_moves,
                 "selected_moves": [m["name"] for m in level_up_moves if m["level"] <= level_cap][-4:],
                 "can_evolve": bool(next_evolution),
                 "evolution_target": next_evolution,
@@ -290,6 +319,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png",
             "level": level_cap,
             "level_up_moves": default_moves,
+            "tm_moves": [],
             "selected_moves": [m["name"] for m in default_moves if m["level"] <= level_cap][-4:],
             "can_evolve": bool(next_evolution),
             "evolution_target": next_evolution,

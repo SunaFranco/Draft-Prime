@@ -53,6 +53,16 @@ def get_year_level_cap(year: int) -> int:
 
 ITEM_SHOP_PRICES = {
     "Capsula Habilidad": 2500,
+    "MT Earthquake": 2000,
+    "MT Ice Beam": 2000,
+    "MT Flamethrower": 2000,
+    "MT Thunderbolt": 2000,
+    "MT Psychic": 2000,
+    "MT Shadow Ball": 2000,
+    "MT Protect": 1500,
+    "MT Substitute": 2000,
+    "MT Swords Dance": 2000,
+    "MT Calm Mind": 2000,
     "Leftovers": 1200,
     "Life Orb": 1800,
     "Choice Band": 2000,
@@ -113,6 +123,17 @@ def remove_item_from_inventory(player: dict, item_name: str, qty: int = 1):
     else:
         items[item_name] = new_qty
     player["items"] = {k: v for k, v in sorted(items.items()) if v > 0}
+
+
+def add_tm_to_pokemon(pokemon: dict, move_name: str) -> bool:
+    """Añade permanentemente una MT al movepool del Pokémon."""
+    tm_moves = pokemon.setdefault("tm_moves", [])
+    level_up_moves = pokemon.setdefault("level_up_moves", [])
+    if move_name in tm_moves or any(move.get("name") == move_name for move in level_up_moves):
+        return False
+    tm_moves.append(move_name)
+    level_up_moves.append({"name": move_name, "level": 0, "source": "tm"})
+    return True
 
 
 def assign_item_to_pokemon(player: dict, pok_idx: int, item_name: str) -> bool:
@@ -1005,6 +1026,33 @@ class SubastaPokemonMode(BaseGameMode):
             poke["ability"] = ability
             poke["ability_slot"] = ability_slots[ability_index] if ability_index < len(ability_slots) else ability_index + 1
             remove_item_from_inventory(player, "Capsula Habilidad")
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_use_tm":
+            player = subasta_state["players"].get(username)
+            poke_idx = message.get("poke_index")
+            item_name = message.get("item_name")
+            move_name = poke_api.TM_MOVES.get(item_name)
+            inventory = normalize_item_inventory(player.get("items", {})) if player else {}
+
+            if not player or inventory.get(item_name, 0) <= 0 or not move_name:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes esa MT."}})
+                return True
+            if not isinstance(poke_idx, int) or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido."}})
+                return True
+
+            poke = player["pokemon"][poke_idx]
+            if move_name not in (poke.get("tm_moves") or []):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon no puede aprender ese movimiento por MT."}})
+                return True
+            if not add_tm_to_pokemon(poke, move_name):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon ya conoce ese movimiento."}})
+                return True
+
+            remove_item_from_inventory(player, item_name)
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True

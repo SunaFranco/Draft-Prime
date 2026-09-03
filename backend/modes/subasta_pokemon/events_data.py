@@ -4,6 +4,7 @@ backend/modes/subasta_pokemon/events_data.py - Eventos aleatorios por turno para
 
 import random
 from typing import Dict, List, Any
+from backend.modes.subasta_pokemon.poke_api import TM_MOVES
 
 ITEMS_POOL = [
     "Leftovers", "Life Orb", "Choice Band", "Choice Specs", "Choice Scarf",
@@ -12,6 +13,7 @@ ITEMS_POOL = [
 
 CABLE_LINK_ITEM = "Cable Link"
 ABILITY_CAPSULE_ITEM = "Capsula Habilidad"
+TM_BOOSTER_PACK_SIZE = 4
 
 EVENTS_YEAR_1 = [
     {
@@ -32,6 +34,19 @@ EVENTS_YEAR_1 = [
         "title": "🌿 Cambio de Naturaleza",
         "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
         "type": "nature_change",
+    },
+    {
+        "id": "e2_capsula_habilidad",
+        "title": "💊 Capsula Habilidad",
+        "description": "Encontraste una Capsula Habilidad. Puedes usarla para cambiar la habilidad de uno de tus Pokémon.",
+        "type": "item_grant",
+        "granted_item": ABILITY_CAPSULE_ITEM,
+    },
+    {
+        "id": "e1_mt_booster_pack",
+        "title": "MT BOOSTER PACK",
+        "description": "Encontraste un MT BOOSTER PACK con 4 MTs aleatorias.",
+        "type": "tm_booster_pack",
     },
 ]
 
@@ -62,6 +77,12 @@ EVENTS_YEAR_2 = [
         "type": "item_grant",
         "granted_item": ABILITY_CAPSULE_ITEM,
     },
+    {
+        "id": "e2_mt_booster_pack",
+        "title": "MT BOOSTER PACK",
+        "description": "Encontraste un MT BOOSTER PACK con 4 MTs aleatorias.",
+        "type": "tm_booster_pack",
+    },
 ]
 
 EVENTS_YEAR_3 = [
@@ -70,6 +91,12 @@ EVENTS_YEAR_3 = [
         "title": "🌿 Cambio de Naturaleza",
         "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
         "type": "nature_change",
+    },
+    {
+        "id": "e3_mt_booster_pack",
+        "title": "MT BOOSTER PACK",
+        "description": "Encontraste un MT BOOSTER PACK con 4 MTs aleatorias.",
+        "type": "tm_booster_pack",
     },
 ]
 
@@ -84,6 +111,8 @@ def get_random_event_for_year(year: int, turn: int = 1) -> dict:
         pool = EVENTS_YEAR_3
 
     event = random.choice(pool).copy()
+    if event.get("type") == "tm_booster_pack":
+        event["granted_items"] = random.sample(list(TM_MOVES), min(TM_BOOSTER_PACK_SIZE, len(TM_MOVES)))
     if event.get("type") in ("item_grant", "mixed_grant") and not event.get("granted_item"):
         event["granted_item"] = random.choice(ITEMS_POOL)
 
@@ -120,6 +149,13 @@ def apply_event_to_player(player_state: dict, event: dict) -> dict:
         items[item] = items.get(item, 0) + 1
         player_state["items"] = items
         msg_parts.append(f"Objeto obtenido: {item}.")
+
+    if event.get("granted_items"):
+        items = normalize_item_counts(player_state.setdefault("items", {}))
+        for item in event["granted_items"]:
+            items[item] = items.get(item, 0) + 1
+        player_state["items"] = items
+        msg_parts.append(f"MTs obtenidas: {', '.join(event['granted_items'])}.")
 
     if event.get("granted_pokemon"):
         msg_parts.append(f"Pokémon obtenido: {event['granted_pokemon']}.")

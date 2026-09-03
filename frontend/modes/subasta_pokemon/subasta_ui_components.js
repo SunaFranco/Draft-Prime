@@ -28,8 +28,10 @@ function normalizeItemMap(items) {
 
 function buildItemSpriteUrl(name) {
   const slugOverrides = { "Capsula Habilidad": "ability-capsule" };
+  const tmMove = String(name || "").startsWith("MT ") ? String(name).slice(3) : "";
   const slug = slugOverrides[name] || String(name || "").trim().toLowerCase().replace(/\s+/g, "-");
-  return slug ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(slug)}.png` : "";
+  const itemSlug = tmMove ? "tm-normal" : slug;
+  return itemSlug ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(itemSlug)}.png` : "";
 }
 
 export const NATURE_EFFECTS = {
@@ -414,6 +416,16 @@ export function renderMyPokemonInventory(data, sessionClient) {
     { name: "Dawn Stone", price: 2000 },
     { name: "Ice Stone", price: 2000 },
     { name: "Capsula Habilidad", price: 2500 },
+    { name: "MT Earthquake", price: 2000 },
+    { name: "MT Ice Beam", price: 2000 },
+    { name: "MT Flamethrower", price: 2000 },
+    { name: "MT Thunderbolt", price: 2000 },
+    { name: "MT Psychic", price: 2000 },
+    { name: "MT Shadow Ball", price: 2000 },
+    { name: "MT Protect", price: 1500 },
+    { name: "MT Substitute", price: 2000 },
+    { name: "MT Swords Dance", price: 2000 },
+    { name: "MT Calm Mind", price: 2000 },
   ];
 
   return `
@@ -565,7 +577,10 @@ export function renderMyPokemonInventory(data, sessionClient) {
               <select class="ability-capsule-select" data-poke-idx="0">
                 ${(pokemonList[0]?.abilities || []).filter((ability) => ability !== pokemonList[0]?.ability).map((ability) => `<option value="${ability}">${ability}</option>`).join("")}
               </select>
-              <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length ? `<select class="bag-item-select" data-item-name="${itemName}">
+              <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName.startsWith("MT ") ? `<select class="tm-pokemon-select" data-item-name="${itemName}">
+                ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+              </select>
+              <button class="btn btn-small btn-secondary btn-use-tm" data-item-name="${itemName}">Usar</button>` : pokemonList.length ? `<select class="bag-item-select" data-item-name="${itemName}">
                 ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
               </select>
               <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>` : ""}
