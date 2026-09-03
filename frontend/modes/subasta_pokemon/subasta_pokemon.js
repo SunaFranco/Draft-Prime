@@ -170,6 +170,31 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     }
 
+    const btnChangeNature = document.getElementById("btn-change-nature");
+    if (btnChangeNature) {
+      const pokemonSelect = document.getElementById("nature-change-pokemon");
+      const natureSelect = document.getElementById("nature-change-nature");
+      const natureNames = ["Hardy", "Lonely", "Brave", "Adamant", "Naughty", "Bold", "Docile", "Relaxed", "Impish", "Lax", "Timid", "Hasty", "Serious", "Jolly", "Naive", "Modest", "Mild", "Quiet", "Bashful", "Rash", "Calm", "Gentle", "Sassy", "Careful", "Quirky"];
+      const updateNatureOptions = () => {
+        const selectedPokemon = state.my_data?.pokemon?.[parseInt(pokemonSelect.value, 10)];
+        const currentNature = selectedPokemon?.nature || "";
+        natureSelect.innerHTML = natureNames
+          .filter((nature) => nature !== currentNature)
+          .map((nature) => `<option value="${nature}">${nature}</option>`)
+          .join("");
+      };
+      if (pokemonSelect && natureSelect) {
+        pokemonSelect.addEventListener("change", updateNatureOptions);
+        btnChangeNature.addEventListener("click", () => {
+          sessionClient.send({
+            action: "subasta_change_nature",
+            poke_index: parseInt(pokemonSelect.value, 10),
+            nature: natureSelect.value,
+          });
+        });
+      }
+    }
+
     // Avanzar Etapa (Host)
     const btnForceNext = document.getElementById("btn-force-next-stage");
     [btnForceNext].forEach((btn) => {

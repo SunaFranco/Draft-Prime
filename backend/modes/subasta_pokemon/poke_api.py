@@ -12,6 +12,14 @@ from typing import Dict, List, Any, Optional
 POKEAPI_BASE_URL = "https://pokeapi.co/api/v2/pokemon"
 POKE_CACHE: Dict[str, dict] = {}
 
+POKEMON_NATURES = [
+    "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
+    "Bold", "Docile", "Relaxed", "Impish", "Lax",
+    "Timid", "Hasty", "Serious", "Jolly", "Naive",
+    "Modest", "Mild", "Quiet", "Bashful", "Rash",
+    "Calm", "Gentle", "Sassy", "Careful", "Quirky",
+]
+
 # Muestras base por Tiers para garantizar funcionamiento rápido y offline si la API no responde
 SAMPLE_POKEMON_POOLS = {
     "normal": [
@@ -199,6 +207,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             assigned_index = random.randrange(len(ability_entries)) if ability_entries else None
             assigned_ability = abilities[assigned_index] if assigned_index is not None else "Desconocida"
             ability_slot = ability_entries[assigned_index].get("slot") if assigned_index is not None else None
+            assigned_nature = random.choice(POKEMON_NATURES)
 
             highest_stat_name = max(stats, key=stats.get) if stats else "hp"
             highest_stat_val = stats.get(highest_stat_name, 50)
@@ -234,6 +243,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "ability_slots": ability_slots,
                 "ability": assigned_ability,  # Habilidad Fija asignada en subasta
                 "ability_slot": ability_slot,
+                "nature": assigned_nature,
                 "stats": stats,
                 "highest_stat": f"{highest_stat_name.upper()} ({highest_stat_val})",
                 "image_url": image_url,
@@ -274,6 +284,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "ability": fallback_abilities[fallback_ability_index],
             "ability_slots": [1, 3],
             "ability_slot": [1, 3][fallback_ability_index],
+            "nature": random.choice(POKEMON_NATURES),
             "stats": {"hp": 60, "attack": 75, "defense": 70, "speed": 80},
             "highest_stat": "ATTACK (75)",
             "image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png",

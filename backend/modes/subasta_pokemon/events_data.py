@@ -14,17 +14,23 @@ CABLE_LINK_ITEM = "Cable Link"
 
 EVENTS_YEAR_1 = [
     {
+        "id": "e1_cable_link",
+        "title": "🔗 Cable Link",
+        "description": "Encontraste un Cable Link. Puedes usarlo para intercambiar un Pokémon en la fase de preparación.",
+        "type": "item_grant",
+        "granted_item": CABLE_LINK_ITEM,
+    },
+    {
         "id": "e1_objeto",
         "title": "🎁 Hallazgo de Objeto",
         "description": "Encontraste un objeto competitivo tirado en la ruta.",
         "type": "item_grant",
     },
     {
-        "id": "e1_patrocinio",
-        "title": "💰 Patrocinio Local",
-        "description": "Un patrocinador local apoya tu campaña con $1,000 de presupuesto extra.",
-        "type": "money_grant",
-        "amount": 1000,
+        "id": "e1_cambio_naturaleza",
+        "title": "🌿 Cambio de Naturaleza",
+        "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
+        "type": "nature_change",
     },
 ]
 
@@ -50,6 +56,12 @@ EVENTS_YEAR_2 = [
         "type": "money_grant",
         "amount": 2000,
     },
+    {
+        "id": "e2_cambio_naturaleza",
+        "title": "🌿 Cambio de Naturaleza",
+        "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
+        "type": "nature_change",
+    },
 ]
 
 EVENTS_YEAR_3 = [
@@ -67,36 +79,17 @@ EVENTS_YEAR_3 = [
         "type": "mixed_grant",
         "amount": 3000,
     },
+    {
+        "id": "e3_cambio_naturaleza",
+        "title": "🌿 Cambio de Naturaleza",
+        "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
+        "type": "nature_change",
+    },
 ]
 
 
 def get_random_event_for_year(year: int, turn: int = 1) -> dict:
     """Devuelve un evento aleatorio según el año actual."""
-    if year == 1 and turn == 1:
-        return {
-            "id": "e1_cable_link",
-            "title": "🔗 Cable Link",
-            "description": "Encontraste un Cable Link. Puedes usarlo para intercambiar un Pokémon en la fase de preparación.",
-            "type": "item_grant",
-            "granted_item": CABLE_LINK_ITEM,
-        }
-    if year == 1 and turn == 2:
-        return {
-            "id": "e1_electabuzz_test",
-            "title": "⚡ Encuentro de Prueba",
-            "description": "Encontraste un Electabuzz para probar las evoluciones por intercambio.",
-            "type": "pokemon_grant",
-            "granted_pokemon": "Electabuzz",
-        }
-    if year == 1 and turn == 3:
-        return {
-            "id": "e1_magmar_test",
-            "title": "🔥 Encuentro de Prueba",
-            "description": "Encontraste un Magmar para probar las evoluciones por intercambio.",
-            "type": "pokemon_grant",
-            "granted_pokemon": "Magmar",
-        }
-
     if year == 1:
         pool = EVENTS_YEAR_1
     elif year == 2:
@@ -105,7 +98,7 @@ def get_random_event_for_year(year: int, turn: int = 1) -> dict:
         pool = EVENTS_YEAR_3
 
     event = random.choice(pool).copy()
-    if event.get("type") in ("item_grant", "mixed_grant"):
+    if event.get("type") in ("item_grant", "mixed_grant") and not event.get("granted_item"):
         event["granted_item"] = random.choice(ITEMS_POOL)
 
     return event

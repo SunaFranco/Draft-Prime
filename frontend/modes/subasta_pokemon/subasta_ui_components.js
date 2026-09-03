@@ -235,6 +235,9 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const turnEvent = data.current_turn_event || {};
   const myData = data.my_data || {};
   const isResolved = myData.resolved_turn;
+  const pokemonList = myData.pokemon || [];
+  const natureNames = ["Hardy", "Lonely", "Brave", "Adamant", "Naughty", "Bold", "Docile", "Relaxed", "Impish", "Lax", "Timid", "Hasty", "Serious", "Jolly", "Naive", "Modest", "Mild", "Quiet", "Bashful", "Rash", "Calm", "Gentle", "Sassy", "Careful", "Quirky"];
+  const isNatureChange = turnEvent.type === "nature_change";
 
   return `
     <div class="card event-turn-card">
@@ -249,6 +252,18 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
       <div class="turn-action-box">
         ${isResolved ? `
           <p class="text-success">✓ Has resuelto tu evento de este turno. Esperando a los demás jugadores...</p>
+        ` : isNatureChange ? `
+          <div class="nature-change-form">
+            <label for="nature-change-pokemon">Pokémon:</label>
+            <select id="nature-change-pokemon" ${pokemonList.length ? "" : "disabled"}>
+              ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`} — ${poke.nature || "Desconocida"}</option>`).join("")}
+            </select>
+            <label for="nature-change-nature">Nueva naturaleza:</label>
+            <select id="nature-change-nature" ${pokemonList.length ? "" : "disabled"}>
+              ${natureNames.filter((nature) => nature !== (pokemonList[0]?.nature || "")).map((nature) => `<option value="${nature}">${nature}</option>`).join("")}
+            </select>
+            <button id="btn-change-nature" class="btn btn-primary btn-large" ${pokemonList.length ? "" : "disabled"}>Cambiar naturaleza</button>
+          </div>
         ` : `
           <button id="btn-resolve-event" class="btn btn-primary btn-large">✨ Resolver Evento</button>
         `}
@@ -424,6 +439,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
           const isSaved = selectedMoves.length >= requiredMoves;
           const itemName = poke.item || poke.held_item || 'Sin ítem';
           const abilityName = poke.ability || 'Desconocida';
+          const natureName = poke.nature || 'Desconocida';
           const normalizeWikidexName = (name) => encodeURI(String(name).trim().replace(/\s+/g, "_").replace(/[()]/g, ""));
           const abilityHtml = abilityName !== 'Desconocida'
             ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(abilityName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${abilityName}</a>`
@@ -458,6 +474,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
                 <div>
                   <span class="badge">Nv. ${poke.level || levelCap}</span>
                   <span class="badge badge-green">Habilidad: ${abilityHtml}</span>
+                  <span class="badge">Naturaleza: ${natureName}</span>
                 </div>
               </div>
 

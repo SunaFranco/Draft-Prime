@@ -18,11 +18,13 @@ def export_team_to_showdown(username: str, pokemon_list: List[dict], items_list:
         name = poke.get("name", "Pikachu")
         level = poke.get("level", 40)
         ability = poke.get("ability", "Static")
+        nature = poke.get("nature", "Hardy")
         item = poke.get("item") or poke.get("held_item") or (items[idx] if idx < len(items) else "Leftovers")
         primary_type = poke.get("primary_type", "Normal")
 
         lines.append(f"{name} @ {item}")
         lines.append(f"Ability: {ability}")
+        lines.append(f"{nature} Nature")
         lines.append(f"Level: {level}")
         lines.append(f"Tera Type: {primary_type}")
 

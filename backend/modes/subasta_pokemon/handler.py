@@ -203,6 +203,7 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
     evo_map = EVOLUTION_MAP_LVL_40 if max_lvl == 40 else EVOLUTION_MAP_LVL_100
     current_name = poke.get("name")
     current_item = poke.get("item") or poke.get("held_item")
+    current_nature = poke.get("nature")
     target_name = poke_api.get_pokemon_evolution_target(current_name, max_lvl)
     if not target_name:
         target_name = evo_map.get(current_name)
@@ -256,6 +257,7 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "ability_slots": updated.get("ability_slots", []),
         "ability": updated.get("ability", updated.get("abilities", ["Desconocida"])[0]),
         "ability_slot": updated.get("ability_slot", 1),
+        "nature": current_nature or updated.get("nature", "Hardy"),
         "stats": updated.get("stats", {}),
         "highest_stat": updated.get("highest_stat", "HP (50)"),
         "image_url": updated.get("image_url", ""),
@@ -718,17 +720,39 @@ class SubastaPokemonMode(BaseGameMode):
                     summary["pokemon_count"] = len(player["pokemon"])
                 player["resolved_turn"] = True
 
-                # Si todos resolvieron el turno actual
-                if all(p.get("resolved_turn") for p in subasta_state["players"].values()):
-                    if subasta_state["current_turn"] < subasta_state["turns_per_year"]:
-                        subasta_state["current_turn"] += 1
-                        for p in subasta_state["players"].values():
-                            p["resolved_turn"] = False
-                        self._generate_turn_events(subasta_state)
-                    else:
-                        # Finalizar turnos del año -> Pasar a Etapa de Exportación
-                        subasta_state["current_stage"] += 1
+                self._advance_after_event_resolution(subasta_state)
 
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_change_nature":
+            current_stage = subasta_state["current_stage"]
+            if current_stage not in (3, 7, 11):
+                return True
+
+            player = subasta_state["players"].get(username)
+            event = subasta_state["current_turn_events"].get(username)
+            poke_idx = message.get("poke_index")
+            nature = message.get("nature")
+
+            if not player or not event or player.get("resolved_turn") or event.get("type") != "nature_change":
+                return True
+            if not isinstance(poke_idx, int) or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido."}})
+                return True
+            if nature not in poke_api.POKEMON_NATURES:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona una naturaleza válida."}})
+                return True
+
+            poke = player["pokemon"][poke_idx]
+            if nature == poke.get("nature"):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Elige una naturaleza distinta a la actual."}})
+                return True
+
+            poke["nature"] = nature
+            player["resolved_turn"] = True
+            self._advance_after_event_resolution(subasta_state)
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True
@@ -1058,6 +1082,17 @@ class SubastaPokemonMode(BaseGameMode):
         subasta_state["current_turn_events"] = {
             u: events_data.get_random_event_for_year(year, turn) for u in subasta_state["players"].keys()
         }
+
+    def _advance_after_event_resolution(self, subasta_state: dict):
+        if not all(p.get("resolved_turn") for p in subasta_state["players"].values()):
+            return
+        if subasta_state["current_turn"] < subasta_state["turns_per_year"]:
+            subasta_state["current_turn"] += 1
+            for player in subasta_state["players"].values():
+                player["resolved_turn"] = False
+            self._generate_turn_events(subasta_state)
+        else:
+            subasta_state["current_stage"] += 1
 
     async def _broadcast_subasta_state(self, session: dict, manager: Any):
         """Envía a cada jugador conectado su estado formateado."""
