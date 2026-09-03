@@ -52,6 +52,7 @@ def get_year_level_cap(year: int) -> int:
 
 
 ITEM_SHOP_PRICES = {
+    "Capsula Habilidad": 2500,
     "Leftovers": 1200,
     "Life Orb": 1800,
     "Choice Band": 2000,
@@ -115,6 +116,8 @@ def remove_item_from_inventory(player: dict, item_name: str, qty: int = 1):
 
 
 def assign_item_to_pokemon(player: dict, pok_idx: int, item_name: str) -> bool:
+    if item_name == "Capsula Habilidad":
+        return False
     if pok_idx < 0 or pok_idx >= len(player.get("pokemon", [])):
         return False
     inventory = normalize_item_inventory(player.get("items", {}))
@@ -971,6 +974,37 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes ese objeto o el Pokémon es inválido."}})
                 return True
 
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_use_ability_capsule":
+            player = subasta_state["players"].get(username)
+            poke_idx = message.get("poke_index")
+            ability = message.get("ability")
+            inventory = normalize_item_inventory(player.get("items", {})) if player else {}
+
+            if not player or inventory.get("Capsula Habilidad", 0) <= 0:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes una Capsula Habilidad."}})
+                return True
+            if not isinstance(poke_idx, int) or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido."}})
+                return True
+
+            poke = player["pokemon"][poke_idx]
+            abilities = poke.get("abilities") or []
+            if ability not in abilities:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Esa habilidad no está disponible para este Pokémon."}})
+                return True
+            if ability == poke.get("ability"):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Elige una habilidad distinta a la actual."}})
+                return True
+
+            ability_index = abilities.index(ability)
+            ability_slots = poke.get("ability_slots") or []
+            poke["ability"] = ability
+            poke["ability_slot"] = ability_slots[ability_index] if ability_index < len(ability_slots) else ability_index + 1
+            remove_item_from_inventory(player, "Capsula Habilidad")
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True

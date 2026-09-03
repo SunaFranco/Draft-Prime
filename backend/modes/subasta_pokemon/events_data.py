@@ -11,6 +11,7 @@ ITEMS_POOL = [
 ]
 
 CABLE_LINK_ITEM = "Cable Link"
+ABILITY_CAPSULE_ITEM = "Capsula Habilidad"
 
 EVENTS_YEAR_1 = [
     {
@@ -36,14 +37,6 @@ EVENTS_YEAR_1 = [
 
 EVENTS_YEAR_2 = [
     {
-        "id": "e2_gimnasio",
-        "title": "🏟️ Reto de Gimnasio",
-        "description": "Superaste una prueba intensa. Tu equipo recibe +10 niveles distribuibles y $1,500.",
-        "type": "gym_win",
-        "xp_bonus": 10,
-        "amount": 1500,
-    },
-    {
         "id": "e2_megapiedra",
         "title": "💎 Hallazgo de Mega-Piedra / Z-Crystal",
         "description": "Obtienes un objeto de potenciación avanzada.",
@@ -62,23 +55,16 @@ EVENTS_YEAR_2 = [
         "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
         "type": "nature_change",
     },
+    {
+        "id": "e2_capsula_habilidad",
+        "title": "💊 Capsula Habilidad",
+        "description": "Encontraste una Capsula Habilidad. Puedes usarla para cambiar la habilidad de uno de tus Pokémon.",
+        "type": "item_grant",
+        "granted_item": ABILITY_CAPSULE_ITEM,
+    },
 ]
 
 EVENTS_YEAR_3 = [
-    {
-        "id": "e3_alto_mando",
-        "title": "👑 Entrenamiento del Alto Mando",
-        "description": "Entrenamiento supremo antes de la liga. Todos tus Pokémon ganan +15 niveles.",
-        "type": "xp_boost",
-        "xp_bonus": 15,
-    },
-    {
-        "id": "e3_artefacto",
-        "title": "⚡ Artefacto Legendario",
-        "description": "Obtienes $3,000 extra para la subasta final y un objeto premium.",
-        "type": "mixed_grant",
-        "amount": 3000,
-    },
     {
         "id": "e3_cambio_naturaleza",
         "title": "🌿 Cambio de Naturaleza",

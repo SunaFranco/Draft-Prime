@@ -27,7 +27,8 @@ function normalizeItemMap(items) {
 }
 
 function buildItemSpriteUrl(name) {
-  const slug = String(name || "").trim().toLowerCase().replace(/\s+/g, "-");
+  const slugOverrides = { "Capsula Habilidad": "ability-capsule" };
+  const slug = slugOverrides[name] || String(name || "").trim().toLowerCase().replace(/\s+/g, "-");
   return slug ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(slug)}.png` : "";
 }
 
@@ -412,6 +413,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
     { name: "Dusk Stone", price: 2000 },
     { name: "Dawn Stone", price: 2000 },
     { name: "Ice Stone", price: 2000 },
+    { name: "Capsula Habilidad", price: 2500 },
   ];
 
   return `
@@ -557,7 +559,13 @@ export function renderMyPokemonInventory(data, sessionClient) {
               <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
               <a href="${buildWikidexUrl(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>
               <span class="item-qty">x${qty}</span>
-              ${pokemonList.length ? `<select class="bag-item-select" data-item-name="${itemName}">
+              ${pokemonList.length && itemName === "Capsula Habilidad" ? `<select class="ability-capsule-pokemon-select" data-item-name="${itemName}">
+                ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+              </select>
+              <select class="ability-capsule-select" data-poke-idx="0">
+                ${(pokemonList[0]?.abilities || []).filter((ability) => ability !== pokemonList[0]?.ability).map((ability) => `<option value="${ability}">${ability}</option>`).join("")}
+              </select>
+              <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length ? `<select class="bag-item-select" data-item-name="${itemName}">
                 ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
               </select>
               <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>` : ""}

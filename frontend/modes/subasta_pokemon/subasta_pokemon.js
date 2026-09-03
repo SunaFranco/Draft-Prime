@@ -306,6 +306,36 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
+    document.querySelectorAll(".ability-capsule-pokemon-select").forEach((pokemonSelect) => {
+      const row = pokemonSelect.closest(".bag-item-row");
+      const abilitySelect = row?.querySelector(".ability-capsule-select");
+      const updateAbilities = () => {
+        const poke = state.my_data?.pokemon?.[parseInt(pokemonSelect.value, 10)];
+        if (!abilitySelect) return;
+        abilitySelect.dataset.pokeIdx = pokemonSelect.value;
+        abilitySelect.innerHTML = (poke?.abilities || [])
+          .filter((ability) => ability !== poke?.ability)
+          .map((ability) => `<option value="${ability}">${ability}</option>`)
+          .join("");
+      };
+      pokemonSelect.addEventListener("change", updateAbilities);
+      updateAbilities();
+    });
+
+    document.querySelectorAll(".btn-use-ability-capsule").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const row = btn.closest(".bag-item-row");
+        const pokemonSelect = row?.querySelector(".ability-capsule-pokemon-select");
+        const abilitySelect = row?.querySelector(".ability-capsule-select");
+        if (!pokemonSelect || !abilitySelect || !abilitySelect.value) return;
+        sessionClient.send({
+          action: "subasta_use_ability_capsule",
+          poke_index: parseInt(pokemonSelect.value, 10),
+          ability: abilitySelect.value,
+        });
+      });
+    });
+
     document.querySelectorAll(".btn-buy-item").forEach((btn) => {
       btn.addEventListener("click", () => {
         const itemName = btn.getAttribute("data-item-name");
