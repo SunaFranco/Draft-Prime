@@ -741,6 +741,12 @@ button.btn-danger:hover {
   color: #ef4444;
 }
 
+.badge-shiny {
+  color: #111827;
+  background: #facc15;
+  border-color: #f59e0b;
+}
+
 .auction-pokemon-title--winner {
   color: var(--accent-gold);
   font-size: 1.65rem;

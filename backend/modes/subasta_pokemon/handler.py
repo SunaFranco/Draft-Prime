@@ -189,6 +189,10 @@ def init_subasta_round(session: dict):
     tier = year_tiers.get(current_year, "normal")
 
     poke_data = poke_api.get_random_pokemon_from_tier(tier, year=current_year, level_cap=level_cap)
+    is_first_auction = current_year == 1 and subasta_state.get("auction_turn_index", 0) == 0
+    poke_data["is_shiny"] = is_first_auction or random.random() < 0.01
+    if poke_data["is_shiny"] and poke_data.get("shiny_image_url"):
+        poke_data["image_url"] = poke_data["shiny_image_url"]
 
     # Determinar precio inicial base
     base_price = 1000
@@ -233,6 +237,7 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
     current_name = poke.get("name")
     current_item = poke.get("item") or poke.get("held_item")
     current_nature = poke.get("nature")
+    was_shiny = bool(poke.get("is_shiny"))
     target_name = poke_api.get_pokemon_evolution_target(current_name, max_lvl)
     if not target_name:
         target_name = evo_map.get(current_name)
@@ -304,6 +309,8 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "stats": updated.get("stats", {}),
         "highest_stat": updated.get("highest_stat", "HP (50)"),
         "image_url": updated.get("image_url", ""),
+        "shiny_image_url": updated.get("shiny_image_url", ""),
+        "is_shiny": was_shiny,
         "level": max_lvl,
         "level_up_moves": merged_level_up_moves,
         "learned_tm_moves": previous_tm_moves,
@@ -317,6 +324,8 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "evolution_trade": evolution_trade,
         "received_by_trade": received_by_trade,
     })
+    if was_shiny and poke.get("shiny_image_url"):
+        poke["image_url"] = poke["shiny_image_url"]
     return True
 
 

@@ -247,6 +247,11 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 or sprites.get("front_default")
                 or ""
             )
+            shiny_image_url = (
+                other_sprites.get("official-artwork", {}).get("front_shiny")
+                or sprites.get("front_shiny")
+                or ""
+            )
 
             level_up_moves = extract_level_up_moves(data.get("moves", []))
             tm_moves = extract_tm_moves(data.get("moves", []))
@@ -275,6 +280,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "stats": stats,
                 "highest_stat": f"{highest_stat_name.upper()} ({highest_stat_val})",
                 "image_url": image_url,
+                "shiny_image_url": shiny_image_url,
                 "level": level_cap,
                 "level_up_moves": level_up_moves,
                 "tm_moves": tm_moves,
@@ -317,6 +323,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "stats": {"hp": 60, "attack": 75, "defense": 70, "speed": 80},
             "highest_stat": "ATTACK (75)",
             "image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png",
+            "shiny_image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/25.png",
             "level": level_cap,
             "level_up_moves": default_moves,
             "tm_moves": [],

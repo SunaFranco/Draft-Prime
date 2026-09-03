@@ -183,7 +183,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
     <div class="auction-grid">
       <!-- Tarjeta del Pokémon Subastado -->
       <div class="card auction-poke-card">
-        <h3 class="auction-pokemon-title ${canWinnerPreviewPokemon ? 'auction-pokemon-title--winner' : ''}">${isPokemonRevealed || canWinnerPreviewPokemon ? `🔍 ${poke.name}` : "🔍 Pokémon Incógnito"}</h3>
+        <h3 class="auction-pokemon-title ${canWinnerPreviewPokemon ? 'auction-pokemon-title--winner' : ''}">${isPokemonRevealed || canWinnerPreviewPokemon ? `${poke.is_shiny ? '✨ ' : '🔍 '}${poke.name}${poke.is_shiny ? ' ✨' : ''}` : "🔍 Pokémon Incógnito"}</h3>
         <div class="poke-image-wrapper ${isPokemonRevealed || canWinnerPreviewPokemon ? 'poke-image-wrapper--revealed' : ''}">
           ${isPokemonRevealed || canWinnerPreviewPokemon
             ? `<img src="${poke.image_url}" alt="${poke.name}" class="poke-thumb poke-thumb--revealed" />`
@@ -513,6 +513,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
                   : (poke.image_url ? `<img src="${poke.image_url}" class="poke-thumb" />` : '')}
                 <div>
                   <span class="badge">Nv. ${poke.level || levelCap}</span>
+                  ${poke.is_shiny ? '<span class="badge badge-shiny">✨ SHINY</span>' : ''}
                   <span class="badge badge-green">Habilidad: ${abilityHtml}</span>
                   <span class="badge">Naturaleza: ${natureName}</span>
                 </div>
