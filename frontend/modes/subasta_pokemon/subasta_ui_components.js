@@ -154,6 +154,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
 
   const isAuctionFinished = Boolean(auction.finished);
   const isWinnerPendingSecret = auction.awaiting_secret_choice && auction.winner === sessionClient.currentUsername;
+  const canWinnerPreviewPokemon = isWinnerPendingSecret && poke.name && poke.image_url;
   const isFolded = (auction.folded_players || []).includes(sessionClient.currentUsername);
   const isHighBidder = auction.high_bidder === sessionClient.currentUsername;
   const canFold = !isFolded && !isHighBidder && !isWinnerPendingSecret;
@@ -182,9 +183,9 @@ export function renderAuctionView(data, sessionClient, isHost) {
     <div class="auction-grid">
       <!-- Tarjeta del Pokémon Subastado -->
       <div class="card auction-poke-card">
-        <h3>${isPokemonRevealed ? `🔍 ${poke.name}` : "🔍 Pokémon Incógnito"}</h3>
-        <div class="poke-image-wrapper ${isPokemonRevealed ? 'poke-image-wrapper--revealed' : ''}">
-          ${isPokemonRevealed
+        <h3 class="auction-pokemon-title ${canWinnerPreviewPokemon ? 'auction-pokemon-title--winner' : ''}">${isPokemonRevealed || canWinnerPreviewPokemon ? `🔍 ${poke.name}` : "🔍 Pokémon Incógnito"}</h3>
+        <div class="poke-image-wrapper ${isPokemonRevealed || canWinnerPreviewPokemon ? 'poke-image-wrapper--revealed' : ''}">
+          ${isPokemonRevealed || canWinnerPreviewPokemon
             ? `<img src="${poke.image_url}" alt="${poke.name}" class="poke-thumb poke-thumb--revealed" />`
             : `<div class="poke-unknown-avatar">❓</div>`}
         </div>

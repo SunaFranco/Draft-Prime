@@ -741,6 +741,12 @@ button.btn-danger:hover {
   color: #ef4444;
 }
 
+.auction-pokemon-title--winner {
+  color: var(--accent-gold);
+  font-size: 1.65rem;
+  text-shadow: 3px 3px 0 #000;
+}
+
 .secret-choice-modal {
   background: #082f1b;
   border: 3px solid var(--border-neon);
