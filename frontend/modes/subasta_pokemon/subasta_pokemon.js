@@ -16,6 +16,74 @@ import {
   formatNature,
 } from "./subasta_ui_components.js";
 
+const ROULETTE_ITEMS = [
+  "Leftovers", "Life Orb", "Choice Band", "Choice Specs", "Choice Scarf",
+  "Focus Sash", "Assault Vest", "Heavy-Duty Boots", "Eviolite", "Rocky Helmet",
+  "Capsula Habilidad", "MT Earthquake", "MT Ice Beam", "MT Flamethrower",
+  "MT Thunderbolt", "MT Psychic", "MT Shadow Ball", "MT Protect",
+  "MT Substitute", "MT Swords Dance", "MT Calm Mind",
+];
+
+function rouletteItemName(item) {
+  return String(item || "").startsWith("MT ") ? String(item).slice(3) : String(item || "");
+}
+
+function rouletteItemImage(item) {
+  const slug = item === "Capsula Habilidad"
+    ? "ability-capsule"
+    : String(item || "").startsWith("MT ") ? "tm-normal" : String(item || "").toLowerCase().replace(/\s+/g, "-");
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${slug}.png`;
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function playEventRoulette(event, onComplete) {
+  const rewards = event.type === "tm_booster_pack" ? event.granted_items : [event.granted_item];
+  const overlay = document.createElement("div");
+  overlay.className = "event-roulette-overlay";
+  overlay.innerHTML = `
+    <div class="event-roulette-modal">
+      <div class="event-roulette-kicker">RECOMPENSA DEL EVENTO</div>
+      <h2>${event.title || "Ruleta de objetos"}</h2>
+      <div class="event-roulette-stage">
+        <div class="event-roulette-pointer">▼</div>
+        <div class="event-roulette-window"><div class="event-roulette-strip"></div></div>
+      </div>
+      <p class="event-roulette-status">La suerte está girando...</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const strip = overlay.querySelector(".event-roulette-strip");
+  const rouletteWindow = overlay.querySelector(".event-roulette-window");
+  const status = overlay.querySelector(".event-roulette-status");
+
+  for (let index = 0; index < rewards.length; index += 1) {
+    const reward = rewards[index];
+    const options = [...ROULETTE_ITEMS, reward];
+    strip.innerHTML = options.map((item) => `
+      <div class="event-roulette-slot">
+        <img src="${rouletteItemImage(item)}" alt="" onerror="this.style.display='none'" />
+        <span>${rouletteItemName(item)}</span>
+      </div>
+    `).join("");
+    strip.classList.remove("event-roulette-strip--spinning");
+    strip.style.transition = "none";
+    strip.style.transform = "translateX(0)";
+    void strip.offsetWidth;
+    const targetOffset = (options.length - 1) * 125 - (rouletteWindow.clientWidth / 2 - 62.5);
+    strip.style.transition = "transform 2.2s cubic-bezier(0.12, 0.7, 0.18, 1)";
+    strip.style.transform = `translateX(-${targetOffset}px)`;
+    await wait(2200);
+    status.textContent = rewards.length > 1 ? `Premio ${index + 1} de ${rewards.length}: ${rouletteItemName(reward)}` : `Has obtenido: ${rouletteItemName(reward)}`;
+    await wait(index === rewards.length - 1 ? 700 : 500);
+  }
+
+  overlay.remove();
+  onComplete();
+}
+
 export class SubastaPokemonModeUI extends BaseGameModeUI {
   constructor() {
     super("subasta_pokemon", "Subasta (Pokemon)");
@@ -168,6 +236,14 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const btnResolveEvent = document.getElementById("btn-resolve-event");
     if (btnResolveEvent) {
       btnResolveEvent.addEventListener("click", () => {
+        const event = state.current_turn_event || {};
+        const isRouletteEvent = ["item_grant", "mixed_grant", "tm_booster_pack"].includes(event.type)
+          && (event.granted_item || event.granted_items?.length);
+        if (isRouletteEvent) {
+          btnResolveEvent.disabled = true;
+          playEventRoulette(event, () => sessionClient.send({ action: "subasta_resolve_event" }));
+          return;
+        }
         sessionClient.send({ action: "subasta_resolve_event" });
       });
     }

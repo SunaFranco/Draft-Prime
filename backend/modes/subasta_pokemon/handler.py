@@ -243,6 +243,11 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
 
     updated = poke_api.fetch_pokemon_data(target_name, level_cap=max_lvl)
     previous_selected = poke.get("selected_moves", []) or []
+    previous_tm_moves = poke.get("learned_tm_moves", []) or [
+        move.get("name")
+        for move in (poke.get("level_up_moves", []) or [])
+        if move.get("source") == "tm" and move.get("name")
+    ]
     previous_moves_by_name = {
         move.get("name"): move
         for move in (poke.get("level_up_moves", []) or [])
@@ -255,7 +260,16 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         for move_name in previous_selected
         if move_name not in evolution_move_names
     ]
-    merged_level_up_moves = inherited_moves + evolution_moves
+    inherited_tm_moves = [
+        previous_moves_by_name.get(move_name, {"name": move_name, "level": 0, "source": "tm"})
+        for move_name in previous_tm_moves
+        if move_name not in evolution_move_names and move_name not in previous_selected
+    ]
+    merged_level_up_moves = inherited_moves + inherited_tm_moves + evolution_moves
+    for move in merged_level_up_moves:
+        if move.get("name") in previous_tm_moves:
+            move["level"] = 0
+            move["source"] = "tm"
 
     original_abilities = poke.get("abilities") or []
     original_ability = poke.get("ability")
@@ -292,6 +306,7 @@ def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
         "image_url": updated.get("image_url", ""),
         "level": max_lvl,
         "level_up_moves": merged_level_up_moves,
+        "learned_tm_moves": previous_tm_moves,
         "selected_moves": previous_selected[:4] if previous_selected else updated.get("selected_moves", []),
         "item": current_item,
         "held_item": current_item,

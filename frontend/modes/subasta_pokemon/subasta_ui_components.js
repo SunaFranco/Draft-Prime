@@ -262,6 +262,8 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const pokemonList = myData.pokemon || [];
   const natureNames = Object.keys(NATURE_EFFECTS);
   const isNatureChange = turnEvent.type === "nature_change";
+  const isItemReward = ["item_grant", "mixed_grant", "tm_booster_pack"].includes(turnEvent.type)
+    && (turnEvent.granted_item || turnEvent.granted_items?.length);
 
   return `
     <div class="card event-turn-card">
@@ -288,6 +290,8 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
             </select>
             <button id="btn-change-nature" class="btn btn-primary btn-large" ${pokemonList.length ? "" : "disabled"}>Cambiar naturaleza</button>
           </div>
+        ` : isItemReward ? `
+          <button id="btn-resolve-event" class="btn btn-primary btn-large">🎰 Girar la ruleta</button>
         ` : `
           <button id="btn-resolve-event" class="btn btn-primary btn-large">✨ Resolver Evento</button>
         `}
@@ -550,11 +554,12 @@ export function renderMyPokemonInventory(data, sessionClient) {
                     ${levelUpMoves.map((m) => {
                       const isChecked = selectedMoves.includes(m.name) ? 'checked' : '';
                       const moveUrl = buildWikidexUrl(m.name);
+                      const moveSourceLabel = m.source === "tm" || m.level === 0 ? "(MT)" : `(Nv. ${m.level})`;
                       return `
                         <label class="move-label">
                           <input type="checkbox" class="move-chk-${pokeIdx}" value="${m.name}" ${isChecked} />
                           <a href="${moveUrl}" target="_blank" rel="noopener noreferrer" class="move-link">${m.name}</a>
-                          <small>(Nv. ${m.level})</small>
+                          <small>${moveSourceLabel}</small>
                         </label>
                       `;
                     }).join("")}
