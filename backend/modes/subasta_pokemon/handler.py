@@ -189,8 +189,7 @@ def init_subasta_round(session: dict):
     tier = year_tiers.get(current_year, "normal")
 
     poke_data = poke_api.get_random_pokemon_from_tier(tier, year=current_year, level_cap=level_cap)
-    is_first_auction = current_year == 1 and subasta_state.get("auction_turn_index", 0) == 0
-    poke_data["is_shiny"] = is_first_auction or random.random() < 0.01
+    poke_data["is_shiny"] = random.random() < 0.01
     if poke_data["is_shiny"] and poke_data.get("shiny_image_url"):
         poke_data["image_url"] = poke_data["shiny_image_url"]
 
