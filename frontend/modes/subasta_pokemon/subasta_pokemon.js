@@ -35,6 +35,10 @@ function rouletteItemImage(item) {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${slug}.png`;
 }
 
+function buildRouletteItems(count) {
+  return Array.from({ length: count }, () => ROULETTE_ITEMS[Math.floor(Math.random() * ROULETTE_ITEMS.length)]);
+}
+
 function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -61,7 +65,12 @@ async function playEventRoulette(event, onComplete) {
 
   for (let index = 0; index < rewards.length; index += 1) {
     const reward = rewards[index];
-    const options = [...ROULETTE_ITEMS, reward];
+    const targetIndex = 18 + Math.floor(Math.random() * 5);
+    const options = [
+      ...buildRouletteItems(targetIndex),
+      reward,
+      ...buildRouletteItems(6),
+    ];
     strip.innerHTML = options.map((item) => `
       <div class="event-roulette-slot">
         <img src="${rouletteItemImage(item)}" alt="" onerror="this.style.display='none'" />
@@ -72,7 +81,7 @@ async function playEventRoulette(event, onComplete) {
     strip.style.transition = "none";
     strip.style.transform = "translateX(0)";
     void strip.offsetWidth;
-    const targetOffset = (options.length - 1) * 125 - (rouletteWindow.clientWidth / 2 - 62.5);
+    const targetOffset = targetIndex * 125 - (rouletteWindow.clientWidth / 2 - 62.5);
     strip.style.transition = "transform 2.2s cubic-bezier(0.12, 0.7, 0.18, 1)";
     strip.style.transform = `translateX(-${targetOffset}px)`;
     await wait(2200);
