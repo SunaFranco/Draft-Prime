@@ -133,15 +133,6 @@ export function renderConfigForm(containerEl, data, isHost) {
           <option value="mega" ${((config.year_tiers && config.year_tiers[3]) || config.year3_tier || defaults.year3_tier) === "mega" ? "selected" : ""}>Mega</option>
           <option value="legendary" ${((config.year_tiers && config.year_tiers[3]) || config.year3_tier || defaults.year3_tier) === "legendary" ? "selected" : ""}>Legendario</option>
         </select>
-      </div>
-      <div class="form-group">
-        <label for="subasta-buyout-mult">Multiplicador Compra Directa:</label>
-        <input type="number" step="0.5" id="subasta-buyout-mult" value="${config.buyout_multiplier || defaults.buyout_multiplier}" min="1.5" max="10" ${!isHost ? "disabled" : ""} />
-      </div>
-      <div class="form-group">
-        <label for="subasta-secret-fee">Tarifa Pokémon Secreto ($):</label>
-        <input type="number" id="subasta-secret-fee" value="${config.secret_fee || defaults.secret_fee}" min="0" max="5000" ${!isHost ? "disabled" : ""} />
-      </div>
     </div>
   `;
 }
@@ -157,8 +148,6 @@ export function readConfigForm(containerEl) {
     year2_tier: document.getElementById("subasta-year2-tier").value,
     year3_tier: document.getElementById("subasta-year3-tier").value,
     starting_money: parseInt(document.getElementById("subasta-year1-money").value, 10),
-    buyout_multiplier: parseFloat(document.getElementById("subasta-buyout-mult").value),
-    secret_fee: parseInt(document.getElementById("subasta-secret-fee").value, 10),
   };
 }
 
@@ -246,9 +235,9 @@ export function renderAuctionView(data, sessionClient, isHost) {
         ` : isWinnerPendingSecret ? `
           <div class="secret-choice-modal">
             <h4>🎉 ¡Ganaste la subasta de ${poke.name || 'este Pokémon'}!</h4>
-            <p>¿Deseas pagar <strong>$${formatMoneyCompact(auction.secret_fee)}</strong> para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
+            <p>¿Deseas pagar <strong>$${formatMoneyCompact(Math.ceil((auction.current_bid || 0) * 0.1))}</strong> (10% de tu puja) para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
             <div class="btn-group">
-              <button id="btn-secret-yes" class="btn btn-primary">🔒 Pagar $${formatMoneyCompact(auction.secret_fee)} y Ocultar</button>
+              <button id="btn-secret-yes" class="btn btn-primary">🔒 Pagar $${formatMoneyCompact(Math.ceil((auction.current_bid || 0) * 0.1))} y Ocultar</button>
               <button id="btn-secret-no" class="btn btn-secondary">👁️ Mostrar a todos ($0)</button>
             </div>
           </div>

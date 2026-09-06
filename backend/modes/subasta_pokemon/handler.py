@@ -3,6 +3,7 @@ backend/modes/subasta_pokemon/handler.py - Implementación completa del modo Sub
 """
 
 import asyncio
+import math
 import random
 import time
 from typing import Dict, List, Any, Optional
@@ -705,8 +706,9 @@ class SubastaPokemonMode(BaseGameMode):
             cost = auction["current_bid"]
 
             if keep_secret:
-                if player["money"] >= cost + auction["secret_fee"]:
-                    cost += auction["secret_fee"]
+                secret_cost = math.ceil(auction["current_bid"] * 0.1)
+                if player["money"] >= cost + secret_cost:
+                    cost += secret_cost
                     won_pokemon = auction["pokemon"].copy()
                     won_pokemon["is_hidden"] = True
                     auction["pokemon"]["is_hidden"] = True
