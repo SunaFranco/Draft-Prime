@@ -97,6 +97,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
   constructor() {
     super("subasta_pokemon", "Subasta (Pokemon)");
     this.latestState = null;
+    this._lockedShowdownText = null;
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -150,7 +151,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       html = renderTurnEventsView(state, sessionClient, isHost);
     } else if ([4, 8, 12].includes(stage)) {
       // Exportación a Showdown (Año 1, 2, 3)
-      html = renderExportView(state, sessionClient, isHost);
+      html = renderExportView(state, sessionClient, isHost, this._lockedShowdownText);
     } else {
       // Resultados y Administración (Etapa 13 o intermedia)
       html = renderAdminAndStandingsView(state, sessionClient, isHost);
@@ -292,19 +293,16 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       }
     });
 
-    // Fijar Equipo – bloquear edición y mostrar botón de copiar
+    // Fijar Equipo – bloquear edición permanentemente
     const btnLockTeam = document.getElementById("btn-lock-team");
     if (btnLockTeam) {
       btnLockTeam.addEventListener("click", () => {
         const area = document.getElementById("showdown-text-area");
         if (area) {
-          area.setAttribute("readonly", true);
+          this._lockedShowdownText = area.value;
         }
-        btnLockTeam.style.display = "none";
-        const btnCopy = document.getElementById("btn-copy-showdown");
-        if (btnCopy) {
-          btnCopy.style.display = "";
-        }
+        // Re-renderizar para que se refleje el estado fijado
+        this.renderCurrentStageView(state, sessionClient, isHost);
       });
     }
 

@@ -323,8 +323,9 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   `;
 }
 
-export function renderExportView(data, sessionClient, isHost) {
-  const showdownText = data.showdown_text || "";
+export function renderExportView(data, sessionClient, isHost, lockedText = null) {
+  const showdownText = lockedText !== null ? lockedText : (data.showdown_text || "");
+  const isLocked = lockedText !== null;
   const standings = data.standings || [];
   const players = Object.keys(data.all_players || {});
   const isFinalStage = Number(data.stage) === 12;
@@ -332,13 +333,18 @@ export function renderExportView(data, sessionClient, isHost) {
   return `
     <div class="card export-card">
       <h2>📋 ${data.stage_name}</h2>
-      <p>Copia el siguiente texto para importar tu equipo en <strong>Pokémon Showdown</strong>:</p>
+      <p>${isLocked
+        ? "Tu equipo ha sido fijado. Copia el texto para importarlo en <strong>Pokémon Showdown</strong>:"
+        : "Edita si lo necesitas y luego fija tu equipo para poder copiarlo a <strong>Pokémon Showdown</strong>:"
+      }</p>
 
-      <textarea id="showdown-text-area" rows="12" class="code-area">${showdownText}</textarea>
+      <textarea id="showdown-text-area" rows="12" class="code-area" ${isLocked ? "readonly" : ""}>${showdownText}</textarea>
 
       <div class="btn-group">
-        <button id="btn-lock-team" class="btn btn-primary">🔒 Fijar Equipo</button>
-        <button id="btn-copy-showdown" class="btn btn-success" style="display:none;">📋 Copiar al Portapapeles</button>
+        ${isLocked
+          ? `<button id="btn-copy-showdown" class="btn btn-success">📋 Copiar al Portapapeles</button>`
+          : `<button id="btn-lock-team" class="btn btn-primary">🔒 Fijar Equipo</button>`
+        }
       </div>
 
       ${isHost ? `
