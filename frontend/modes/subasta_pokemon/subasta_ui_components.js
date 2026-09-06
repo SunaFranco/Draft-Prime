@@ -39,6 +39,22 @@ function buildItemSpriteUrl(name) {
   return itemSlug ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(itemSlug)}.png` : "";
 }
 
+function formatMoneyCompact(value) {
+  const amount = Number(value) || 0;
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(amount % 1000000 === 0 ? 0 : 1).replace(/\.0$/, '')}M`;
+  }
+  if (amount >= 1000) {
+    return `${Math.round(amount / 1000)}k`;
+  }
+  return `${amount}`;
+}
+
+function getNextBidValue(currentBid) {
+  const current = Number(currentBid) || 0;
+  return Math.max(5000, Math.ceil((current + 5000) / 5000) * 5000);
+}
+
 export const NATURE_EFFECTS = {
   Hardy: ["", ""], Lonely: ["Attack", "Defense"], Brave: ["Attack", "Speed"], Adamant: ["Attack", "Sp. Atk"], Naughty: ["Attack", "Sp. Def"],
   Bold: ["Defense", "Attack"], Docile: ["", ""], Relaxed: ["Defense", "Speed"], Impish: ["Defense", "Sp. Atk"], Lax: ["Defense", "Sp. Def"],
@@ -189,7 +205,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
             ? `<img src="${poke.image_url}" alt="${poke.name}" class="poke-thumb poke-thumb--revealed" />`
             : `<div class="poke-unknown-avatar">❓</div>`}
         </div>
-        ${isPokemonRevealed ? `<p class="base-price"><strong>Adjudicado a:</strong> ${auction.winner || "Ninguno"}</p>` : `<p class="base-price">Precio Inicial: <strong>$${auction.base_price || 1000}</strong></p>`}
+        ${isPokemonRevealed ? `<p class="base-price"><strong>Adjudicado a:</strong> ${auction.winner || "Ninguno"}</p>` : `<p class="base-price">Precio Inicial: <strong>$${formatMoneyCompact(auction.base_price || 5000)}</strong></p>`}
 
         ${auction.reveal_hold_until ? `
           <div class="reveal-countdown" style="margin-top: 12px;">
@@ -218,7 +234,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
       <!-- Panel de Puja y Estado -->
       <div class="card auction-controls-card">
         <h3>🔥 Estado de la Puja</h3>
-        <p class="current-bid-display ${auction.high_bidder === sessionClient.currentUsername ? 'current-bid-display--win' : 'current-bid-display--lose'}">Puja Actual: <span>$${auction.current_bid || 0}</span></p>
+        <p class="current-bid-display ${auction.high_bidder === sessionClient.currentUsername ? 'current-bid-display--win' : 'current-bid-display--lose'}">Puja Actual: <span>$${formatMoneyCompact(auction.current_bid || 0)}</span></p>
         <p class="high-bidder-display">Mayor Pujador: <strong class="${auction.high_bidder === sessionClient.currentUsername ? 'high-bidder-display--win' : 'high-bidder-display--lose'}">${auction.high_bidder || "Ninguno"}</strong></p>
 
         ${isAuctionFinished && !isWinnerPendingSecret ? `
@@ -230,21 +246,21 @@ export function renderAuctionView(data, sessionClient, isHost) {
         ` : isWinnerPendingSecret ? `
           <div class="secret-choice-modal">
             <h4>🎉 ¡Ganaste la subasta de ${poke.name || 'este Pokémon'}!</h4>
-            <p>¿Deseas pagar <strong>$${auction.secret_fee}</strong> para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
+            <p>¿Deseas pagar <strong>$${formatMoneyCompact(auction.secret_fee)}</strong> para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
             <div class="btn-group">
-              <button id="btn-secret-yes" class="btn btn-primary">🔒 Pagar $${auction.secret_fee} y Ocultar</button>
+              <button id="btn-secret-yes" class="btn btn-primary">🔒 Pagar $${formatMoneyCompact(auction.secret_fee)} y Ocultar</button>
               <button id="btn-secret-no" class="btn btn-secondary">👁️ Mostrar a todos ($0)</button>
             </div>
           </div>
         ` : `
           <div class="bidding-actions">
             <div class="bid-input-group">
-              <input type="number" id="custom-bid-amount" value="${(auction.current_bid || 1000) + 500}" step="100" min="${(auction.current_bid || 1000) + 100}" />
+              <input type="number" id="custom-bid-amount" value="${getNextBidValue(auction.current_bid || 0)}" step="5000" min="${getNextBidValue(auction.current_bid || 0)}" />
               <button id="btn-bid-custom" class="btn btn-success" ${isFolded ? "disabled" : ""}>Pujar</button>
             </div>
 
             <div class="btn-group">
-              <button id="btn-buyout" class="btn btn-warning" ${isFolded ? "disabled" : ""}>⚡ Compra Directa ($${auction.buyout_price || 3000})</button>
+              <button id="btn-buyout" class="btn btn-warning" ${isFolded ? "disabled" : ""}>⚡ Compra Directa ($${formatMoneyCompact(auction.buyout_price || 5000)})</button>
               <button id="btn-fold" class="btn btn-danger" ${!canFold ? "disabled" : ""}>${isFolded ? "Retirado" : isHighBidder ? "🔒 Mayor Pujador" : "🚪 Retirarse"}</button>
             </div>
           </div>
@@ -318,10 +334,11 @@ export function renderExportView(data, sessionClient, isHost) {
       <h2>📋 ${data.stage_name}</h2>
       <p>Copia el siguiente texto para importar tu equipo en <strong>Pokémon Showdown</strong>:</p>
 
-      <textarea id="showdown-text-area" readonly rows="12" class="code-area">${showdownText}</textarea>
+      <textarea id="showdown-text-area" rows="12" class="code-area">${showdownText}</textarea>
 
       <div class="btn-group">
-        <button id="btn-copy-showdown" class="btn btn-success">📋 Copiar al Portapapeles</button>
+        <button id="btn-lock-team" class="btn btn-primary">🔒 Fijar Equipo</button>
+        <button id="btn-copy-showdown" class="btn btn-success" style="display:none;">📋 Copiar al Portapapeles</button>
       </div>
 
       ${isHost ? `
@@ -407,36 +424,79 @@ export function renderMyPokemonInventory(data, sessionClient) {
   const tradeTargets = Object.keys(data.all_players || {}).filter((username) => username !== currentUsername);
   const levelCap = data.current_year === 1 ? 20 : (data.current_year === 2 ? 40 : 100);
   const shopOpen = [4, 8, 12, 13].includes(Number(data.stage || 0));
-  const shopItems = [
-    { name: "Leftovers", price: 1200 },
-    { name: "Life Orb", price: 1800 },
-    { name: "Choice Band", price: 2000 },
-    { name: "Choice Specs", price: 2000 },
-    { name: "Choice Scarf", price: 2000 },
-    { name: "Eviolite", price: 1500 },
-    { name: "Rocky Helmet", price: 1400 },
-    { name: "Fire Stone", price: 2000 },
-    { name: "Water Stone", price: 2000 },
-    { name: "Thunder Stone", price: 2000 },
-    { name: "Leaf Stone", price: 2000 },
-    { name: "Moon Stone", price: 2000 },
-    { name: "Sun Stone", price: 2000 },
-    { name: "Shiny Stone", price: 2000 },
-    { name: "Dusk Stone", price: 2000 },
-    { name: "Dawn Stone", price: 2000 },
-    { name: "Ice Stone", price: 2000 },
-    { name: "Capsula Habilidad", price: 2500 },
-    { name: "MT Earthquake", price: 2000 },
-    { name: "MT Ice Beam", price: 2000 },
-    { name: "MT Flamethrower", price: 2000 },
-    { name: "MT Thunderbolt", price: 2000 },
-    { name: "MT Psychic", price: 2000 },
-    { name: "MT Shadow Ball", price: 2000 },
-    { name: "MT Protect", price: 1500 },
-    { name: "MT Substitute", price: 2000 },
-    { name: "MT Swords Dance", price: 2000 },
-    { name: "MT Calm Mind", price: 2000 },
-  ];
+  const shopCatalogByYear = {
+    1: [
+      { name: "Eviolite", price: 100000 },
+      { name: "Sitrus Berry", price: 50000 },
+      { name: "MT Fire Punch", price: 30000 },
+      { name: "MT Thunder Punch", price: 30000 },
+      { name: "MT Ice Punch", price: 30000 },
+      { name: "Capsula Habilidad", price: 150000 },
+      { name: "Silk Scarf", price: 50000 },
+      { name: "Water Stone", price: 100000 },
+      { name: "Fire Stone", price: 100000 },
+      { name: "Leaf Stone", price: 100000 },
+    ],
+    2: [
+      { name: "Leftovers", price: 1200 },
+      { name: "Life Orb", price: 1800 },
+      { name: "Choice Band", price: 2000 },
+      { name: "Choice Specs", price: 2000 },
+      { name: "Choice Scarf", price: 2000 },
+      { name: "Rocky Helmet", price: 1400 },
+      { name: "Heavy-Duty Boots", price: 1600 },
+      { name: "Focus Sash", price: 1700 },
+      { name: "Assault Vest", price: 1800 },
+      { name: "Capsula Habilidad", price: 2500 },
+      { name: "MT Earthquake", price: 2000 },
+      { name: "MT Ice Beam", price: 2000 },
+      { name: "MT Flamethrower", price: 2000 },
+      { name: "MT Thunderbolt", price: 2000 },
+      { name: "MT Psychic", price: 2000 },
+      { name: "MT Shadow Ball", price: 2000 },
+      { name: "MT Protect", price: 1500 },
+      { name: "MT Substitute", price: 2000 },
+      { name: "MT Swords Dance", price: 2000 },
+      { name: "MT Calm Mind", price: 2000 },
+    ],
+    3: [
+      { name: "Leftovers", price: 1200 },
+      { name: "Life Orb", price: 1800 },
+      { name: "Choice Band", price: 2000 },
+      { name: "Choice Specs", price: 2000 },
+      { name: "Choice Scarf", price: 2000 },
+      { name: "Rocky Helmet", price: 1400 },
+      { name: "Heavy-Duty Boots", price: 1600 },
+      { name: "Focus Sash", price: 1700 },
+      { name: "Assault Vest", price: 1800 },
+      { name: "Eviolite", price: 100000 },
+      { name: "Sitrus Berry", price: 50000 },
+      { name: "Capsula Habilidad", price: 150000 },
+      { name: "Water Stone", price: 100000 },
+      { name: "Fire Stone", price: 100000 },
+      { name: "Leaf Stone", price: 100000 },
+      { name: "Thunder Stone", price: 2000 },
+      { name: "Moon Stone", price: 2000 },
+      { name: "Sun Stone", price: 2000 },
+      { name: "Shiny Stone", price: 2000 },
+      { name: "Dusk Stone", price: 2000 },
+      { name: "Dawn Stone", price: 2000 },
+      { name: "Ice Stone", price: 2000 },
+      { name: "MT Earthquake", price: 2000 },
+      { name: "MT Ice Beam", price: 2000 },
+      { name: "MT Flamethrower", price: 2000 },
+      { name: "MT Thunderbolt", price: 2000 },
+      { name: "MT Psychic", price: 2000 },
+      { name: "MT Shadow Ball", price: 2000 },
+      { name: "MT Protect", price: 1500 },
+      { name: "MT Substitute", price: 2000 },
+      { name: "MT Swords Dance", price: 2000 },
+      { name: "MT Calm Mind", price: 2000 },
+    ],
+  };
+  const currentYear = Number(data.current_year || 1);
+  const currentShopItems = shopCatalogByYear[currentYear] || shopCatalogByYear[1];
+  const shopTitle = currentYear === 1 ? "Tienda Año 1" : currentYear === 2 ? "Tienda Año 2" : "Tienda Final";
 
   return `
     <div class="card inventory-card">
@@ -607,14 +667,14 @@ export function renderMyPokemonInventory(data, sessionClient) {
           <div class="backpack-panel">
             <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="shop-menu" aria-expanded="false">🛒 Tienda</button>
             <div class="backpack-menu shop-menu" data-menu="shop-menu">
-              <h4>Tienda</h4>
-              <p class="shop-balance">Dinero actual: <strong>$${myData.money || 0}</strong></p>
+              <h4>${shopTitle}</h4>
+              <p class="shop-balance">Dinero actual: <strong>$${formatMoneyCompact(myData.money || 0)}</strong></p>
               <div class="shop-items">
-                ${shopItems.map((shopItem) => `
+                ${currentShopItems.map((shopItem) => `
                   <div class="shop-item-row">
                     <img src="${buildItemSpriteUrl(shopItem.name)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
                     <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
-                    <span>$${shopItem.price}</span>
+                    <span>$${formatMoneyCompact(shopItem.price)}</span>
                     <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
                   </div>
                 `).join("")}

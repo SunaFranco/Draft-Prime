@@ -13,7 +13,7 @@ ITEMS_POOL = [
 
 CABLE_LINK_ITEM = "Cable Link"
 ABILITY_CAPSULE_ITEM = "Capsula Habilidad"
-TM_BOOSTER_PACK_SIZE = 4
+TM_BOOSTER_PACK_SIZE = 2
 
 EVENTS_YEAR_1 = [
     {
@@ -52,17 +52,11 @@ EVENTS_YEAR_1 = [
 
 EVENTS_YEAR_2 = [
     {
-        "id": "e2_megapiedra",
-        "title": "💎 Hallazgo de Mega-Piedra / Z-Crystal",
-        "description": "Obtienes un objeto de potenciación avanzada.",
-        "type": "item_grant",
-    },
-    {
         "id": "e2_feria",
         "title": "🎡 Subasta Relámpago en la Feria",
         "description": "Recibes una bonificación de $2,000 de presupuesto.",
         "type": "money_grant",
-        "amount": 2000,
+        "amount": 50000,
     },
     {
         "id": "e2_cambio_naturaleza",
@@ -161,12 +155,6 @@ def apply_event_to_player(player_state: dict, event: dict) -> dict:
 
     if event.get("granted_pokemon"):
         msg_parts.append(f"Pokémon obtenido: {event['granted_pokemon']}.")
-
-    if "xp_bonus" in event and player_state.get("pokemon"):
-        bonus = event["xp_bonus"]
-        target = min(player_state["pokemon"], key=lambda p: p.get("level", 1))
-        target["level"] += bonus
-        msg_parts.append(f"{target['name']} subió a Nivel {target['level']} (+{bonus} Nv).")
 
     return {
         "event_id": event["id"],

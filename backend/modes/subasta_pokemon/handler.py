@@ -30,16 +30,11 @@ STAGE_NAMES = {
 
 # Evoluciones simuladas para niveles 40 y 100
 EVOLUTION_MAP_LVL_40 = {
-    "Pikachu": "Raichu", "Charmander": "Charmeleon", "Charmeleon": "Charizard",
-    "Squirtle": "Wartortle", "Wartortle": "Blastoise", "Bulbasaur": "Ivysaur",
-    "Ivysaur": "Venusaur", "Gastly": "Haunter", "Haunter": "Gengar",
-    "Riolu": "Lucario", "Dratini": "Dragonair", "Dragonair": "Dragonite",
-    "Larvitar": "Pupitar", "Bagon": "Shelgon", "Gible": "Gabite"
+    "Pikachu": "Raichu"
 }
 
 EVOLUTION_MAP_LVL_100 = {
-    "Pupitar": "Tyranitar", "Shelgon": "Salamence", "Gabite": "Garchomp",
-    "Beldum": "Metagross", "Metang": "Metagross"
+    "Pupitar": "Tyranitar"
 }
 
 
@@ -51,38 +46,41 @@ def get_year_level_cap(year: int) -> int:
     return 100
 
 
+MIN_BID_INCREMENT = 5000
+
 ITEM_SHOP_PRICES = {
-    "Capsula Habilidad": 2500,
-    "MT Earthquake": 2000,
-    "MT Ice Beam": 2000,
-    "MT Flamethrower": 2000,
-    "MT Thunderbolt": 2000,
-    "MT Psychic": 2000,
-    "MT Shadow Ball": 2000,
-    "MT Protect": 1500,
-    "MT Substitute": 2000,
-    "MT Swords Dance": 2000,
-    "MT Calm Mind": 2000,
-    "Leftovers": 1200,
-    "Life Orb": 1800,
-    "Choice Band": 2000,
-    "Choice Specs": 2000,
-    "Choice Scarf": 2000,
-    "Eviolite": 1500,
-    "Rocky Helmet": 1400,
-    "Heavy-Duty Boots": 1600,
-    "Focus Sash": 1700,
-    "Assault Vest": 1800,
-    "Fire Stone": 2000,
-    "Water Stone": 2000,
-    "Thunder Stone": 2000,
-    "Leaf Stone": 2000,
-    "Moon Stone": 2000,
-    "Sun Stone": 2000,
-    "Shiny Stone": 2000,
-    "Dusk Stone": 2000,
-    "Dawn Stone": 2000,
-    "Ice Stone": 2000,
+    "Eviolite": 100000,
+    "Sitrus Berry": 50000,
+    "MT Fire Punch": 30000,
+    "MT Thunder Punch": 30000,
+    "MT Ice Punch": 30000,
+    "Capsula Habilidad": 150000,
+    "Silk Scarf": 50000,
+    "Water Stone": 100000,
+    "Fire Stone": 100000,
+    "Leaf Stone": 100000,
+    "Capsula Habilidad": 150000,
+}
+
+YEAR_SHOP_ITEMS = {
+    1: [
+        "Eviolite",
+        "Sitrus Berry",
+        "MT Fire Punch",
+        "MT Thunder Punch",
+        "MT Ice Punch",
+        "Capsula Habilidad",
+        "Silk Scarf",
+        "Water Stone",
+        "Fire Stone",
+        "Leaf Stone",
+    ],
+    2: [
+        "Capsula Habilidad",
+    ],
+    3: [
+        "Capsula Habilidad",
+    ],
 }
 
 
@@ -193,12 +191,12 @@ def init_subasta_round(session: dict):
     if poke_data["is_shiny"] and poke_data.get("shiny_image_url"):
         poke_data["image_url"] = poke_data["shiny_image_url"]
 
-    # Determinar precio inicial base
-    base_price = 1000
+    # Determinar precio inicial base en múltiplos de 5k
+    base_price = 50000
     if tier == "mega":
-        base_price = 2000
+        base_price = 80000
     elif tier == "legendary":
-        base_price = 3500
+        base_price = 100000
 
     order = subasta_state["player_order"]
     turn_idx = subasta_state["auction_turn_index"] % len(order)
@@ -206,10 +204,11 @@ def init_subasta_round(session: dict):
 
     year_starting_money = subasta_state.get("year_starting_money", {}).get(
         current_year,
-        subasta_state.get("starting_money", 10000)
+        subasta_state.get("starting_money", 10000000)
     )
     pok_per_player = max(1, subasta_state.get("pok_per_player", 2))
-    buyout_price = max(1000, int((year_starting_money * 2) / pok_per_player))
+    buyout_price = max(5000, int((year_starting_money * 2) / pok_per_player))
+    buyout_price = ((buyout_price + MIN_BID_INCREMENT - 1) // MIN_BID_INCREMENT) * MIN_BID_INCREMENT
 
     subasta_state["current_auction"] = {
         "pokemon": poke_data,
@@ -411,10 +410,9 @@ class SubastaPokemonMode(BaseGameMode):
 
     def get_public_config_options(self, session: dict) -> Dict[str, Any]:
         return {
-            "default_starting_money": 100000,
-            "default_turns_per_year": 3,
+            "default_starting_money": 1000000,
+            "default_turns_per_year": 10,
             "default_pok_per_player": 8,
-            "default_buyout_multiplier": 10.0,
             "default_secret_fee": 500,
         }
 
@@ -627,13 +625,18 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "La subasta ya terminó."}})
                 return True
 
+            if bid_amount % MIN_BID_INCREMENT != 0:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe ser múltiplo de ${MIN_BID_INCREMENT}."}})
+                return True
+
             player = subasta_state["players"].get(username)
             if not player or player["money"] < bid_amount:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Fondos insuficientes."}})
                 return True
 
-            if bid_amount <= auction["current_bid"]:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe superar los ${auction['current_bid']}."}})
+            minimum_valid_bid = auction["current_bid"] + MIN_BID_INCREMENT
+            if bid_amount < minimum_valid_bid:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe superar los ${auction['current_bid']} en múltiplos de ${MIN_BID_INCREMENT}."}})
                 return True
 
             auction["current_bid"] = bid_amount
@@ -1110,6 +1113,12 @@ class SubastaPokemonMode(BaseGameMode):
 
             player = subasta_state["players"].get(username)
             if not player:
+                return True
+
+            current_year = int(subasta_state.get("current_year", 1))
+            year_shop_items = YEAR_SHOP_ITEMS.get(current_year, YEAR_SHOP_ITEMS[1])
+            if item_name not in year_shop_items:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Ese objeto no está disponible en la tienda del Año {current_year}."}})
                 return True
 
             price = ITEM_SHOP_PRICES.get(item_name, 1500)

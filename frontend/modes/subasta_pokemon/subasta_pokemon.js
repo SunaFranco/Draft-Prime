@@ -292,6 +292,22 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       }
     });
 
+    // Fijar Equipo – bloquear edición y mostrar botón de copiar
+    const btnLockTeam = document.getElementById("btn-lock-team");
+    if (btnLockTeam) {
+      btnLockTeam.addEventListener("click", () => {
+        const area = document.getElementById("showdown-text-area");
+        if (area) {
+          area.setAttribute("readonly", true);
+        }
+        btnLockTeam.style.display = "none";
+        const btnCopy = document.getElementById("btn-copy-showdown");
+        if (btnCopy) {
+          btnCopy.style.display = "";
+        }
+      });
+    }
+
     // Copiar Showdown Text
     const btnCopyShowdown = document.getElementById("btn-copy-showdown");
     if (btnCopyShowdown) {
