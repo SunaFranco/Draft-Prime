@@ -360,9 +360,9 @@ def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:
     Retorna un diccionario de pistas acumulativas en función del multiplicador del precio inicial:
       - 1.0x: Primera letra del nombre
       - 2.0x: Región de origen
-      - 3.0x: Habilidad asignada
+      - 3.0x: Estadística base más alta
       - 5.0x: Tipo primario
-      - 8.0x: Estadística base más alta
+      - 8.0x: Habilidad asignada 
     """
     hints = {}
     name = poke_data.get("name", "???")
@@ -374,12 +374,12 @@ def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:
         hints["region"] = poke_data.get("region", "Desconocida")
 
     if multiplier >= 3.0:
-        hints["ability"] = poke_data.get("ability", "Desconocida")
+        hints["highest_stat"] = poke_data.get("highest_stat", "HP (50)")
 
     if multiplier >= 5.0:
         hints["primary_type"] = poke_data.get("primary_type", "Normal")
 
     if multiplier >= 8.0:
-        hints["highest_stat"] = poke_data.get("highest_stat", "HP (50)")
+        hints["ability"] = poke_data.get("ability", "Desconocida")
 
     return hints
