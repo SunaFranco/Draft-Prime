@@ -177,7 +177,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
   );
   const hintAbility = hints.ability && !String(hints.ability).includes("🔒")
     ? `<a href="${buildWikidexUrl(hints.ability)}" target="_blank" rel="noopener noreferrer" class="badge-link">${hints.ability}</a>`
-    : hints.ability || "🔒 Incógnito (3.0x)";
+    : hints.ability || "🔒 Incógnito (8.0x)";
 
   let html = `
     <div class="subasta-header">
@@ -211,11 +211,11 @@ export function renderAuctionView(data, sessionClient, isHost) {
         <div class="hints-box">
           <h4>💡 Pistas Desbloqueadas:</h4>
           <ul>
-            <li><strong>Letra Inicial:</strong> ${hints.first_letter}</li>
+            <li><strong>Letra Inicial:</strong> ${hints.first_letter || "?"} (1.0x)</li>
             <li><strong>Región:</strong> ${hints.region || "🔒 Incógnito (2.0x)"}</li>
-            <li><strong>Habilidad:</strong> ${hintAbility}</li>
+            <li><strong>Mejor Stat Base:</strong> ${hints.highest_stat || "🔒 Incógnito (3.0x)"}</li>
             <li><strong>Tipo Primario:</strong> ${hints.primary_type || "🔒 Incógnito (5.0x)"}</li>
-            <li><strong>Mejor Stat Base:</strong> ${hints.highest_stat || "🔒 Incógnito (8.0x)"}</li>
+            <li><strong>Habilidad:</strong> ${hintAbility}</li>
           </ul>
         </div>
       </div>
