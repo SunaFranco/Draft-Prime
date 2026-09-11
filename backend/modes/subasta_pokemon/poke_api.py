@@ -116,8 +116,10 @@ def clean_poke_api_name(name: str) -> str:
     return s
 
 
-def get_pokemon_evolution_details(name_or_id: str, max_level: int = 40) -> Optional[dict]:
-    """Devuelve objetivo y condiciones de la siguiente evolución aplicable."""
+def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 40) -> list:
+    """Devuelve todas las opciones de evolución aplicables para el Pokémon, deduplicadas."""
+    options = []
+    seen = set()
     try:
         slug = clean_poke_api_name(name_or_id)
         species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(slug)}"
@@ -126,44 +128,66 @@ def get_pokemon_evolution_details(name_or_id: str, max_level: int = 40) -> Optio
             species = json.loads(resp.read().decode())
         chain_url = species.get("evolution_chain", {}).get("url")
         if not chain_url:
-            return None
+            return options
 
         chain_req = urllib.request.Request(chain_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
         with urllib.request.urlopen(chain_req, context=ssl.create_default_context(), timeout=5) as chain_resp:
             evo_data = json.loads(chain_resp.read().decode())
 
         current = evo_data.get("chain")
-        current_name = current.get("species", {}).get("name", "") if current else ""
-        if not current_name:
-            return None
+        if not current:
+            return options
 
         while current:
             species_name = current.get("species", {}).get("name", "")
             if species_name and clean_poke_api_name(species_name) == slug:
                 candidates = current.get("evolves_to", [])
                 for candidate in candidates:
-                    details = (candidate.get("evolution_details") or [{}])[0]
-                    trigger = (details.get("trigger") or {}).get("name")
-                    min_level = details.get("min_level")
-                    item = details.get("item") or details.get("held_item") or {}
-                    item_name = item.get("name") if trigger == "use-item" else None
-                    if trigger == "level-up" and item_name is None and min_level is not None and int(min_level) > int(max_level):
+                    target_name = candidate.get("species", {}).get("name")
+                    if not target_name:
                         continue
-                    if trigger in ("level-up", "use-item", "trade"):
-                        return {
-                            "target": candidate.get("species", {}).get("name"),
-                            "level": int(min_level) if min_level is not None else None,
-                            "item": item_name.replace("-", " ").title() if item_name else None,
-                            "trade": trigger == "trade",
-                        }
+                    details_list = candidate.get("evolution_details") or [{}]
+                    for details in details_list:
+                        trigger = (details.get("trigger") or {}).get("name")
+                        min_level = details.get("min_level")
+                        item = details.get("item") or details.get("held_item") or {}
+                        item_name = item.get("name") if trigger == "use-item" else None
+                        if trigger == "level-up" and item_name is None and min_level is not None and int(min_level) > int(max_level):
+                            continue
+                        if trigger in ("level-up", "use-item", "trade"):
+                            formatted_item = item_name.replace("-", " ").title() if item_name else None
+                            opt_key = (target_name.lower(), (formatted_item or "").lower())
+                            if opt_key not in seen:
+                                seen.add(opt_key)
+                                options.append({
+                                    "target": target_name,
+                                    "level": int(min_level) if min_level is not None else None,
+                                    "item": formatted_item,
+                                    "trade": trigger == "trade",
+                                })
                 break
             if current.get("evolves_to"):
-                current = current["evolves_to"][0]
+                matched = None
+                for child in current["evolves_to"]:
+                    child_name = child.get("species", {}).get("name", "")
+                    if child_name and clean_poke_api_name(child_name) == slug:
+                        matched = child
+                        break
+                if matched:
+                    current = matched
+                else:
+                    current = current["evolves_to"][0]
             else:
                 break
-        return None
+        return options
     except Exception:
-        return None
+        return options
+
+
+def get_pokemon_evolution_details(name_or_id: str, max_level: int = 40) -> Optional[dict]:
+    """Devuelve objetivo y condiciones de la primera evolución aplicable."""
+    options = get_pokemon_all_evolution_options(name_or_id, max_level)
+    return options[0] if options else None
 
 
 def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Optional[str]:
@@ -173,39 +197,11 @@ def get_pokemon_evolution_target(name_or_id: str, max_level: int = 40) -> Option
 
 def get_pokemon_next_evolution_level(name_or_id: str) -> Optional[int]:
     """Devuelve el nivel mínimo de la siguiente evolución por level-up del Pokémon."""
-    try:
-        slug = clean_poke_api_name(name_or_id)
-        species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(slug)}"
-        req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
-        with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
-            species = json.loads(resp.read().decode())
-        chain_url = species.get("evolution_chain", {}).get("url")
-        if not chain_url:
-            return None
-
-        chain_req = urllib.request.Request(chain_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
-        with urllib.request.urlopen(chain_req, context=ssl.create_default_context(), timeout=5) as chain_resp:
-            evo_data = json.loads(chain_resp.read().decode())
-
-        current = evo_data.get("chain")
-        while current:
-            species_name = current.get("species", {}).get("name", "")
-            if species_name and clean_poke_api_name(species_name) == slug:
-                candidates = current.get("evolves_to", [])
-                for candidate in candidates:
-                    details = (candidate.get("evolution_details") or [{}])[0]
-                    trigger = (details.get("trigger") or {}).get("name")
-                    min_level = details.get("min_level")
-                    if trigger == "level-up":
-                        return int(min_level) if min_level is not None else None
-                return None
-            if current.get("evolves_to"):
-                current = current["evolves_to"][0]
-            else:
-                return None
-        return None
-    except Exception:
-        return None
+    options = get_pokemon_all_evolution_options(name_or_id, max_level=100)
+    for opt in options:
+        if opt.get("level") is not None:
+            return opt.get("level")
+    return None
 
 
 def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
@@ -263,9 +259,19 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                     {"name": "Iron Tail", "level": 20}
                 ]
 
-            evolution_details = get_pokemon_evolution_details(name, max_level=level_cap)
+            evolution_options = get_pokemon_all_evolution_options(name, max_level=level_cap)
+            evolution_details = evolution_options[0] if evolution_options else None
             next_evolution = evolution_details.get("target") if evolution_details else None
             next_evolution_level = evolution_details.get("level") if evolution_details else None
+            formatted_options = [
+                {
+                    "target": opt["target"].capitalize() if opt.get("target") else "",
+                    "level": opt.get("level"),
+                    "item": opt.get("item"),
+                    "trade": bool(opt.get("trade")),
+                }
+                for opt in evolution_options
+            ]
             res = {
                 "id": poke_id,
                 "name": name,
@@ -290,6 +296,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "next_evolution_level": next_evolution_level,
                 "evolution_item": evolution_details.get("item") if evolution_details else None,
                 "evolution_trade": bool(evolution_details and evolution_details.get("trade")),
+                "evolution_options": formatted_options,
             }
             POKE_CACHE[cache_key] = res
             return res.copy()
@@ -304,9 +311,19 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             {"name": "Body Slam", "level": 20},
             {"name": "Hyper Beam", "level": 40}
         ]
-        evolution_details = get_pokemon_evolution_details(name_clean, max_level=level_cap)
+        evolution_options = get_pokemon_all_evolution_options(name_clean, max_level=level_cap)
+        evolution_details = evolution_options[0] if evolution_options else None
         next_evolution = evolution_details.get("target") if evolution_details else None
         next_evolution_level = evolution_details.get("level") if evolution_details else None
+        formatted_options = [
+            {
+                "target": opt["target"].capitalize() if opt.get("target") else "",
+                "level": opt.get("level"),
+                "item": opt.get("item"),
+                "trade": bool(opt.get("trade")),
+            }
+            for opt in evolution_options
+        ]
         fallback_abilities = ["Overgrow", "Chlorophyll"]
         fallback_ability_index = random.randrange(len(fallback_abilities))
         res = {
@@ -333,6 +350,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "next_evolution_level": next_evolution_level,
             "evolution_item": evolution_details.get("item") if evolution_details else None,
             "evolution_trade": bool(evolution_details and evolution_details.get("trade")),
+            "evolution_options": formatted_options,
         }
         POKE_CACHE[cache_key] = res
         return res.copy()

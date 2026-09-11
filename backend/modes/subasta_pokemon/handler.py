@@ -230,14 +230,15 @@ def init_subasta_round(session: dict):
     }
 
 
-def evolve_single_pokemon(poke: dict, max_lvl: int) -> bool:
+def evolve_single_pokemon(poke: dict, max_lvl: int, target_name: Optional[str] = None) -> bool:
     """Evoluciona un Pokémon y conserva los cuatro movimientos elegidos."""
     evo_map = EVOLUTION_MAP_LVL_40 if max_lvl == 40 else EVOLUTION_MAP_LVL_100
     current_name = poke.get("name")
     current_item = poke.get("item") or poke.get("held_item")
     current_nature = poke.get("nature")
     was_shiny = bool(poke.get("is_shiny"))
-    target_name = poke_api.get_pokemon_evolution_target(current_name, max_lvl)
+    if not target_name:
+        target_name = poke_api.get_pokemon_evolution_target(current_name, max_lvl)
     if not target_name:
         target_name = evo_map.get(current_name)
 
@@ -1155,6 +1156,7 @@ class SubastaPokemonMode(BaseGameMode):
 
         elif action == "subasta_evolve_pokemon":
             poke_idx = int(message.get("poke_index", 0))
+            requested_target = message.get("target_name") or message.get("target_species")
             player = subasta_state["players"].get(username)
 
             if player and 0 <= poke_idx < len(player.get("pokemon", [])):
@@ -1162,20 +1164,35 @@ class SubastaPokemonMode(BaseGameMode):
                 current_level = poke.get("level", 1)
                 target_year = subasta_state.get("current_year", 1)
                 target_limit = 40 if target_year == 2 else 100
-                evolution_details = poke_api.get_pokemon_evolution_details(poke.get("name"), max_level=target_limit)
-                evolution_item = evolution_details.get("item") if evolution_details else None
-                evolution_level = evolution_details.get("level") if evolution_details else None
-                requires_trade = bool(evolution_details and evolution_details.get("trade"))
-                inventory = normalize_item_inventory(player.get("items", {}))
+                all_options = poke_api.get_pokemon_all_evolution_options(poke.get("name"), max_level=target_limit)
 
-                if not evolution_details:
+                if not all_options:
                     await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon no tiene una evolución disponible."}})
                     return True
+
+                selected_option = None
+                if requested_target:
+                    for opt in all_options:
+                        if opt.get("target", "").lower() == str(requested_target).lower():
+                            selected_option = opt
+                            break
+                    if not selected_option:
+                        await manager.send_personal(websocket, {"event": "error", "data": {"message": f"'{requested_target}' no es una evolución válida para este Pokémon."}})
+                        return True
+                else:
+                    selected_option = all_options[0]
+
+                target_species = selected_option.get("target")
+                evolution_item = selected_option.get("item")
+                evolution_level = selected_option.get("level")
+                requires_trade = bool(selected_option.get("trade"))
+                inventory = normalize_item_inventory(player.get("items", {}))
+
                 if requires_trade and not poke.get("received_by_trade"):
                     await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon debe llegar mediante un intercambio."}})
                     return True
                 if evolution_item and inventory.get(evolution_item, 0) <= 0:
-                    await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Necesitas {evolution_item} para evolucionar este Pokémon."}})
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Necesitas {evolution_item} para evolucionar a {target_species}."}})
                     return True
                 if evolution_level is not None and current_level < evolution_level:
                     await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Este Pokémon necesita llegar al nivel {evolution_level}."}})
@@ -1184,7 +1201,7 @@ class SubastaPokemonMode(BaseGameMode):
                     await manager.send_personal(websocket, {"event": "error", "data": {"message": "Tu Pokémon aún no está listo para evolucionar."}})
                     return True
 
-                if evolve_single_pokemon(poke, target_limit):
+                if evolve_single_pokemon(poke, target_limit, target_name=target_species):
                     if evolution_item:
                         remove_item_from_inventory(player, evolution_item)
                     poke["selected_moves"] = (poke.get("selected_moves", []) or [])[:4]

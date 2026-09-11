@@ -15,7 +15,17 @@ CABLE_LINK_ITEM = "Cable Link"
 ABILITY_CAPSULE_ITEM = "Capsula Habilidad"
 TM_BOOSTER_PACK_SIZE = 2
 
+EEVEE_TEST_EVENT = {
+    "id": "e1_eevee_test",
+    "title": "🦊 Regalo Especial: Eevee y Piedras Evolutivas",
+    "description": "Un investigador te regala un Eevee y un kit de Piedras Evolutivas (Water Stone, Thunder Stone, Fire Stone, Leaf Stone, Ice Stone) para probar sus distintas evoluciones.",
+    "type": "eevee_grant",
+    "granted_pokemon": "Eevee",
+    "granted_items": ["Water Stone", "Thunder Stone", "Fire Stone", "Leaf Stone", "Ice Stone"],
+}
+
 EVENTS_YEAR_1 = [
+    EEVEE_TEST_EVENT,
     {
         "id": "e1_cable_link",
         "title": "🔗 Cable Link",
@@ -96,7 +106,10 @@ EVENTS_YEAR_3 = [
 
 
 def get_random_event_for_year(year: int, turn: int = 1) -> dict:
-    """Devuelve un evento aleatorio según el año actual."""
+    """Devuelve un evento aleatorio según el año actual. En el Año 1 Turno 1 retorna EEVEE_TEST_EVENT."""
+    if year == 1 and turn == 1:
+        return EEVEE_TEST_EVENT.copy()
+
     if year == 1:
         pool = EVENTS_YEAR_1
     elif year == 2:
@@ -151,10 +164,14 @@ def apply_event_to_player(player_state: dict, event: dict) -> dict:
         for item in event["granted_items"]:
             items[item] = items.get(item, 0) + 1
         player_state["items"] = items
-        msg_parts.append(f"MTs obtenidas: {', '.join(event['granted_items'])}.")
+        msg_parts.append(f"Objetos obtenidos: {', '.join(event['granted_items'])}.")
 
     if event.get("granted_pokemon"):
-        msg_parts.append(f"Pokémon obtenido: {event['granted_pokemon']}.")
+        poke_name = event["granted_pokemon"]
+        from backend.modes.subasta_pokemon import poke_api
+        new_poke = poke_api.fetch_pokemon_data(poke_name, level_cap=20)
+        player_state.setdefault("pokemon", []).append(new_poke)
+        msg_parts.append(f"Pokémon obtenido: {new_poke.get('name', poke_name)}.")
 
     return {
         "event_id": event["id"],

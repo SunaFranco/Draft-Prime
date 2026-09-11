@@ -542,23 +542,55 @@ export function renderMyPokemonInventory(data, sessionClient) {
           const itemHtml = itemName && itemName !== 'Sin ítem' && itemName !== 'Sin item'
             ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>`
             : itemName;
-          const nextEvolutionLevel = Number(poke.next_evolution_level ?? 0);
-          const evolutionItem = poke.evolution_item || '';
-          const hasEvolutionItem = evolutionItem && (bagItems[evolutionItem] || 0) > 0;
-          const canEvolve = (() => {
-            const currentYear = Number(data.current_year || 1);
-            const evolutionAllowed = Boolean(poke.can_evolve || poke.evolution_target);
-            if (!evolutionAllowed) return false;
+          const evolutionOptions = Array.isArray(poke.evolution_options) && poke.evolution_options.length > 0
+            ? poke.evolution_options
+            : (poke.evolution_target ? [{ target: poke.evolution_target, item: poke.evolution_item, level: poke.next_evolution_level, trade: poke.evolution_trade }] : []);
 
-            if (evolutionItem && !hasEvolutionItem) return false;
-            if (poke.evolution_trade && !poke.received_by_trade) return false;
-            if (currentYear === 1 && !evolutionItem) return false;
-            if (nextEvolutionLevel > 0) return poke.level >= nextEvolutionLevel;
-            return evolutionItem || poke.evolution_trade || poke.level >= (currentYear === 2 ? 40 : 100);
-          })();
-          const evolutionButtonContent = evolutionItem
-            ? `<img src="${buildItemSpriteUrl(evolutionItem)}" alt="${evolutionItem}" /> Evolucionar`
-            : '✨ Evolucionar';
+          const validEvolutionOptions = evolutionOptions.filter((opt) => {
+            const optItem = opt.item || '';
+            const hasOptItem = optItem && (bagItems[optItem] || 0) > 0;
+            const currentYear = Number(data.current_year || 1);
+            if (optItem && !hasOptItem) return false;
+            if (opt.trade && !poke.received_by_trade) return false;
+            if (currentYear === 1 && !optItem) return false;
+            const optLevel = Number(opt.level ?? 0);
+            if (optLevel > 0) return poke.level >= optLevel;
+            return optItem || opt.trade || poke.level >= (currentYear === 2 ? 40 : 100);
+          });
+
+          const canEvolve = validEvolutionOptions.length > 0;
+          let evolutionHtml = '';
+          if (canEvolve) {
+            if (validEvolutionOptions.length > 1) {
+              evolutionHtml = `
+                <div class="evolution-menu-container" style="position: relative; display: inline-block;">
+                  <button type="button" class="btn btn-small btn-primary btn-toggle-evolution-menu" data-poke-idx="${pokeIdx}">
+                    ✨ Evolucionar (${validEvolutionOptions.length}) ▾
+                  </button>
+                  <div class="evolution-menu hidden" id="evo-menu-${pokeIdx}" style="position: absolute; bottom: 100%; left: 0; z-index: 100; background: #1f293d; border: 1px solid #3b82f6; border-radius: 8px; padding: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.6); min-width: 170px;">
+                    <div style="font-size: 0.72rem; color: #9ca3af; margin-bottom: 6px; font-weight: bold; text-transform: uppercase;">Elegir evolución:</div>
+                    ${validEvolutionOptions.map((opt) => {
+                      const optItem = opt.item || '';
+                      const itemSprite = optItem ? `<img src="${buildItemSpriteUrl(optItem)}" alt="${optItem}" style="width:16px;height:16px;margin-right:4px;vertical-align:middle;" />` : '';
+                      const reqText = optItem ? ` (${optItem})` : '';
+                      return `
+                        <button type="button" class="btn btn-small btn-secondary btn-evolve-target-option" data-poke-idx="${pokeIdx}" data-target-name="${opt.target}" style="width:100%; text-align:left; margin-bottom:4px; display:flex; align-items:center; justify-content:flex-start; font-size:0.8rem;">
+                          ${itemSprite} <span>${opt.target}${reqText}</span>
+                        </button>
+                      `;
+                    }).join("")}
+                  </div>
+                </div>
+              `;
+            } else {
+              const singleOpt = validEvolutionOptions[0];
+              const singleItem = singleOpt.item || '';
+              const singleButtonContent = singleItem
+                ? `<img src="${buildItemSpriteUrl(singleItem)}" alt="${singleItem}" /> Evolucionar (${singleOpt.target})`
+                : `✨ Evolucionar (${singleOpt.target})`;
+              evolutionHtml = `<button type="button" class="btn btn-small btn-primary btn-evolve-pokemon" data-poke-idx="${pokeIdx}" data-target-name="${singleOpt.target}" title="Evolucionar a ${singleOpt.target}">${singleButtonContent}</button>`;
+            }
+          }
 
           return `
             <div class="poke-inventory-item" data-poke-idx="${pokeIdx}">
@@ -591,7 +623,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
                 ` : ""}
               </div>
 
-              ${canEvolve ? `<button class="btn btn-small btn-primary btn-evolve-pokemon" data-poke-idx="${pokeIdx}" title="Evolucionar con ${evolutionItem || 'nivel'}">${evolutionButtonContent}</button>` : ""}
+              ${evolutionHtml}
 
               <div class="moves-selector-box ${isSaved ? 'moves-saved' : ''}" data-poke-idx="${pokeIdx}">
                 <div class="moves-summary-panel">

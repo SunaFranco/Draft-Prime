@@ -364,8 +364,37 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     document.querySelectorAll(".btn-evolve-pokemon").forEach((btn) => {
       btn.addEventListener("click", () => {
         const pokeIdx = parseInt(btn.getAttribute("data-poke-idx"), 10);
-        sessionClient.send({ action: "subasta_evolve_pokemon", poke_index: pokeIdx });
+        const targetName = btn.getAttribute("data-target-name") || undefined;
+        sessionClient.send({ action: "subasta_evolve_pokemon", poke_index: pokeIdx, target_name: targetName });
       });
+    });
+
+    document.querySelectorAll(".btn-toggle-evolution-menu").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const pokeIdx = btn.getAttribute("data-poke-idx");
+        const menu = document.getElementById(`evo-menu-${pokeIdx}`);
+        if (menu) {
+          document.querySelectorAll(".evolution-menu").forEach((m) => {
+            if (m !== menu) m.classList.add("hidden");
+          });
+          menu.classList.toggle("hidden");
+        }
+      });
+    });
+
+    document.querySelectorAll(".btn-evolve-target-option").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const pokeIdx = parseInt(btn.getAttribute("data-poke-idx"), 10);
+        const targetName = btn.getAttribute("data-target-name");
+        if (!targetName) return;
+        sessionClient.send({ action: "subasta_evolve_pokemon", poke_index: pokeIdx, target_name: targetName });
+      });
+    });
+
+    document.addEventListener("click", () => {
+      document.querySelectorAll(".evolution-menu").forEach((m) => m.classList.add("hidden"));
     });
 
     document.querySelectorAll(".btn-equip-item").forEach((btn) => {
