@@ -116,7 +116,7 @@ def clean_poke_api_name(name: str) -> str:
     return s
 
 
-def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 40) -> list:
+def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> list:
     """Devuelve todas las opciones de evolución aplicables para el Pokémon, deduplicadas."""
     options = []
     seen = set()
@@ -151,20 +151,28 @@ def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 40) -> l
                         trigger = (details.get("trigger") or {}).get("name")
                         min_level = details.get("min_level")
                         item = details.get("item") or details.get("held_item") or {}
-                        item_name = item.get("name") if trigger == "use-item" else None
-                        if trigger == "level-up" and item_name is None and min_level is not None and int(min_level) > int(max_level):
-                            continue
-                        if trigger in ("level-up", "use-item", "trade"):
-                            formatted_item = item_name.replace("-", " ").title() if item_name else None
-                            opt_key = (target_name.lower(), (formatted_item or "").lower())
-                            if opt_key not in seen:
-                                seen.add(opt_key)
-                                options.append({
-                                    "target": target_name,
-                                    "level": int(min_level) if min_level is not None else None,
-                                    "item": formatted_item,
-                                    "trade": trigger == "trade",
-                                })
+                        item_name = item.get("name") if item else None
+                        is_trade = (trigger == "trade") or bool(details.get("trade_species"))
+                        is_friendship = bool(details.get("min_happiness") or details.get("min_affection"))
+
+                        formatted_item = item_name.replace("-", " ").title() if item_name else None
+
+                        opt_key = (
+                            target_name.lower(),
+                            (formatted_item or "").lower(),
+                            bool(is_trade),
+                            bool(is_friendship),
+                            min_level if min_level is not None else 0,
+                        )
+                        if opt_key not in seen:
+                            seen.add(opt_key)
+                            options.append({
+                                "target": target_name,
+                                "level": int(min_level) if min_level is not None else None,
+                                "item": formatted_item,
+                                "trade": is_trade,
+                                "friendship": is_friendship,
+                            })
                 break
             if current.get("evolves_to"):
                 matched = None
@@ -259,7 +267,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                     {"name": "Iron Tail", "level": 20}
                 ]
 
-            evolution_options = get_pokemon_all_evolution_options(name, max_level=level_cap)
+            evolution_options = get_pokemon_all_evolution_options(name, max_level=100)
             evolution_details = evolution_options[0] if evolution_options else None
             next_evolution = evolution_details.get("target") if evolution_details else None
             next_evolution_level = evolution_details.get("level") if evolution_details else None
@@ -269,6 +277,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                     "level": opt.get("level"),
                     "item": opt.get("item"),
                     "trade": bool(opt.get("trade")),
+                    "friendship": bool(opt.get("friendship")),
                 }
                 for opt in evolution_options
             ]
@@ -311,7 +320,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             {"name": "Body Slam", "level": 20},
             {"name": "Hyper Beam", "level": 40}
         ]
-        evolution_options = get_pokemon_all_evolution_options(name_clean, max_level=level_cap)
+        evolution_options = get_pokemon_all_evolution_options(name_clean, max_level=100)
         evolution_details = evolution_options[0] if evolution_options else None
         next_evolution = evolution_details.get("target") if evolution_details else None
         next_evolution_level = evolution_details.get("level") if evolution_details else None
@@ -321,6 +330,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "level": opt.get("level"),
                 "item": opt.get("item"),
                 "trade": bool(opt.get("trade")),
+                "friendship": bool(opt.get("friendship")),
             }
             for opt in evolution_options
         ]

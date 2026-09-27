@@ -544,18 +544,23 @@ export function renderMyPokemonInventory(data, sessionClient) {
             : itemName;
           const evolutionOptions = Array.isArray(poke.evolution_options) && poke.evolution_options.length > 0
             ? poke.evolution_options
-            : (poke.evolution_target ? [{ target: poke.evolution_target, item: poke.evolution_item, level: poke.next_evolution_level, trade: poke.evolution_trade }] : []);
+            : (poke.evolution_target ? [{ target: poke.evolution_target, item: poke.evolution_item, level: poke.next_evolution_level, trade: poke.evolution_trade, friendship: poke.evolution_friendship }] : []);
 
           const validEvolutionOptions = evolutionOptions.filter((opt) => {
             const optItem = opt.item || '';
             const hasOptItem = optItem && (bagItems[optItem] || 0) > 0;
             const currentYear = Number(data.current_year || 1);
+            const currentLevel = Number(poke.level || (currentYear === 1 ? 20 : (currentYear === 2 ? 40 : 100)));
+
             if (optItem && !hasOptItem) return false;
             if (opt.trade && !poke.received_by_trade) return false;
+            if (opt.friendship && currentYear < 2) return false;
             if (currentYear === 1 && !optItem) return false;
+
             const optLevel = Number(opt.level ?? 0);
-            if (optLevel > 0) return poke.level >= optLevel;
-            return optItem || opt.trade || poke.level >= (currentYear === 2 ? 40 : 100);
+            if (optLevel > 0 && currentLevel < optLevel) return false;
+
+            return true;
           });
 
           const canEvolve = validEvolutionOptions.length > 0;

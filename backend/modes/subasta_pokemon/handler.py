@@ -289,7 +289,18 @@ def evolve_single_pokemon(poke: dict, max_lvl: int, target_name: Optional[str] =
         updated["ability"] = evo_abilities[evo_index]
         updated["ability_slot"] = evo_slots[evo_index]
 
-    evolution_details = poke_api.get_pokemon_evolution_details(updated["name"], max_level=max_lvl)
+    evolution_options = poke_api.get_pokemon_all_evolution_options(updated["name"], max_level=100)
+    formatted_options = [
+        {
+            "target": opt["target"].capitalize() if opt.get("target") else "",
+            "level": opt.get("level"),
+            "item": opt.get("item"),
+            "trade": bool(opt.get("trade")),
+            "friendship": bool(opt.get("friendship")),
+        }
+        for opt in evolution_options
+    ]
+    evolution_details = evolution_options[0] if evolution_options else None
     next_evolution = evolution_details.get("target") if evolution_details else None
     next_level = evolution_details.get("level") if evolution_details else None
     evolution_trade = bool(evolution_details and evolution_details.get("trade"))
@@ -322,6 +333,7 @@ def evolve_single_pokemon(poke: dict, max_lvl: int, target_name: Optional[str] =
         "next_evolution_level": next_level,
         "evolution_item": evolution_details.get("item") if evolution_details else None,
         "evolution_trade": evolution_trade,
+        "evolution_options": formatted_options,
         "received_by_trade": received_by_trade,
     })
     if was_shiny and poke.get("shiny_image_url"):
@@ -1161,45 +1173,70 @@ class SubastaPokemonMode(BaseGameMode):
 
             if player and 0 <= poke_idx < len(player.get("pokemon", [])):
                 poke = player["pokemon"][poke_idx]
-                current_level = poke.get("level", 1)
-                target_year = subasta_state.get("current_year", 1)
-                target_limit = 40 if target_year == 2 else 100
-                all_options = poke_api.get_pokemon_all_evolution_options(poke.get("name"), max_level=target_limit)
+                target_year = int(subasta_state.get("current_year", 1))
+                target_limit = 20 if target_year == 1 else (40 if target_year == 2 else 100)
+                current_level = int(poke.get("level", target_limit))
+                all_options = poke_api.get_pokemon_all_evolution_options(poke.get("name"), max_level=100)
 
                 if not all_options:
                     await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon no tiene una evolución disponible."}})
                     return True
 
-                selected_option = None
-                if requested_target:
-                    for opt in all_options:
-                        if opt.get("target", "").lower() == str(requested_target).lower():
-                            selected_option = opt
-                            break
-                    if not selected_option:
-                        await manager.send_personal(websocket, {"event": "error", "data": {"message": f"'{requested_target}' no es una evolución válida para este Pokémon."}})
-                        return True
-                else:
-                    selected_option = all_options[0]
+                candidate_options = [
+                    opt for opt in all_options
+                    if not requested_target or opt.get("target", "").lower() == str(requested_target).lower()
+                ]
 
+                if not candidate_options:
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": f"'{requested_target}' no es una evolución válida para este Pokémon."}})
+                    return True
+
+                inventory = normalize_item_inventory(player.get("items", {}))
+                satisfied_option = None
+                first_error = ""
+
+                for opt in candidate_options:
+                    opt_item = opt.get("item")
+                    opt_trade = bool(opt.get("trade"))
+                    opt_friendship = bool(opt.get("friendship"))
+                    opt_level = opt.get("level")
+                    t_name = (opt.get("target") or "este Pokémon").capitalize()
+
+                    if opt_item and inventory.get(opt_item, 0) <= 0:
+                        if not first_error:
+                            first_error = f"Necesitas {opt_item} para evolucionar a {t_name}."
+                        continue
+
+                    if opt_trade and not poke.get("received_by_trade"):
+                        if not first_error:
+                            first_error = "Este Pokémon debe haber sido recibido mediante intercambio."
+                        continue
+
+                    if opt_friendship and target_year < 2:
+                        if not first_error:
+                            first_error = "La evolución por amistad está disponible a partir del Año 2."
+                        continue
+
+                    if target_year == 1 and not opt_item:
+                        if not first_error:
+                            first_error = "En el Año 1 solo se permiten evoluciones mediante objetos o piedras evolutivas."
+                        continue
+
+                    if opt_level is not None and current_level < opt_level:
+                        if not first_error:
+                            first_error = f"Este Pokémon necesita alcanzar el nivel {opt_level}."
+                        continue
+
+                    satisfied_option = opt
+                    break
+
+                if not satisfied_option:
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": first_error or "No cumples los requisitos para esta evolución."}})
+                    return True
+
+                selected_option = satisfied_option
                 target_species = selected_option.get("target")
                 evolution_item = selected_option.get("item")
-                evolution_level = selected_option.get("level")
-                requires_trade = bool(selected_option.get("trade"))
-                inventory = normalize_item_inventory(player.get("items", {}))
-
-                if requires_trade and not poke.get("received_by_trade"):
-                    await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon debe llegar mediante un intercambio."}})
-                    return True
-                if evolution_item and inventory.get(evolution_item, 0) <= 0:
-                    await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Necesitas {evolution_item} para evolucionar a {target_species}."}})
-                    return True
-                if evolution_level is not None and current_level < evolution_level:
-                    await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Este Pokémon necesita llegar al nivel {evolution_level}."}})
-                    return True
-                if not evolution_item and current_level < target_limit:
-                    await manager.send_personal(websocket, {"event": "error", "data": {"message": "Tu Pokémon aún no está listo para evolucionar."}})
-                    return True
 
                 if evolve_single_pokemon(poke, target_limit, target_name=target_species):
                     if evolution_item:
