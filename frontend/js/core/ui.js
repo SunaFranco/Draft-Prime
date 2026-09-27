@@ -42,9 +42,10 @@ export function renderPlayers(players, host, currentUsername) {
   if (!grid) return;
 
   grid.innerHTML = "";
+  const playerList = Array.isArray(players) ? players : [];
 
   for (let i = 0; i < 4; i++) {
-    const p = players[i];
+    const p = playerList[i];
     const card = document.createElement("div");
 
     if (p) {

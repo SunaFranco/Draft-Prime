@@ -1,13 +1,7 @@
-/**
- * js/core/session.js — Servicio de red y WebSocket
- */
+export const API = window.API_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:8000" : window.location.origin);
+export const WS_BASE = window.WS_URL || `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${new URL(API, window.location.origin).host}`;
 
-const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-const localApiUrl = "http://localhost:8000";
-const defaultApiUrl = isLocalhost ? localApiUrl : window.location.origin;
 
-export const API = window.API_URL || defaultApiUrl;
-export const WS_BASE = window.WS_URL || `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${new URL(API).host}`;
 
 export class SessionClient {
   constructor() {

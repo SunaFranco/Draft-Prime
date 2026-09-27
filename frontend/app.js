@@ -62,34 +62,53 @@ document.getElementById("btn-join-invite").addEventListener("click", () => {
   const sessionId = params.get("session");
   const username = document.getElementById("invite-username").value.trim();
   const errEl = document.getElementById("invite-error");
+  const btnJoinInvite = document.getElementById("btn-join-invite");
   errEl.textContent = "";
 
   if (!username) { errEl.textContent = "Ingresá tu nombre."; return; }
   if (!sessionId) { errEl.textContent = "No se encontró el ID de sesión."; return; }
 
-  connect(sessionId, username);
+  const originalText = btnJoinInvite.textContent;
+  btnJoinInvite.disabled = true;
+  btnJoinInvite.textContent = "Uniendo...";
+
+  try {
+    connect(sessionId, username);
+  } finally {
+    btnJoinInvite.disabled = false;
+    btnJoinInvite.textContent = originalText;
+  }
 });
 
 // Crear sesión
 document.getElementById("btn-create").addEventListener("click", async () => {
   const username = document.getElementById("create-username").value.trim();
   const errEl = document.getElementById("create-error");
+  const btnCreate = document.getElementById("btn-create");
   errEl.textContent = "";
 
   if (!username) { errEl.textContent = "Ingresá tu nombre."; return; }
 
+  const originalText = btnCreate.textContent;
+  btnCreate.disabled = true;
+  btnCreate.textContent = "Creando lobby...";
+
   try {
     const data = await sessionClient.createSession(username);
-    window.history.pushState({}, "", `?session=${data.session_id}`);
+    const sessionId = data.session_id || data.id;
+    window.history.pushState({}, "", `?session=${sessionId}`);
 
-    document.getElementById("session-id-display").textContent = data.id;
+    document.getElementById("session-id-display").textContent = sessionId;
     showScreen("lobby");
     renderPlayers(data.players, data.host, username);
     setConnectionStatus("Conectando...", "");
 
-    connect(data.session_id, username);
+    connect(sessionId, username);
   } catch (e) {
     errEl.textContent = e.message || "No se pudo conectar al servidor.";
+  } finally {
+    btnCreate.disabled = false;
+    btnCreate.textContent = originalText;
   }
 });
 
@@ -98,13 +117,23 @@ document.getElementById("btn-join").addEventListener("click", () => {
   const username  = document.getElementById("join-username").value.trim();
   const sessionId = document.getElementById("join-session-id").value.trim();
   const errEl     = document.getElementById("join-error");
+  const btnJoin   = document.getElementById("btn-join");
   errEl.textContent = "";
 
   if (!username)  { errEl.textContent = "Ingresá tu nombre."; return; }
   if (!sessionId) { errEl.textContent = "Ingresá el ID de sesión."; return; }
 
-  window.history.pushState({}, "", `?session=${sessionId}`);
-  connect(sessionId, username);
+  const originalText = btnJoin.textContent;
+  btnJoin.disabled = true;
+  btnJoin.textContent = "Uniendo...";
+
+  try {
+    window.history.pushState({}, "", `?session=${sessionId}`);
+    connect(sessionId, username);
+  } finally {
+    btnJoin.disabled = false;
+    btnJoin.textContent = originalText;
+  }
 });
 
 // ── Conexión WebSocket ────────────────────────────────────────────────────
@@ -227,7 +256,8 @@ function updateLobbyState(data) {
 
 function updatePlayersAndHost(players, host) {
   isHost = host === sessionClient.currentUsername;
-  const me = players.find((p) => p.username === sessionClient.currentUsername);
+  const playerList = Array.isArray(players) ? players : [];
+  const me = playerList.find((p) => p && p.username === sessionClient.currentUsername);
   if (me) {
     isReady = me.ready;
     btnReady.textContent = isReady ? "Cancelar Listo" : "Listo ✓";
@@ -235,7 +265,7 @@ function updatePlayersAndHost(players, host) {
   }
 
   updateHostUI();
-  renderPlayers(players, host, sessionClient.currentUsername);
+  renderPlayers(playerList, host, sessionClient.currentUsername);
 }
 
 function updateHostUI() {

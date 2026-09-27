@@ -1,12 +1,7 @@
-"""
-main.py - Punto de entrada del servidor FastAPI
-
-Registra el router de sesiones y configura CORS para
-que el frontend pueda conectarse desde cualquier origen.
-"""
-
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from backend.routes import session, cubes
 
 app = FastAPI(
@@ -25,12 +20,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Rutas ─────────────────────────────────────────────────────────────────────
+# ── Rutas API ─────────────────────────────────────────────────────────────────
 app.include_router(session.router, prefix="/session", tags=["Session"])
 app.include_router(cubes.router, prefix="/cubes", tags=["Cubes"])
 
 
-
-@app.get("/")
-def root():
+@app.get("/health")
+def health():
     return {"status": "ok", "message": "Card Draft API v0.2 🃏"}
+
+
+# ── Frontend estático ──────────────────────────────────────────────────────────
+frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+if os.path.exists(frontend_dir):
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+else:
+    @app.get("/")
+    def root():
+        return {"status": "ok", "message": "Card Draft API v0.2 🃏"}
+
