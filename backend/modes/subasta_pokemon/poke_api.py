@@ -41,8 +41,17 @@ SAMPLE_POKEMON_POOLS = {
         "tyranitar", "salamence", "metagross", "garchomp", "volcarona", "greninja"
     ],
     "mega": [
-        "charizard-mega-x", "charizard-mega-y", "mewtwo-mega-x", "gengar-mega",
-        "lucario-mega", "gardevoir-mega", "garchomp-mega", "metagross-mega", "rayquaza-mega"
+        "venusaur-mega", "charizard-mega-x", "charizard-mega-y", "blastoise-mega",
+        "beedrill-mega", "pidgeot-mega", "alakazam-mega", "slowbro-mega",
+        "gengar-mega", "kangaskhan-mega", "pinsir-mega", "gyarados-mega",
+        "aerodactyl-mega", "ampharos-mega", "steelix-mega", "scizor-mega",
+        "heracross-mega", "houndoom-mega", "tyranitar-mega", "sceptile-mega",
+        "blaziken-mega", "swampert-mega", "gardevoir-mega", "sableye-mega",
+        "mawile-mega", "aggron-mega", "medicham-mega", "manectric-mega",
+        "sharpedo-mega", "camerupt-mega", "altaria-mega", "banette-mega",
+        "absol-mega", "glalie-mega", "salamence-mega", "metagross-mega",
+        "lopunny-mega", "garchomp-mega", "lucario-mega", "abomasnow-mega",
+        "gallade-mega", "audino-mega"
     ],
     "legendary": [
         "mewtwo", "mew", "lugia", "ho-oh", "kyogre", "groudon", "rayquaza",

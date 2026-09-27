@@ -167,12 +167,26 @@ def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional
         print("[INFO] [SUPABASE] Sin cliente de Supabase (sin SUPABASE_URL / KEY). Usando pool local.")
         return []
 
+    clean_type = auction_type.strip().lower() if auction_type else None
+
+    # 1. Si se buscan megas, intentar primero si existe tabla dedicada 'mega_pokemon'
+    if clean_type == "mega":
+        try:
+            res_mega = supabase_client.table("mega_pokemon").select("name").execute()
+            if res_mega.data and len(res_mega.data) > 0:
+                names = [row["name"] for row in res_mega.data if row.get("name")]
+                if names:
+                    print(f"[OK] [SUPABASE] Se obtuvieron {len(names)} Megas desde la tabla 'mega_pokemon'.")
+                    return names
+        except Exception:
+            pass  # Si la tabla mega_pokemon no existe, continúa buscando en pokemon_pools
+
     try:
         query = supabase_client.table("pokemon_pools").select("id, year, auction_type, pokemon_pool_cards(pokemon_name, qty)")
         if year is not None:
             query = query.eq("year", year)
-        if auction_type is not None:
-            query = query.ilike("auction_type", auction_type.strip())
+        if clean_type:
+            query = query.ilike("auction_type", clean_type)
 
         res = query.execute()
         if res.data:
@@ -182,20 +196,21 @@ def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional
                     if card.get("pokemon_name"):
                         names.extend([card["pokemon_name"]] * card.get("qty", 1))
             if names:
-                print(f"[OK] [SUPABASE] Se obtuvieron {len(names)} Pokémon de la DB (Año={year}, Tipo='{auction_type}').")
+                print(f"[OK] [SUPABASE] Se obtuvieron {len(names)} Pokémon de la DB (Año={year}, Tipo='{clean_type}').")
                 return names
 
-        # Si no encontró resultados exactos con filtro por año, intentar buscar cualquier pool existente en la DB
-        res_fallback = supabase_client.table("pokemon_pools").select("id, pokemon_pool_cards(pokemon_name, qty)").execute()
-        if res_fallback.data:
-            names = []
-            for pool_item in res_fallback.data:
-                for card in pool_item.get("pokemon_pool_cards", []):
-                    if card.get("pokemon_name"):
-                        names.extend([card["pokemon_name"]] * card.get("qty", 1))
-            if names:
-                print(f"[OK] [SUPABASE FALLBACK] No se encontró coincidencia exacta para Año={year}, pero se obtuvieron {len(names)} Pokémon de otros pools en la DB.")
-                return names
+        # Si no encontró resultados exactos con filtro por año, buscar en pokemon_pools respetando el auction_type
+        if clean_type:
+            res_fallback = supabase_client.table("pokemon_pools").select("id, auction_type, pokemon_pool_cards(pokemon_name, qty)").ilike("auction_type", clean_type).execute()
+            if res_fallback.data:
+                names = []
+                for pool_item in res_fallback.data:
+                    for card in pool_item.get("pokemon_pool_cards", []):
+                        if card.get("pokemon_name"):
+                            names.extend([card["pokemon_name"]] * card.get("qty", 1))
+                if names:
+                    print(f"[OK] [SUPABASE FALLBACK] Obtenidos {len(names)} Pokémon de tipo '{clean_type}' en la DB.")
+                    return names
 
     except Exception as e:
         print(f"[WARNING] Error consultando pokemon_pools en Supabase: {e}")
