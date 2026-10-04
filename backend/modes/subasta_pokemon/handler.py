@@ -61,6 +61,7 @@ ITEM_SHOP_PRICES = {
     "Water Stone": 100000,
     "Fire Stone": 100000,
     "Leaf Stone": 100000,
+    "Cambia Formas": 75000,
 }
 
 YEAR_SHOP_ITEMS = {
@@ -72,6 +73,7 @@ YEAR_SHOP_ITEMS = {
         "MT Thunder Punch",
         "MT Ice Punch",
         "Capsula Habilidad",
+        "Cambia Formas",
         "Silk Scarf",
         "Water Stone",
         "Fire Stone",
@@ -425,14 +427,14 @@ class SubastaPokemonMode(BaseGameMode):
     def _phase_is_completed(self, subasta_state: dict) -> bool:
         quota = int(subasta_state.get("current_phase_quota", 1) or 1)
         phase_won = subasta_state.get("phase_pokemon_won", {}) or {}
+        players = list(subasta_state.get("players", {}).keys())
 
         if quota <= 0:
             return True
 
-        # La fase debe avanzarse cuando alguien alcanza la cuota requerida para esa pool.
-        # Esto evita quedar bloqueados si un jugador ya consiguió el Pokémon necesario
-        # y la ronda no pasa por haber quedado otros jugadores aún por debajo del objetivo.
-        return any(int(value or 0) >= quota for value in phase_won.values())
+        # La fase solo termina cuando todos los jugadores cumplen el mínimo de Pokémon
+        # requerido para esa pool actual. Si alguien queda corto, la subasta no avanza.
+        return all(phase_won.get(player, 0) >= quota for player in players)
 
     def _advance_auction_flow(self, session: dict):
         subasta_state = session["subasta"]
@@ -517,6 +519,10 @@ class SubastaPokemonMode(BaseGameMode):
         current_year = subasta_state.get("current_year", 1)
         current_turn = subasta_state.get("current_turn", 1)
         current_auction = subasta_state.get("current_auction", {})
+
+        for p in player_data.get("pokemon", []):
+            if isinstance(p, dict):
+                p["regional_form_options"] = poke_api.get_pokemon_regional_form_options(p)
 
         # Si el Pokémon del rival es secreto, ocultar detalles a otros jugadores
         filtered_players_info = {}
@@ -1242,6 +1248,43 @@ class SubastaPokemonMode(BaseGameMode):
                 return True
 
             remove_item_from_inventory(player, item_name)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_use_form_change":
+            player = subasta_state["players"].get(username)
+            poke_idx = message.get("poke_index")
+            target_form = message.get("target_form")
+            inventory = normalize_item_inventory(player.get("items", {})) if player else {}
+
+            if not player or inventory.get("Cambia Formas", 0) <= 0:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes el ítem Cambia Formas."}})
+                return True
+            if not isinstance(poke_idx, int) or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido."}})
+                return True
+
+            poke = player["pokemon"][poke_idx]
+            form_options = poke_api.get_pokemon_regional_form_options(poke)
+            if not form_options:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon no tiene formas regionales disponibles."}})
+                return True
+
+            if target_form is None:
+                target_form = form_options[0].get("target_name")
+
+            valid_targets = {opt.get("target_name"): opt for opt in form_options}
+            selected_option = valid_targets.get(str(target_form).lower()) or valid_targets.get(str(target_form))
+            if not selected_option:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Esa forma regional no está disponible para este Pokémon."}})
+                return True
+
+            if not poke_api.apply_regional_form(poke, selected_option["target_name"]):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No se pudo cambiar la forma regional del Pokémon."}})
+                return True
+
+            remove_item_from_inventory(player, "Cambia Formas")
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True

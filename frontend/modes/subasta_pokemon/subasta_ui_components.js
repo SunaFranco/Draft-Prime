@@ -619,6 +619,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
       { name: "MT Thunder Punch", price: 30000 },
       { name: "MT Ice Punch", price: 30000 },
       { name: "Capsula Habilidad", price: 150000 },
+      { name: "Cambia Formas", price: 75000 },
       { name: "Silk Scarf", price: 50000 },
       { name: "Water Stone", price: 100000 },
       { name: "Fire Stone", price: 100000 },
@@ -877,7 +878,19 @@ export function renderMyPokemonInventory(data, sessionClient) {
               <select class="ability-capsule-select" data-poke-idx="0">
                 ${(pokemonList[0]?.abilities || []).filter((ability) => ability !== pokemonList[0]?.ability).map((ability) => `<option value="${ability}">${ability}</option>`).join("")}
               </select>
-              <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName.startsWith("MT ") ? `<select class="tm-pokemon-select" data-item-name="${itemName}">
+              <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName === "Cambia Formas" ? (() => {
+                const selectedPoke = pokemonList[0];
+                const formOptions = Array.isArray(selectedPoke?.regional_form_options) ? selectedPoke.regional_form_options : [];
+                return `
+                  <select class="form-change-pokemon-select" data-item-name="${itemName}">
+                    ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+                  </select>
+                  <select class="form-change-form-select" data-poke-idx="0">
+                    ${formOptions.length ? formOptions.map((option) => `<option value="${option.target_name}">${option.display_name}</option>`).join("") : `<option value="">Sin formas regionales</option>`}
+                  </select>
+                  <button class="btn btn-small btn-secondary btn-use-form-change" data-item-name="${itemName}">Usar</button>
+                `;
+              })() : pokemonList.length && itemName.startsWith("MT ") ? `<select class="tm-pokemon-select" data-item-name="${itemName}">
                 ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
               </select>
               <button class="btn btn-small btn-secondary btn-use-tm" data-item-name="${itemName}">Usar</button>` : pokemonList.length ? (() => {

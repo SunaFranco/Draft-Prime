@@ -142,6 +142,86 @@ def is_mega_pokemon(poke_or_name: Any) -> bool:
     return get_mega_info(poke_or_name) is not None
 
 
+def get_pokemon_regional_form_options(poke_or_name: Any) -> List[Dict[str, str]]:
+    """Devuelve las variantes regionales disponibles para un Pokémon, por ejemplo alola/galar/hisui."""
+    if isinstance(poke_or_name, dict):
+        species_name = poke_or_name.get("base_species") or poke_or_name.get("name") or ""
+    else:
+        species_name = str(poke_or_name or "")
+
+    species_name = str(species_name).strip()
+    if not species_name:
+        return []
+
+    species_slug = clean_poke_api_name(species_name)
+    url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(species_slug)}"
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+        with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
+            species = json.loads(resp.read().decode())
+
+        options: List[Dict[str, str]] = []
+        seen = set()
+        for variety in species.get("varieties", []):
+            variant_name = (variety.get("pokemon", {}) or {}).get("name", "")
+            if not variant_name or variant_name.lower() == species_slug.lower():
+                continue
+
+            variant_key = variant_name.lower()
+            form_name = None
+            if "-" in variant_key:
+                form_name = variant_key.rsplit("-", 1)[1]
+            if form_name not in {"alola", "galar", "hisui", "paldean"}:
+                continue
+
+            if variant_key in seen:
+                continue
+            seen.add(variant_key)
+            options.append({
+                "target_name": variant_name,
+                "display_name": variant_name.replace("-", " ").title(),
+                "form_name": form_name,
+                "slug": variant_name,
+            })
+        return options
+    except Exception:
+        return []
+
+
+def apply_regional_form(poke: Dict[str, Any], target_name: str) -> bool:
+    """Cambia la forma regional de un Pokémon usando el nombre completo de la variante regional."""
+    if not poke or not target_name:
+        return False
+
+    target_key = clean_poke_api_name(target_name)
+    current_key = clean_poke_api_name(poke.get("name") or poke.get("base_species") or "")
+    if not target_key or target_key == current_key:
+        return False
+
+    try:
+        updated = fetch_pokemon_data(target_key, level_cap=int(poke.get("level", 20)))
+    except Exception:
+        return False
+
+    preserved_fields = [
+        "selected_moves", "learned_tm_moves", "item", "held_item", "nature", "ability",
+        "ability_slot", "abilities", "ability_slots", "level", "is_shiny", "money",
+        "pokemon_id", "received_by_trade", "is_hidden"
+    ]
+    for field in preserved_fields:
+        if field in poke:
+            updated[field] = poke[field]
+
+    updated["base_species"] = poke.get("base_species") or poke.get("name") or target_name
+    updated["regional_form"] = target_name
+    updated["regional_form_options"] = get_pokemon_regional_form_options(updated.get("base_species") or updated.get("name"))
+    updated["name"] = updated.get("name", "").replace("-", " ").title()
+    poke.clear()
+    poke.update(updated)
+    return True
+
+
 # Muestras base por Tiers para garantizar funcionamiento rápido y offline si la API no responde
 SAMPLE_POKEMON_POOLS = {
     "normal": [
@@ -504,19 +584,31 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
         return res.copy()
 
 
+def get_random_pokemon_form_choice(base_name: str) -> str:
+    """Elige entre la forma normal y sus variantes regionales con probabilidad igual entre todas las opciones."""
+    variants = get_pokemon_regional_form_options(base_name)
+    if not variants:
+        return str(base_name)
+
+    options = [str(base_name)]
+    options.extend(option["target_name"] for option in variants)
+    return random.choice(options)
+
+
 def get_random_pokemon_from_tier(tier: str = "normal", year: Optional[int] = None, level_cap: int = 20) -> dict:
-    """Devuelve un Pokémon aleatorio desde la base de datos o desde el pool estático."""
+    """Devuelve un Pokémon aleatorio desde la base de datos o desde el pool estático, incluyendo forma regional con probabilidad uniforme."""
     from backend import database
     db_pool = database.get_pokemon_pools_from_db(year=year, auction_type=tier)
 
     if db_pool:
         print(f"[OK] [DATABASE] Se cargaron {len(db_pool)} Pokémon desde Supabase (Año {year}, Tipo '{tier}').")
-        chosen_name = random.choice(db_pool)
+        chosen_base_name = random.choice(db_pool)
     else:
         print(f"[INFO] [LOCAL] Usando pool estático por defecto (Año {year}, Tipo '{tier}').")
         pool = SAMPLE_POKEMON_POOLS.get(tier.lower(), SAMPLE_POKEMON_POOLS["normal"])
-        chosen_name = random.choice(pool)
+        chosen_base_name = random.choice(pool)
 
+    chosen_name = get_random_pokemon_form_choice(chosen_base_name)
     return fetch_pokemon_data(chosen_name, level_cap=level_cap)
 
 

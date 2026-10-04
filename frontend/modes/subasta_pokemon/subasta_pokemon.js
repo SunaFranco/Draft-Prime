@@ -484,6 +484,35 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
+    document.querySelectorAll(".form-change-pokemon-select").forEach((pokemonSelect) => {
+      const row = pokemonSelect.closest(".bag-item-row");
+      const formSelect = row?.querySelector(".form-change-form-select");
+      const updateFormOptions = () => {
+        const poke = state.my_data?.pokemon?.[parseInt(pokemonSelect.value, 10)];
+        if (!formSelect) return;
+        const formOptions = Array.isArray(poke?.regional_form_options) ? poke.regional_form_options : [];
+        formSelect.innerHTML = formOptions.length
+          ? formOptions.map((option) => `<option value="${option.target_name}">${option.display_name}</option>`).join("")
+          : '<option value="">Sin formas regionales</option>';
+      };
+      pokemonSelect.addEventListener("change", updateFormOptions);
+      updateFormOptions();
+    });
+
+    document.querySelectorAll(".btn-use-form-change").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const row = btn.closest(".bag-item-row");
+        const pokemonSelect = row?.querySelector(".form-change-pokemon-select");
+        const formSelect = row?.querySelector(".form-change-form-select");
+        if (!pokemonSelect || !formSelect || !formSelect.value) return;
+        sessionClient.send({
+          action: "subasta_use_form_change",
+          poke_index: parseInt(pokemonSelect.value, 10),
+          target_form: formSelect.value,
+        });
+      });
+    });
+
     document.querySelectorAll(".btn-buy-item").forEach((btn) => {
       btn.addEventListener("click", () => {
         const itemName = btn.getAttribute("data-item-name");
