@@ -5,6 +5,7 @@ backend/modes/subasta_pokemon/poke_api.py - Integración con PokeAPI y sistema d
 import json
 import random
 import ssl
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Dict, List, Any, Optional
@@ -31,6 +32,30 @@ TM_MOVES = {
     "MT Substitute": "Substitute",
     "MT Swords Dance": "Swords Dance",
     "MT Calm Mind": "Calm Mind",
+    "MT Surf": "Surf",
+    "MT Dragon Claw": "Dragon Claw",
+    "MT Stone Edge": "Stone Edge",
+    "MT U-turn": "U Turn",
+    "MT Volt Switch": "Volt Switch",
+    "MT Stealth Rock": "Stealth Rock",
+    "MT Spikes": "Spikes",
+    "MT Toxic": "Toxic",
+    "MT Roost": "Roost",
+    "MT Iron Head": "Iron Head",
+    "MT Close Combat": "Close Combat",
+    "MT Dazzling Gleam": "Dazzling Gleam",
+    "MT Energy Ball": "Energy Ball",
+    "MT Dark Pulse": "Dark Pulse",
+    "MT Sludge Bomb": "Sludge Bomb",
+    "MT Focus Blast": "Focus Blast",
+    "MT Thunder Wave": "Thunder Wave",
+    "MT Will-O-Wisp": "Will O Wisp",
+    "MT Taunt": "Taunt",
+    "MT Trick Room": "Trick Room",
+    "MT Giga Drain": "Giga Drain",
+    "MT Brick Break": "Brick Break",
+    "MT Knock Off": "Knock Off",
+    "MT Ice Spinner": "Ice Spinner",
 }
 
 # Mapeo completo de Pokémon Mega / Primigenios a su especie base y Mega Piedra / Objeto
@@ -322,8 +347,31 @@ def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> 
         slug = clean_poke_api_name(name_or_id)
         species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(slug)}"
         req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
-        with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
-            species = json.loads(resp.read().decode())
+        try:
+            with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
+                species = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as error:
+            if error.code != 404:
+                raise
+
+            # Regional forms are Pokémon varieties; their evolution chain belongs to the base species.
+            pokemon_url = f"{POKEAPI_BASE_URL}/{urllib.parse.quote(slug)}"
+            pokemon_req = urllib.request.Request(pokemon_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+            with urllib.request.urlopen(pokemon_req, context=ssl.create_default_context(), timeout=5) as resp:
+                pokemon_data = json.loads(resp.read().decode())
+            species_slug = (pokemon_data.get("species") or {}).get("name")
+            if not species_slug:
+                return options
+
+            regional_form = slug[len(species_slug) + 1:] if slug.startswith(f"{species_slug}-") else None
+            species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(species_slug)}"
+            species_req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+            with urllib.request.urlopen(species_req, context=ssl.create_default_context(), timeout=5) as resp:
+                species = json.loads(resp.read().decode())
+        else:
+            species_slug = species.get("name") or slug
+            regional_form = None
+
         chain_url = species.get("evolution_chain", {}).get("url")
         if not chain_url:
             return options
@@ -338,12 +386,29 @@ def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> 
 
         while current:
             species_name = current.get("species", {}).get("name", "")
-            if species_name and clean_poke_api_name(species_name) == slug:
+            if species_name and clean_poke_api_name(species_name) == species_slug:
                 candidates = current.get("evolves_to", [])
                 for candidate in candidates:
                     target_name = candidate.get("species", {}).get("name")
                     if not target_name:
                         continue
+                    target_slug = target_name
+                    if regional_form:
+                        regional_target_slug = f"{target_name}-{regional_form}"
+                        target_species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(target_name)}"
+                        target_species_req = urllib.request.Request(target_species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+                        try:
+                            with urllib.request.urlopen(target_species_req, context=ssl.create_default_context(), timeout=5) as resp:
+                                target_species = json.loads(resp.read().decode())
+                            varieties = {
+                                (variety.get("pokemon") or {}).get("name")
+                                for variety in target_species.get("varieties", [])
+                            }
+                            if regional_target_slug in varieties:
+                                target_slug = regional_target_slug
+                        except Exception:
+                            pass
+
                     details_list = candidate.get("evolution_details") or [{}]
                     for details in details_list:
                         trigger = (details.get("trigger") or {}).get("name")
@@ -356,7 +421,7 @@ def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> 
                         formatted_item = item_name.replace("-", " ").title() if item_name else None
 
                         opt_key = (
-                            target_name.lower(),
+                            target_slug.lower(),
                             (formatted_item or "").lower(),
                             bool(is_trade),
                             bool(is_friendship),
@@ -365,7 +430,7 @@ def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> 
                         if opt_key not in seen:
                             seen.add(opt_key)
                             options.append({
-                                "target": target_name,
+                                "target": target_slug,
                                 "level": int(min_level) if min_level is not None else None,
                                 "item": formatted_item,
                                 "trade": is_trade,

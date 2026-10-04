@@ -15,17 +15,7 @@ CABLE_LINK_ITEM = "Cable Link"
 ABILITY_CAPSULE_ITEM = "Capsula Habilidad"
 TM_BOOSTER_PACK_SIZE = 2
 
-EEVEE_TEST_EVENT = {
-    "id": "e1_eevee_test",
-    "title": "🦊 Regalo Especial: Eevee y Piedras Evolutivas",
-    "description": "Un investigador te regala un Eevee y un kit de Piedras Evolutivas (Water Stone, Thunder Stone, Fire Stone, Leaf Stone, Ice Stone) para probar sus distintas evoluciones.",
-    "type": "eevee_grant",
-    "granted_pokemon": "Eevee",
-    "granted_items": ["Water Stone", "Thunder Stone", "Fire Stone", "Leaf Stone", "Ice Stone"],
-}
-
 EVENTS_YEAR_1 = [
-    EEVEE_TEST_EVENT,
     {
         "id": "e1_cable_link",
         "title": "🔗 Cable Link",
@@ -106,10 +96,7 @@ EVENTS_YEAR_3 = [
 
 
 def get_random_event_for_year(year: int, turn: int = 1) -> dict:
-    """Devuelve un evento aleatorio según el año actual. En el Año 1 Turno 1 retorna EEVEE_TEST_EVENT."""
-    if year == 1 and turn == 1:
-        return EEVEE_TEST_EVENT.copy()
-
+    """Devuelve un evento aleatorio según el año actual."""
     if year == 1:
         pool = EVENTS_YEAR_1
     elif year == 2:

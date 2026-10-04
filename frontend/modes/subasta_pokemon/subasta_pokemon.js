@@ -43,6 +43,9 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+const ROULETTE_SPIN_DURATION_MS = 3000;
+const ROULETTE_RESULT_PAUSE_MS = 800;
+
 async function playEventRoulette(event, onComplete) {
   const rewards = event.type === "tm_booster_pack" ? event.granted_items : [event.granted_item];
   const overlay = document.createElement("div");
@@ -82,11 +85,11 @@ async function playEventRoulette(event, onComplete) {
     strip.style.transform = "translateX(0)";
     void strip.offsetWidth;
     const targetOffset = targetIndex * 125 - (rouletteWindow.clientWidth / 2 - 62.5);
-    strip.style.transition = "transform 2.2s cubic-bezier(0.12, 0.7, 0.18, 1)";
+    strip.style.transition = `transform ${ROULETTE_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.7, 0.18, 1)`;
     strip.style.transform = `translateX(-${targetOffset}px)`;
-    await wait(2200);
+    await wait(ROULETTE_SPIN_DURATION_MS);
     status.textContent = rewards.length > 1 ? `Premio ${index + 1} de ${rewards.length}: ${rouletteItemName(reward)}` : `Has obtenido: ${rouletteItemName(reward)}`;
-    await wait(index === rewards.length - 1 ? 700 : 500);
+    await wait(ROULETTE_RESULT_PAUSE_MS);
   }
 
   overlay.remove();
