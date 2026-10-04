@@ -422,33 +422,51 @@ class SubastaPokemonMode(BaseGameMode):
     def key(self) -> str:
         return "subasta_pokemon"
 
+    def _phase_is_completed(self, subasta_state: dict) -> bool:
+        quota = int(subasta_state.get("current_phase_quota", 1) or 1)
+        phase_won = subasta_state.get("phase_pokemon_won", {}) or {}
+
+        if quota <= 0:
+            return True
+
+        # La fase debe avanzarse cuando alguien alcanza la cuota requerida para esa pool.
+        # Esto evita quedar bloqueados si un jugador ya consiguió el Pokémon necesario
+        # y la ronda no pasa por haber quedado otros jugadores aún por debajo del objetivo.
+        return any(int(value or 0) >= quota for value in phase_won.values())
+
     def _advance_auction_flow(self, session: dict):
         subasta_state = session["subasta"]
         quota = subasta_state.get("current_phase_quota", 1)
         phase_won = subasta_state.setdefault("phase_pokemon_won", {})
         all_players = list(subasta_state["players"].keys())
 
-        # Comprobar si todos los jugadores alcanzaron la cuota de la sub-fase actual de pool
-        phase_done = all(phase_won.get(u, 0) >= quota for u in all_players)
+        phase_done = self._phase_is_completed(subasta_state)
 
         if phase_done:
             current_phases = subasta_state.get("current_year_phases", [])
-            next_idx = subasta_state.get("current_pool_phase_index", 0) + 1
+            next_idx = int(subasta_state.get("current_pool_phase_index", 0)) + 1
 
             if next_idx < len(current_phases):
                 # Avanzar a la siguiente sub-fase de pool del año (ej. de Normal a Mega)
                 subasta_state["current_pool_phase_index"] = next_idx
                 next_phase = current_phases[next_idx]
                 subasta_state["current_phase_tier"] = next_phase["tier"]
-                subasta_state["current_phase_quota"] = next_phase["count"]
+                subasta_state["current_phase_quota"] = max(1, int(next_phase.get("count", 1)))
                 subasta_state["phase_pokemon_won"] = {u: 0 for u in all_players}
+                subasta_state["current_auction"] = {}
                 init_subasta_round(session)
             else:
-                # Todas las sub-fases de pools del año concluyeron: avanzar a Eventos de Turno
-                subasta_state["current_stage"] += 1
+                # Todas las sub-fases del año concluyeron: dejar la subasta y entrar a eventos.
+                subasta_state["current_auction"] = {}
+                subasta_state["current_stage"] = max(3, int(subasta_state.get("current_stage", 2)) + 1)
                 subasta_state["current_turn"] = 1
+                for player in subasta_state["players"].values():
+                    player["resolved_turn"] = False
                 self._generate_turn_events(subasta_state)
+                subasta_state["phase_pokemon_won"] = {u: 0 for u in all_players}
         else:
+            # Si no llegó a la cuota, sigue con otra subasta de la misma fase.
+            subasta_state["current_auction"] = {}
             init_subasta_round(session)
 
     async def _advance_after_reveal_delay(self, session: dict, session_id: str, manager: Any):
