@@ -839,6 +839,10 @@ class SubastaPokemonMode(BaseGameMode):
             auction["reveal_hold_until"] = None
             subasta_state["auction_turn_index"] += 1
 
+            # Incrementar el contador de pokémon ganados en la fase actual
+            phase_won = subasta_state.setdefault("phase_pokemon_won", {})
+            phase_won[username] = phase_won.get(username, 0) + 1
+
             # Cuando el ganador elige revelar, damos 5 segundos para que todos lo vean antes de avanzar.
             if not keep_secret:
                 auction["reveal_hold_until"] = time.time() + self.reveal_hold_seconds
