@@ -6,15 +6,18 @@ import json
 import ssl
 import urllib.parse
 import urllib.request
+from collections import OrderedDict
 from typing import Dict
 
 YGOPRODECK_API_URL = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
-CARD_CACHE: Dict[str, dict] = {}
+MAX_CARD_CACHE = 250
+CARD_CACHE: OrderedDict[str, dict] = OrderedDict()
 
 
 def fetch_yugioh_card(name: str) -> dict:
     """Consulta la API de YGOPRODECK para obtener detalles e imágenes de una carta de Yu-Gi-Oh."""
     if name in CARD_CACHE:
+        CARD_CACHE.move_to_end(name)
         return CARD_CACHE[name]
 
     query = urllib.parse.urlencode({"name": name})
@@ -51,6 +54,8 @@ def fetch_yugioh_card(name: str) -> dict:
             "image_url": "",
         }
 
+    if len(CARD_CACHE) >= MAX_CARD_CACHE:
+        CARD_CACHE.popitem(last=False)
     CARD_CACHE[name] = card
     return card
 

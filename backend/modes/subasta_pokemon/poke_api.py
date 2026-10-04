@@ -8,10 +8,12 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections import OrderedDict
 from typing import Dict, List, Any, Optional
 
 POKEAPI_BASE_URL = "https://pokeapi.co/api/v2/pokemon"
-POKE_CACHE: Dict[str, dict] = {}
+MAX_POKE_CACHE = 150
+POKE_CACHE: OrderedDict[str, dict] = OrderedDict()
 
 POKEMON_NATURES = [
     "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
@@ -481,6 +483,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
     api_slug = clean_poke_api_name(name_or_id)
     cache_key = f"{key}_{level_cap}"
     if cache_key in POKE_CACHE:
+        POKE_CACHE.move_to_end(cache_key)
         return POKE_CACHE[cache_key].copy()
 
     url = f"{POKEAPI_BASE_URL}/{urllib.parse.quote(api_slug)}"
@@ -580,6 +583,8 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "item": None,
                 "held_item": None,
             }
+            if len(POKE_CACHE) >= MAX_POKE_CACHE:
+                POKE_CACHE.popitem(last=False)
             POKE_CACHE[cache_key] = res
             return res.copy()
     except Exception as e:
@@ -645,6 +650,8 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "item": None,
             "held_item": None,
         }
+        if len(POKE_CACHE) >= MAX_POKE_CACHE:
+            POKE_CACHE.popitem(last=False)
         POKE_CACHE[cache_key] = res
         return res.copy()
 

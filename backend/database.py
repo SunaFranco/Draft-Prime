@@ -124,11 +124,127 @@ def create_new_cube(title: str, description: str, cards: List[str], author: str 
     raise RuntimeError("No se pudo crear el cube en Supabase.")
 
 
-MEMORY_GAME_SESSIONS: Dict[str, dict] = {}
+from collections import OrderedDict
+
+MAX_MEMORY_SESSIONS = 50
+MEMORY_GAME_SESSIONS: OrderedDict[str, dict] = OrderedDict()
+
+
+def save_full_session(session: dict) -> None:
+    """Guarda la estructura completa de una sesión en Supabase y caché local."""
+    session_id = session.get("id")
+    if not session_id:
+        return
+
+    mode = session.get("mode") or "lobby"
+
+    # Preparar copia sin referencias de sockets
+    clean_players = [
+        {
+            "username": p["username"],
+            "ready": p.get("ready", False),
+            "connected": False,  # Al persistir, el socket se reconectará después
+        }
+        for p in session.get("players", [])
+    ]
+
+    session_payload = {
+        "id": session_id,
+        "host": session.get("host"),
+        "players": clean_players,
+        "max_players": session.get("max_players", 4),
+        "started": session.get("started", False),
+        "created_at": session.get("created_at"),
+        "created_ts": session.get("created_ts"),
+        "last_activity": session.get("last_activity"),
+        "mode": mode,
+        "mode_config": session.get("mode_config"),
+    }
+
+    if "subasta" in session:
+        session_payload["subasta"] = session["subasta"]
+    if "draft" in session:
+        session_payload["draft"] = session["draft"]
+
+    if session_id in MEMORY_GAME_SESSIONS:
+        MEMORY_GAME_SESSIONS.move_to_end(session_id)
+    elif len(MEMORY_GAME_SESSIONS) >= MAX_MEMORY_SESSIONS:
+        MEMORY_GAME_SESSIONS.popitem(last=False)
+
+    MEMORY_GAME_SESSIONS[session_id] = session_payload
+
+    if supabase_client:
+        try:
+            supabase_client.table("game_sessions").upsert({
+                "session_id": session_id,
+                "mode": mode,
+                "state_data": session_payload
+            }).execute()
+        except Exception as e:
+            print(f"[WARNING] Error guardando sesión {session_id} en Supabase: {e}")
+
+
+def get_full_session(session_id: str) -> Optional[dict]:
+    """Recupera la sesión completa desde Supabase o memoria local."""
+    raw_data = None
+    if session_id in MEMORY_GAME_SESSIONS:
+        MEMORY_GAME_SESSIONS.move_to_end(session_id)
+        raw_data = MEMORY_GAME_SESSIONS[session_id]
+
+    if not raw_data and supabase_client:
+        try:
+            res = supabase_client.table("game_sessions").select("mode, state_data").eq("session_id", session_id).execute()
+            if res.data and len(res.data) > 0:
+                row = res.data[0]
+                raw_data = row.get("state_data")
+                mode = row.get("mode")
+                if raw_data:
+                    # Soporte retrocompatible si solo se guardó subasta_state
+                    if "players" not in raw_data and isinstance(raw_data, dict) and "player_order" in raw_data:
+                        order = raw_data.get("player_order", [])
+                        raw_data = {
+                            "id": session_id,
+                            "host": order[0] if order else "Host",
+                            "players": [{"username": u, "ready": True, "connected": False} for u in order],
+                            "max_players": 4,
+                            "started": True,
+                            "mode": mode or "subasta_pokemon",
+                            "subasta": raw_data,
+                        }
+                    if len(MEMORY_GAME_SESSIONS) >= MAX_MEMORY_SESSIONS:
+                        MEMORY_GAME_SESSIONS.popitem(last=False)
+                    MEMORY_GAME_SESSIONS[session_id] = raw_data
+        except Exception as e:
+            print(f"[WARNING] Error recuperando sesión {session_id} desde Supabase: {e}")
+
+    if raw_data and isinstance(raw_data, dict):
+        return dict(raw_data)
+
+    return None
 
 
 def save_game_session(session_id: str, mode: str, state_data: dict) -> None:
     """Guarda o actualiza el estado de una partida en Supabase o en memoria local."""
+    try:
+        from backend.services.session_manager import sessions
+        session = sessions.get(session_id)
+        if session:
+            if mode == "subasta_pokemon":
+                session["subasta"] = state_data
+            elif mode == "cube_draft_yugioh":
+                session["draft"] = state_data
+            else:
+                session[mode] = state_data
+            save_full_session(session)
+            return
+    except Exception:
+        pass
+
+    if session_id in MEMORY_GAME_SESSIONS:
+        MEMORY_GAME_SESSIONS.move_to_end(session_id)
+    elif len(MEMORY_GAME_SESSIONS) >= MAX_MEMORY_SESSIONS:
+        MEMORY_GAME_SESSIONS.popitem(last=False)
+
     MEMORY_GAME_SESSIONS[session_id] = state_data
 
     if supabase_client:
@@ -145,6 +261,7 @@ def save_game_session(session_id: str, mode: str, state_data: dict) -> None:
 def get_game_session(session_id: str) -> Optional[dict]:
     """Obtiene el estado guardado de una partida desde Supabase o memoria local."""
     if session_id in MEMORY_GAME_SESSIONS:
+        MEMORY_GAME_SESSIONS.move_to_end(session_id)
         return MEMORY_GAME_SESSIONS[session_id]
 
     if supabase_client:
@@ -153,12 +270,19 @@ def get_game_session(session_id: str) -> Optional[dict]:
             if res.data and len(res.data) > 0:
                 data = res.data[0].get("state_data")
                 if data:
+                    if len(MEMORY_GAME_SESSIONS) >= MAX_MEMORY_SESSIONS:
+                        MEMORY_GAME_SESSIONS.popitem(last=False)
                     MEMORY_GAME_SESSIONS[session_id] = data
                     return data
         except Exception as e:
             print(f"[WARNING] Error cargando partida {session_id} desde Supabase: {e}")
 
     return None
+
+
+def delete_game_session(session_id: str) -> None:
+    """Elimina una sesión de la memoria local."""
+    MEMORY_GAME_SESSIONS.pop(session_id, None)
 
 
 def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional[str] = None) -> List[str]:

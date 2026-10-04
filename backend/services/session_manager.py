@@ -38,6 +38,8 @@ class ConnectionManager:
             if websocket is not None and current_ws is not websocket:
                 return False
             self.active[session_id].pop(username, None)
+            if not self.active[session_id]:
+                self.active.pop(session_id, None)
             return True
         return False
 
@@ -58,6 +60,9 @@ class ConnectionManager:
 
         for username in dead_usernames:
             self.active[session_id].pop(username, None)
+
+        if not self.active[session_id]:
+            self.active.pop(session_id, None)
 
     async def send_personal(self, websocket: WebSocket, message: dict):
         """Envía un mensaje solo a un cliente específico."""
@@ -81,9 +86,29 @@ def make_session_id() -> str:
     return secrets.token_hex(6)
 
 
+def get_or_restore_session(session_id: str) -> Optional[dict]:
+    """
+    Busca la sesión en memoria RAM.
+    Si no está en RAM (por reinicio de servidor o limpieza), intenta restaurarla desde Supabase.
+    """
+    session = sessions.get(session_id)
+    if session:
+        return session
+
+    from backend import database
+    restored = database.get_full_session(session_id)
+    if restored:
+        sessions[session_id] = restored
+        touch_session(session_id)
+        print(f"[SESSION RESTORED] Sesión '{session_id}' restaurada exitosamente desde la base de datos.")
+        return restored
+
+    return None
+
+
 def get_session_or_404(session_id: str) -> dict:
     """Devuelve la sesión o lanza 404 si no existe."""
-    session = sessions.get(session_id)
+    session = get_or_restore_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail=f"Sesión '{session_id}' no encontrada")
     return session
@@ -138,3 +163,44 @@ def session_public_state(session: dict, target_username: Optional[str] = None) -
             state["draft_state"] = handler.get_player_sync_state(session, target_username)
 
     return state
+
+
+def touch_session(session_id: str) -> None:
+    """Actualiza la marca de tiempo de última actividad de la sesión."""
+    session = sessions.get(session_id)
+    if session:
+        session["last_activity"] = datetime.utcnow().timestamp()
+
+
+def cleanup_inactive_sessions(max_age_seconds: int = 10800, empty_timeout_seconds: int = 1800) -> int:
+    """
+    Elimina sesiones inactivas para liberar memoria en RAM:
+      - Sesiones sin actividad por más de `max_age_seconds` (default 3 horas).
+      - Sesiones sin jugadores conectados por más de `empty_timeout_seconds` (default 30 min).
+    """
+    from backend.database import delete_game_session
+
+    now = datetime.utcnow().timestamp()
+    to_delete = []
+
+    for s_id, s in list(sessions.items()):
+        created_ts = s.get("created_ts") or now
+        last_activity = s.get("last_activity", created_ts)
+        has_connected = any(p.get("connected", False) for p in s.get("players", []))
+
+        # Si nadie está conectado y no hubo actividad en 30 minutos
+        if not has_connected and (now - last_activity > empty_timeout_seconds):
+            to_delete.append(s_id)
+        # O si la sesión superó la edad máxima
+        elif now - last_activity > max_age_seconds:
+            to_delete.append(s_id)
+
+    for s_id in to_delete:
+        sessions.pop(s_id, None)
+        manager.active.pop(s_id, None)
+        delete_game_session(s_id)
+
+    if to_delete:
+        print(f"[CLEANUP] Se descargaron {len(to_delete)} sesiones inactivas de memoria RAM (permanecen guardadas en Supabase).")
+
+    return len(to_delete)

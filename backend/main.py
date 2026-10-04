@@ -1,13 +1,43 @@
+import asyncio
+import gc
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from backend.routes import session, cubes
+from backend.services.session_manager import cleanup_inactive_sessions
+
+
+async def memory_cleanup_loop():
+    """Tarea en segundo plano que limpia sesiones inactivas y fuerza garbage collection periódicamente."""
+    while True:
+        try:
+            await asyncio.sleep(600)  # Cada 10 minutos
+            cleanup_inactive_sessions()
+            gc.collect()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"[CLEANUP ERROR] Error durante limpieza de memoria: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    cleanup_task = asyncio.create_task(memory_cleanup_loop())
+    yield
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+
 
 app = FastAPI(
     title="Card Draft API",
     description="Backend de draft de cartas con sistema de sesiones en tiempo real",
     version="0.2.0",
+    lifespan=lifespan,
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────

@@ -10,15 +10,17 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 import backend.database as database
-from backend.database import get_all_cubes, get_cube_by_id
+from backend.database import get_all_cubes, get_cube_by_id, save_full_session
 from backend.services.session_manager import (
     manager,
     sessions,
     make_session_id,
     get_session_or_404,
+    get_or_restore_session,
     all_connected_players_ready,
     reassign_host,
     session_public_state,
+    touch_session,
 )
 from backend.modes import registry
 from backend.modes.cube_draft_yugioh import handler as yugioh_handler
@@ -65,9 +67,10 @@ async def create_session(data: CreateSessionRequest):
     while session_id in sessions:
         session_id = make_session_id()
 
-    sessions[session_id] = {
-        "id":          session_id,
-        "host":        username,
+    now_ts = datetime.utcnow().timestamp()
+    new_session = {
+        "id":            session_id,
+        "host":          username,
         "players": [
             {
                 "username":  username,
@@ -75,15 +78,19 @@ async def create_session(data: CreateSessionRequest):
                 "connected": True,
             }
         ],
-        "max_players": 4,
-        "started":     False,
-        "created_at":  datetime.utcnow().isoformat(),
+        "max_players":   4,
+        "started":       False,
+        "created_at":    datetime.utcnow().isoformat(),
+        "created_ts":    now_ts,
+        "last_activity": now_ts,
     }
+    sessions[session_id] = new_session
+    save_full_session(new_session)
 
     return {
         "session_id":  session_id,
         "session_url": f"/?session={session_id}",
-        **session_public_state(sessions[session_id]),
+        **session_public_state(new_session),
     }
 
 
@@ -108,7 +115,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
     y delega eventos específicos de juego al handler del modo configurado.
     """
     username = username.strip()
-    session = sessions.get(session_id)
+    session = get_or_restore_session(session_id)
 
     if not session:
         await websocket.accept()
@@ -129,11 +136,13 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
         return
 
     existing_player = next(
-        (p for p in session["players"] if p["username"] == username), None
+        (p for p in session["players"] if p["username"].lower() == username.lower()), None
     )
 
     if existing_player:
+        username = existing_player["username"]
         existing_player["connected"] = True
+        save_full_session(session)
         await manager.connect(session_id, username, websocket)
         await manager.send_personal(websocket, {
             "event": "session_state",
@@ -184,6 +193,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
     try:
         while True:
             raw = await websocket.receive_text()
+            touch_session(session_id)
 
             try:
                 message = json.loads(raw)
