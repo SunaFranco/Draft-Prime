@@ -33,6 +33,115 @@ TM_MOVES = {
     "MT Calm Mind": "Calm Mind",
 }
 
+# Mapeo completo de Pokémon Mega / Primigenios a su especie base y Mega Piedra / Objeto
+MEGA_DATA = {
+    "venusaur-mega": ("Venusaur", "Venusaurite"),
+    "charizard-mega-x": ("Charizard", "Charizardite X"),
+    "charizard-mega-y": ("Charizard", "Charizardite Y"),
+    "blastoise-mega": ("Blastoise", "Blastoisinite"),
+    "beedrill-mega": ("Beedrill", "Beedrillite"),
+    "pidgeot-mega": ("Pidgeot", "Pidgeotite"),
+    "alakazam-mega": ("Alakazam", "Alakazite"),
+    "slowbro-mega": ("Slowbro", "Slowbronite"),
+    "gengar-mega": ("Gengar", "Gengarite"),
+    "kangaskhan-mega": ("Kangaskhan", "Kangaskhanite"),
+    "pinsir-mega": ("Pinsir", "Pinsirite"),
+    "gyarados-mega": ("Gyarados", "Gyaradosite"),
+    "aerodactyl-mega": ("Aerodactyl", "Aerodactylite"),
+    "mewtwo-mega-x": ("Mewtwo", "Mewtwonite X"),
+    "mewtwo-mega-y": ("Mewtwo", "Mewtwonite Y"),
+    "ampharos-mega": ("Ampharos", "Ampharosite"),
+    "steelix-mega": ("Steelix", "Steelixite"),
+    "scizor-mega": ("Scizor", "Scizorite"),
+    "heracross-mega": ("Heracross", "Heracronite"),
+    "houndoom-mega": ("Houndoom", "Houndoominite"),
+    "tyranitar-mega": ("Tyranitar", "Tyranitarite"),
+    "sceptile-mega": ("Sceptile", "Sceptilite"),
+    "blaziken-mega": ("Blaziken", "Blazikenite"),
+    "swampert-mega": ("Swampert", "Swampertite"),
+    "gardevoir-mega": ("Gardevoir", "Gardevoirite"),
+    "sableye-mega": ("Sableye", "Sablenite"),
+    "mawile-mega": ("Mawile", "Mawilite"),
+    "aggron-mega": ("Aggron", "Aggronite"),
+    "medicham-mega": ("Medicham", "Medichamite"),
+    "manectric-mega": ("Manectric", "Manectite"),
+    "sharpedo-mega": ("Sharpedo", "Sharpedonite"),
+    "camerupt-mega": ("Camerupt", "Cameruptite"),
+    "altaria-mega": ("Altaria", "Altarianite"),
+    "banette-mega": ("Banette", "Banettite"),
+    "absol-mega": ("Absol", "Absolite"),
+    "glalie-mega": ("Glalie", "Glalitite"),
+    "salamence-mega": ("Salamence", "Salamencite"),
+    "metagross-mega": ("Metagross", "Metagrossite"),
+    "latias-mega": ("Latias", "Latiasite"),
+    "latios-mega": ("Latios", "Latiosite"),
+    "kyogre-primal": ("Kyogre", "Blue Orb"),
+    "groudon-primal": ("Groudon", "Red Orb"),
+    "rayquaza-mega": ("Rayquaza", "Life Orb"),
+    "lopunny-mega": ("Lopunny", "Lopunnite"),
+    "garchomp-mega": ("Garchomp", "Garchompite"),
+    "lucario-mega": ("Lucario", "Lucarionite"),
+    "abomasnow-mega": ("Abomasnow", "Abomasite"),
+    "gallade-mega": ("Gallade", "Galladite"),
+    "audino-mega": ("Audino", "Audinite"),
+    "diancie-mega": ("Diancie", "Diancite"),
+}
+
+
+def normalize_mega_slug(name: str) -> str:
+    import re
+    slug = re.sub(r'[^a-zA-Z0-9]+', '-', str(name).strip().lower()).strip('-')
+    if slug.startswith("mega-"):
+        parts = slug.split("-")
+        if len(parts) == 2:
+            slug = f"{parts[1]}-mega"
+        elif len(parts) >= 3:
+            slug = f"{parts[1]}-mega-{'-'.join(parts[2:])}"
+    elif slug.startswith("primal-"):
+        parts = slug.split("-")
+        if len(parts) >= 2:
+            slug = f"{parts[1]}-primal"
+    return slug
+
+
+def get_mega_info(poke_or_name: Any) -> Optional[Dict[str, Any]]:
+    if not poke_or_name:
+        return None
+    if isinstance(poke_or_name, dict):
+        if poke_or_name.get("is_mega") and poke_or_name.get("base_species") and poke_or_name.get("mega_stone"):
+            return {
+                "is_mega": True,
+                "base_name": poke_or_name["base_species"],
+                "mega_stone": poke_or_name["mega_stone"]
+            }
+        name = poke_or_name.get("name", "")
+    else:
+        name = str(poke_or_name or "")
+
+    slug = normalize_mega_slug(name)
+    if slug in MEGA_DATA:
+        base_name, stone = MEGA_DATA[slug]
+        return {
+            "is_mega": True,
+            "base_name": base_name,
+            "mega_stone": stone
+        }
+
+    if "-mega" in slug or "mega-" in slug:
+        clean_base = slug.replace("-mega", "").replace("mega-", "").replace("-", " ").title()
+        return {
+            "is_mega": True,
+            "base_name": clean_base,
+            "mega_stone": f"{clean_base}ite"
+        }
+
+    return None
+
+
+def is_mega_pokemon(poke_or_name: Any) -> bool:
+    return get_mega_info(poke_or_name) is not None
+
+
 # Muestras base por Tiers para garantizar funcionamiento rápido y offline si la API no responde
 SAMPLE_POKEMON_POOLS = {
     "normal": [
@@ -290,6 +399,11 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 }
                 for opt in evolution_options
             ]
+            mega_info = get_mega_info(name_or_id) or get_mega_info(name)
+            is_mega = bool(mega_info)
+            base_species = mega_info["base_name"] if mega_info else name
+            mega_stone = mega_info["mega_stone"] if mega_info else None
+
             res = {
                 "id": poke_id,
                 "name": name,
@@ -309,12 +423,17 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "level_up_moves": level_up_moves,
                 "tm_moves": tm_moves,
                 "selected_moves": [m["name"] for m in level_up_moves if m["level"] <= level_cap][-4:],
-                "can_evolve": bool(next_evolution),
-                "evolution_target": next_evolution,
-                "next_evolution_level": next_evolution_level,
-                "evolution_item": evolution_details.get("item") if evolution_details else None,
-                "evolution_trade": bool(evolution_details and evolution_details.get("trade")),
-                "evolution_options": formatted_options,
+                "can_evolve": bool(next_evolution) if not is_mega else False,
+                "evolution_target": next_evolution if not is_mega else None,
+                "next_evolution_level": next_evolution_level if not is_mega else None,
+                "evolution_item": evolution_details.get("item") if (evolution_details and not is_mega) else None,
+                "evolution_trade": bool(evolution_details and evolution_details.get("trade")) if not is_mega else False,
+                "evolution_options": formatted_options if not is_mega else [],
+                "is_mega": is_mega,
+                "base_species": base_species,
+                "mega_stone": mega_stone,
+                "item": None,
+                "held_item": None,
             }
             POKE_CACHE[cache_key] = res
             return res.copy()
@@ -322,6 +441,11 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
         print(f"[WARNING] No se pudo cargar '{name_or_id}' ({api_slug}) desde PokeAPI ({e}). Usando fallback local.")
         # Fallback local
         name_clean = str(name_or_id).capitalize()
+        mega_info = get_mega_info(name_or_id) or get_mega_info(name_clean)
+        is_mega = bool(mega_info)
+        base_species = mega_info["base_name"] if mega_info else name_clean
+        mega_stone = mega_info["mega_stone"] if mega_info else None
+
         default_moves = [
             {"name": "Tackle", "level": 1},
             {"name": "Quick Attack", "level": 5},
@@ -364,12 +488,17 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "level_up_moves": default_moves,
             "tm_moves": [],
             "selected_moves": [m["name"] for m in default_moves if m["level"] <= level_cap][-4:],
-            "can_evolve": bool(next_evolution),
-            "evolution_target": next_evolution,
-            "next_evolution_level": next_evolution_level,
-            "evolution_item": evolution_details.get("item") if evolution_details else None,
-            "evolution_trade": bool(evolution_details and evolution_details.get("trade")),
-            "evolution_options": formatted_options,
+            "can_evolve": bool(next_evolution) if not is_mega else False,
+            "evolution_target": next_evolution if not is_mega else None,
+            "next_evolution_level": next_evolution_level if not is_mega else None,
+            "evolution_item": evolution_details.get("item") if (evolution_details and not is_mega) else None,
+            "evolution_trade": bool(evolution_details and evolution_details.get("trade")) if not is_mega else False,
+            "evolution_options": formatted_options if not is_mega else [],
+            "is_mega": is_mega,
+            "base_species": base_species,
+            "mega_stone": mega_stone,
+            "item": None,
+            "held_item": None,
         }
         POKE_CACHE[cache_key] = res
         return res.copy()

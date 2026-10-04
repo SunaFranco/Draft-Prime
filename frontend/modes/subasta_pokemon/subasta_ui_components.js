@@ -41,11 +41,13 @@ function buildItemSpriteUrl(name) {
 
 function formatMoneyCompact(value) {
   const amount = Number(value) || 0;
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(amount % 1000000 === 0 ? 0 : 1).replace(/\.0$/, '')}M`;
+  if (Math.abs(amount) >= 1000000) {
+    const formatted = (amount / 1000000).toFixed(1).replace(/\.0$/, '');
+    return `${formatted}M`;
   }
-  if (amount >= 1000) {
-    return `${Math.round(amount / 1000)}k`;
+  if (Math.abs(amount) >= 1000) {
+    const formatted = (amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1).replace(/\.0$/, '');
+    return `${formatted}k`;
   }
   return `${amount}`;
 }
@@ -53,6 +55,113 @@ function formatMoneyCompact(value) {
 function getNextBidValue(currentBid) {
   const current = Number(currentBid) || 0;
   return Math.max(5000, Math.ceil((current + 5000) / 5000) * 5000);
+}
+
+export const MEGA_DATA = {
+  "venusaur-mega": { baseName: "Venusaur", megaStone: "Venusaurite" },
+  "charizard-mega-x": { baseName: "Charizard", megaStone: "Charizardite X" },
+  "charizard-mega-y": { baseName: "Charizard", megaStone: "Charizardite Y" },
+  "blastoise-mega": { baseName: "Blastoise", megaStone: "Blastoisinite" },
+  "beedrill-mega": { baseName: "Beedrill", megaStone: "Beedrillite" },
+  "pidgeot-mega": { baseName: "Pidgeot", megaStone: "Pidgeotite" },
+  "alakazam-mega": { baseName: "Alakazam", megaStone: "Alakazite" },
+  "slowbro-mega": { baseName: "Slowbro", megaStone: "Slowbronite" },
+  "gengar-mega": { baseName: "Gengar", megaStone: "Gengarite" },
+  "kangaskhan-mega": { baseName: "Kangaskhan", megaStone: "Kangaskhanite" },
+  "pinsir-mega": { baseName: "Pinsir", megaStone: "Pinsirite" },
+  "gyarados-mega": { baseName: "Gyarados", megaStone: "Gyaradosite" },
+  "aerodactyl-mega": { baseName: "Aerodactyl", megaStone: "Aerodactylite" },
+  "mewtwo-mega-x": { baseName: "Mewtwo", megaStone: "Mewtwonite X" },
+  "mewtwo-mega-y": { baseName: "Mewtwo", megaStone: "Mewtwonite Y" },
+  "ampharos-mega": { baseName: "Ampharos", megaStone: "Ampharosite" },
+  "steelix-mega": { baseName: "Steelix", megaStone: "Steelixite" },
+  "scizor-mega": { baseName: "Scizor", megaStone: "Scizorite" },
+  "heracross-mega": { baseName: "Heracross", megaStone: "Heracronite" },
+  "houndoom-mega": { baseName: "Houndoom", megaStone: "Houndoominite" },
+  "tyranitar-mega": { baseName: "Tyranitar", megaStone: "Tyranitarite" },
+  "sceptile-mega": { baseName: "Sceptile", megaStone: "Sceptilite" },
+  "blaziken-mega": { baseName: "Blaziken", megaStone: "Blazikenite" },
+  "swampert-mega": { baseName: "Swampert", megaStone: "Swampertite" },
+  "gardevoir-mega": { baseName: "Gardevoir", megaStone: "Gardevoirite" },
+  "sableye-mega": { baseName: "Sableye", megaStone: "Sablenite" },
+  "mawile-mega": { baseName: "Mawile", megaStone: "Mawilite" },
+  "aggron-mega": { baseName: "Aggron", megaStone: "Aggronite" },
+  "medicham-mega": { baseName: "Medicham", megaStone: "Medichamite" },
+  "manectric-mega": { baseName: "Manectric", megaStone: "Manectite" },
+  "sharpedo-mega": { baseName: "Sharpedo", megaStone: "Sharpedonite" },
+  "camerupt-mega": { baseName: "Camerupt", megaStone: "Cameruptite" },
+  "altaria-mega": { baseName: "Altaria", megaStone: "Altarianite" },
+  "banette-mega": { baseName: "Banette", megaStone: "Banettite" },
+  "absol-mega": { baseName: "Absol", megaStone: "Absolite" },
+  "glalie-mega": { baseName: "Glalie", megaStone: "Glalitite" },
+  "salamence-mega": { baseName: "Salamence", megaStone: "Salamencite" },
+  "metagross-mega": { baseName: "Metagross", megaStone: "Metagrossite" },
+  "latias-mega": { baseName: "Latias", megaStone: "Latiasite" },
+  "latios-mega": { baseName: "Latios", megaStone: "Latiosite" },
+  "kyogre-primal": { baseName: "Kyogre", megaStone: "Blue Orb" },
+  "groudon-primal": { baseName: "Groudon", megaStone: "Red Orb" },
+  "rayquaza-mega": { baseName: "Rayquaza", megaStone: "Life Orb" },
+  "lopunny-mega": { baseName: "Lopunny", megaStone: "Lopunnite" },
+  "garchomp-mega": { baseName: "Garchomp", megaStone: "Garchompite" },
+  "lucario-mega": { baseName: "Lucario", megaStone: "Lucarionite" },
+  "abomasnow-mega": { baseName: "Abomasnow", megaStone: "Abomasite" },
+  "gallade-mega": { baseName: "Gallade", megaStone: "Galladite" },
+  "audino-mega": { baseName: "Audino", megaStone: "Audinite" },
+  "diancie-mega": { baseName: "Diancie", megaStone: "Diancite" },
+};
+
+export function normalizeMegaSlug(name) {
+  let slug = String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (slug.startsWith("mega-")) {
+    const parts = slug.split("-");
+    if (parts.length === 2) {
+      slug = `${parts[1]}-mega`;
+    } else if (parts.length >= 3) {
+      slug = `${parts[1]}-mega-${parts.slice(2).join("-")}`;
+    }
+  } else if (slug.startsWith("primal-")) {
+    const parts = slug.split("-");
+    if (parts.length >= 2) {
+      slug = `${parts[1]}-primal`;
+    }
+  }
+  return slug;
+}
+
+export function getMegaInfo(pokeOrName) {
+  if (!pokeOrName) return null;
+  if (typeof pokeOrName === "object") {
+    if (pokeOrName.is_mega && pokeOrName.base_species && pokeOrName.mega_stone) {
+      return {
+        isMega: true,
+        baseName: pokeOrName.base_species,
+        megaStone: pokeOrName.mega_stone,
+      };
+    }
+    const name = pokeOrName.name || "";
+    const slug = normalizeMegaSlug(name);
+    if (MEGA_DATA[slug]) {
+      return { isMega: true, ...MEGA_DATA[slug] };
+    }
+    if (slug.includes("-mega") || slug.startsWith("mega-")) {
+      const cleanBase = slug.replace(/-mega|mega-/g, "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      return { isMega: true, baseName: cleanBase, megaStone: `${cleanBase}ite` };
+    }
+    return null;
+  }
+  const slug = normalizeMegaSlug(pokeOrName);
+  if (MEGA_DATA[slug]) {
+    return { isMega: true, ...MEGA_DATA[slug] };
+  }
+  if (slug.includes("-mega") || slug.startsWith("mega-")) {
+    const cleanBase = slug.replace(/-mega|mega-/g, "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return { isMega: true, baseName: cleanBase, megaStone: `${cleanBase}ite` };
+  }
+  return null;
+}
+
+export function isMegaPokemon(pokeOrName) {
+  return Boolean(getMegaInfo(pokeOrName));
 }
 
 export const NATURE_EFFECTS = {
@@ -73,81 +182,156 @@ export function formatNature(nature) {
 
 export function renderConfigForm(containerEl, data, isHost) {
   const defaults = {
-    starting_money: 10000,
     turns_per_year: 3,
-    pok_per_player: 2,
-    year_starting_money_1: 10000,
-    year_starting_money_2: 5000,
-    year_starting_money_3: 7500,
-    year1_tier: "normal",
-    year2_tier: "normal",
-    year3_tier: "legendary",
-    buyout_multiplier: 3.0,
-    secret_fee: 500,
+    yearly_money: 1000000,
+    year_pools: {
+      1: { normal: 2, mega: 0, legendary: 0 },
+      2: { normal: 2, mega: 1, legendary: 0 },
+      3: { normal: 0, mega: 1, legendary: 2 },
+    },
   };
 
   const config = data?.mode_config || {};
+  const yp = config.year_pools || defaults.year_pools;
+  const y1 = yp[1] || yp["1"] || defaults.year_pools[1];
+  const y2 = yp[2] || yp["2"] || defaults.year_pools[2];
+  const y3 = yp[3] || yp["3"] || defaults.year_pools[3];
+
+  const y1_norm = config.year1_normal ?? y1.normal ?? 2;
+  const y1_mega = config.year1_mega ?? y1.mega ?? 0;
+  const y1_leg = config.year1_legendary ?? y1.legendary ?? 0;
+
+  const y2_norm = config.year2_normal ?? y2.normal ?? 2;
+  const y2_mega = config.year2_mega ?? y2.mega ?? 1;
+  const y2_leg = config.year2_legendary ?? y2.legendary ?? 0;
+
+  const y3_norm = config.year3_normal ?? y3.normal ?? 0;
+  const y3_mega = config.year3_mega ?? y3.mega ?? 1;
+  const y3_leg = config.year3_legendary ?? y3.legendary ?? 2;
+
+  const yearly_money = config.yearly_money ?? config.starting_money ?? config.year_starting_money_1 ?? defaults.yearly_money;
+  const turns = config.turns_per_year ?? defaults.turns_per_year;
 
   containerEl.innerHTML = `
-    <div class="subasta-config-panel">
-      <div class="form-group">
-        <label for="subasta-turns">Turnos de Eventos por Año:</label>
-        <input type="number" id="subasta-turns" value="${config.turns_per_year || defaults.turns_per_year}" min="1" max="10" ${!isHost ? "disabled" : ""} />
+    <div class="subasta-config-container">
+      <div class="config-section-title">⚙️ Configuración General</div>
+      <div class="subasta-config-panel">
+        <div class="form-group">
+          <label for="subasta-turns">Turnos de Eventos por Año:</label>
+          <input type="number" id="subasta-turns" value="${turns}" min="1" max="10" ${!isHost ? "disabled" : ""} />
+        </div>
+        <div class="form-group">
+          <label for="subasta-yearly-money">💰 Dinero Inicial / Añadido por Año ($):</label>
+          <input type="number" id="subasta-yearly-money" value="${yearly_money}" min="0" step="50000" ${!isHost ? "disabled" : ""} />
+        </div>
       </div>
-      <div class="form-group">
-        <label for="subasta-pok-player">Pokémon por Subasta (por jugador):</label>
-        <input type="number" id="subasta-pok-player" value="${config.pok_per_player || defaults.pok_per_player}" min="1" max="6" ${!isHost ? "disabled" : ""} />
+
+      <div class="config-section-title" style="margin-top: 1rem;">🏆 Rondas de Subasta por Año (Pokémon por jugador)</div>
+      <p class="config-help-text">Establece cuántos Pokémon conseguirá cada jugador en cada pool por año. La subasta irá pasando de una pool a la siguiente en orden.</p>
+
+      <div class="year-pools-config-grid">
+        <!-- AÑO 1 -->
+        <div class="year-pool-card">
+          <div class="year-pool-card-header">
+            <h4>Año 1 (Cap Nv. 20)</h4>
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year1-normal">🔵 Pool Normal:</label>
+            <input type="number" id="subasta-year1-normal" value="${y1_norm}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year1-mega">🟣 Pool Mega:</label>
+            <input type="number" id="subasta-year1-mega" value="${y1_mega}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year1-legendary">🟡 Pool Legendaria:</label>
+            <input type="number" id="subasta-year1-legendary" value="${y1_leg}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+        </div>
+
+        <!-- AÑO 2 -->
+        <div class="year-pool-card">
+          <div class="year-pool-card-header">
+            <h4>Año 2 (Cap Nv. 40)</h4>
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year2-normal">🔵 Pool Normal:</label>
+            <input type="number" id="subasta-year2-normal" value="${y2_norm}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year2-mega">🟣 Pool Mega:</label>
+            <input type="number" id="subasta-year2-mega" value="${y2_mega}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year2-legendary">🟡 Pool Legendaria:</label>
+            <input type="number" id="subasta-year2-legendary" value="${y2_leg}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+        </div>
+
+        <!-- AÑO 3 -->
+        <div class="year-pool-card">
+          <div class="year-pool-card-header">
+            <h4>Año 3 (Cap Nv. 100)</h4>
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year3-normal">🔵 Pool Normal:</label>
+            <input type="number" id="subasta-year3-normal" value="${y3_norm}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year3-mega">🟣 Pool Mega:</label>
+            <input type="number" id="subasta-year3-mega" value="${y3_mega}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+          <div class="pool-input-row">
+            <label for="subasta-year3-legendary">🟡 Pool Legendaria:</label>
+            <input type="number" id="subasta-year3-legendary" value="${y3_leg}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="subasta-year1-money">Dinero inicial Año 1 ($):</label>
-        <input type="number" id="subasta-year1-money" value="${config.year_starting_money_1 ?? config.starting_money ?? defaults.year_starting_money_1}" min="0" max="1000000" ${!isHost ? "disabled" : ""} />
-      </div>
-      <div class="form-group">
-        <label for="subasta-year2-money">Dinero inicial Año 2 ($):</label>
-        <input type="number" id="subasta-year2-money" value="${config.year_starting_money_2 ?? defaults.year_starting_money_2}" min="0" max="1000000" ${!isHost ? "disabled" : ""} />
-      </div>
-      <div class="form-group">
-        <label for="subasta-year3-money">Dinero inicial Año Final ($):</label>
-        <input type="number" id="subasta-year3-money" value="${config.year_starting_money_3 ?? defaults.year_starting_money_3}" min="0" max="1000000" ${!isHost ? "disabled" : ""} />
-      </div>
-      <div class="form-group">
-        <label for="subasta-year1-tier">Tipo de subasta Año 1:</label>
-        <select id="subasta-year1-tier" ${!isHost ? "disabled" : ""}>
-          <option value="normal" ${((config.year_tiers && config.year_tiers[1]) || config.year1_tier || defaults.year1_tier) === "normal" ? "selected" : ""}>Normal</option>
-          <option value="mega" ${((config.year_tiers && config.year_tiers[1]) || config.year1_tier || defaults.year1_tier) === "mega" ? "selected" : ""}>Mega</option>
-          <option value="legendary" ${((config.year_tiers && config.year_tiers[1]) || config.year1_tier || defaults.year1_tier) === "legendary" ? "selected" : ""}>Legendario</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="subasta-year2-tier">Tipo de subasta Año 2:</label>
-        <select id="subasta-year2-tier" ${!isHost ? "disabled" : ""}>
-          <option value="normal" ${((config.year_tiers && config.year_tiers[2]) || config.year2_tier || defaults.year2_tier) === "normal" ? "selected" : ""}>Normal</option>
-          <option value="mega" ${((config.year_tiers && config.year_tiers[2]) || config.year2_tier || defaults.year2_tier) === "mega" ? "selected" : ""}>Mega</option>
-          <option value="legendary" ${((config.year_tiers && config.year_tiers[2]) || config.year2_tier || defaults.year2_tier) === "legendary" ? "selected" : ""}>Legendario</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="subasta-year3-tier">Tipo de subasta Año Final:</label>
-        <select id="subasta-year3-tier" ${!isHost ? "disabled" : ""}>
-          <option value="normal" ${((config.year_tiers && config.year_tiers[3]) || config.year3_tier || defaults.year3_tier) === "normal" ? "selected" : ""}>Normal</option>
-          <option value="mega" ${((config.year_tiers && config.year_tiers[3]) || config.year3_tier || defaults.year3_tier) === "mega" ? "selected" : ""}>Mega</option>
-          <option value="legendary" ${((config.year_tiers && config.year_tiers[3]) || config.year3_tier || defaults.year3_tier) === "legendary" ? "selected" : ""}>Legendario</option>
-        </select>
     </div>
   `;
 }
 
 export function readConfigForm(containerEl) {
+  const getInt = (id, fallback = 0) => {
+    const el = document.getElementById(id);
+    return el ? parseInt(el.value, 10) || 0 : fallback;
+  };
+
+  const y1_norm = getInt("subasta-year1-normal", 2);
+  const y1_mega = getInt("subasta-year1-mega", 0);
+  const y1_leg = getInt("subasta-year1-legendary", 0);
+
+  const y2_norm = getInt("subasta-year2-normal", 2);
+  const y2_mega = getInt("subasta-year2-mega", 1);
+  const y2_leg = getInt("subasta-year2-legendary", 0);
+
+  const y3_norm = getInt("subasta-year3-normal", 0);
+  const y3_mega = getInt("subasta-year3-mega", 1);
+  const y3_leg = getInt("subasta-year3-legendary", 2);
+
+  const yearly_money = getInt("subasta-yearly-money", 1000000);
+
   return {
-    turns_per_year: parseInt(document.getElementById("subasta-turns").value, 10),
-    pok_per_player: parseInt(document.getElementById("subasta-pok-player").value, 10),
-    year_starting_money_1: parseInt(document.getElementById("subasta-year1-money").value, 10),
-    year_starting_money_2: parseInt(document.getElementById("subasta-year2-money").value, 10),
-    year_starting_money_3: parseInt(document.getElementById("subasta-year3-money").value, 10),
-    year1_tier: document.getElementById("subasta-year1-tier").value,
-    year2_tier: document.getElementById("subasta-year2-tier").value,
-    year3_tier: document.getElementById("subasta-year3-tier").value,
-    starting_money: parseInt(document.getElementById("subasta-year1-money").value, 10),
+    turns_per_year: getInt("subasta-turns", 3),
+    starting_money: yearly_money,
+    yearly_money: yearly_money,
+    year_starting_money_1: yearly_money,
+    year_starting_money_2: yearly_money,
+    year_starting_money_3: yearly_money,
+    year_pools: {
+      1: { normal: y1_norm, mega: y1_mega, legendary: y1_leg },
+      2: { normal: y2_norm, mega: y2_mega, legendary: y2_leg },
+      3: { normal: y3_norm, mega: y3_mega, legendary: y3_leg },
+    },
+    year1_normal: y1_norm,
+    year1_mega: y1_mega,
+    year1_legendary: y1_leg,
+    year2_normal: y2_norm,
+    year2_mega: y2_mega,
+    year2_legendary: y2_leg,
+    year3_normal: y3_norm,
+    year3_mega: y3_mega,
+    year3_legendary: y3_leg,
   };
 }
 
@@ -179,10 +363,18 @@ export function renderAuctionView(data, sessionClient, isHost) {
     ? `<a href="${buildWikidexUrl(hints.ability)}" target="_blank" rel="noopener noreferrer" class="badge-link">${hints.ability}</a>`
     : hints.ability || "🔒 Incógnito (8.0x)";
 
+  const tier = data.current_phase_tier || (auction.phase_tier || (isMegaPokemon(poke) ? "mega" : "normal"));
+  const tierDisplayName = tier === "mega" ? "🟣 Pool Mega" : (tier === "legendary" ? "🟡 Pool Legendaria" : "🔵 Pool Normal");
+  const myWon = data.my_phase_pokemon_won ?? 0;
+  const quota = data.current_phase_quota ?? auction.phase_quota ?? 1;
+  const currentPhaseIdx = (data.current_pool_phase_index ?? 0) + 1;
+  const totalPhases = (data.current_year_phases?.length) || 1;
+
   let html = `
     <div class="subasta-header">
-      <span class="badge badge-primary">📌 Etapa: ${data.stage_name}</span>
-      <span class="badge badge-success">💰 Mi Saldo: $${myData.money}</span>
+      <span class="badge badge-primary">📌 ${data.stage_name}</span>
+      <span class="badge badge-gold">🏆 ${tierDisplayName} (Fase ${currentPhaseIdx}/${totalPhases} • ${myWon}/${quota} míos)</span>
+      <span class="badge badge-success">💰 Mi Saldo: $${formatMoneyCompact(myData.money || 0)}</span>
     </div>
 
     <div class="auction-grid">
@@ -528,6 +720,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
       ${tradeSession && tradeSession.status === 'completed' && (tradeSession.initiator === currentUsername || tradeSession.target === currentUsername) ? '<div class="trade-panel"><strong>Intercambio realizado.</strong> Los dos Pokémon han cambiado de entrenador.</div>' : ""}
       <div class="inventory-grid">
         ${pokemonList.length ? pokemonList.map((poke, pokeIdx) => {
+          const isMega = isMegaPokemon(poke);
           const levelUpMoves = (poke.level_up_moves || []).filter((m) => m.level <= levelCap);
           const selectedMoves = poke.selected_moves || [];
           const requiredMoves = Math.min(4, levelUpMoves.length);
@@ -542,9 +735,9 @@ export function renderMyPokemonInventory(data, sessionClient) {
           const itemHtml = itemName && itemName !== 'Sin ítem' && itemName !== 'Sin item'
             ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>`
             : itemName;
-          const evolutionOptions = Array.isArray(poke.evolution_options) && poke.evolution_options.length > 0
+          const evolutionOptions = isMega ? [] : (Array.isArray(poke.evolution_options) && poke.evolution_options.length > 0
             ? poke.evolution_options
-            : (poke.evolution_target ? [{ target: poke.evolution_target, item: poke.evolution_item, level: poke.next_evolution_level, trade: poke.evolution_trade, friendship: poke.evolution_friendship }] : []);
+            : (poke.evolution_target ? [{ target: poke.evolution_target, item: poke.evolution_item, level: poke.next_evolution_level, trade: poke.evolution_trade, friendship: poke.evolution_friendship }] : []));
 
           const validEvolutionOptions = evolutionOptions.filter((opt) => {
             const optItem = opt.item || '';
@@ -611,22 +804,24 @@ export function renderMyPokemonInventory(data, sessionClient) {
                 </div>
               </div>
 
-              <div class="poke-item-line">
-                <span class="badge badge-item"><strong>Ítem:</strong> ${itemHtml}
-                  ${itemName !== 'Sin ítem' && itemName !== 'Sin item'
-                    ? `<button type="button" class="btn-remove-item" data-poke-idx="${pokeIdx}" aria-label="Quitar ${itemName}" title="Quitar objeto">✕</button>`
-                    : ''}
-                </span>
-                ${bagEntries.length ? `
-                  <div class="item-equip-box">
-                    <select class="poke-item-select" data-poke-idx="${pokeIdx}">
-                      <option value="">-- Cambiar item --</option>
-                      ${bagEntries.map(([itemName, qty]) => `<option value="${itemName}">${itemName} (x${qty})</option>`).join("")}
-                    </select>
-                    <button class="btn btn-small btn-primary btn-equip-item" data-poke-idx="${pokeIdx}">Cambiar</button>
-                  </div>
-                ` : ""}
-              </div>
+              ${isMega ? '' : `
+                <div class="poke-item-line">
+                  <span class="badge badge-item"><strong>Ítem:</strong> ${itemHtml}
+                    ${itemName !== 'Sin ítem' && itemName !== 'Sin item'
+                      ? `<button type="button" class="btn-remove-item" data-poke-idx="${pokeIdx}" aria-label="Quitar ${itemName}" title="Quitar objeto">✕</button>`
+                      : ''}
+                  </span>
+                  ${bagEntries.length ? `
+                    <div class="item-equip-box">
+                      <select class="poke-item-select" data-poke-idx="${pokeIdx}">
+                        <option value="">-- Cambiar item --</option>
+                        ${bagEntries.map(([itemName, qty]) => `<option value="${itemName}">${itemName} (x${qty})</option>`).join("")}
+                      </select>
+                      <button class="btn btn-small btn-primary btn-equip-item" data-poke-idx="${pokeIdx}">Cambiar</button>
+                    </div>
+                  ` : ""}
+                </div>
+              `}
 
               ${evolutionHtml}
 
@@ -685,10 +880,20 @@ export function renderMyPokemonInventory(data, sessionClient) {
               <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName.startsWith("MT ") ? `<select class="tm-pokemon-select" data-item-name="${itemName}">
                 ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
               </select>
-              <button class="btn btn-small btn-secondary btn-use-tm" data-item-name="${itemName}">Usar</button>` : pokemonList.length ? `<select class="bag-item-select" data-item-name="${itemName}">
-                ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
-              </select>
-              <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>` : ""}
+              <button class="btn btn-small btn-secondary btn-use-tm" data-item-name="${itemName}">Usar</button>` : pokemonList.length ? (() => {
+                const eligiblePokes = pokemonList
+                  .map((poke, idx) => ({ poke, idx }))
+                  .filter(({ poke }) => !isMegaPokemon(poke));
+                if (!eligiblePokes.length) {
+                  return `<span class="text-muted" style="font-size:0.75rem; margin-left:6px;">(Sin Pokémon para equipar)</span>`;
+                }
+                return `
+                  <select class="bag-item-select" data-item-name="${itemName}">
+                    ${eligiblePokes.map(({ poke, idx }) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+                  </select>
+                  <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>
+                `;
+              })() : ""}
             </div>
           `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
 

@@ -3,11 +3,14 @@ backend/modes/subasta_pokemon/showdown.py - Exportador de equipos a formato Pok�
 """
 
 from typing import List, Dict
+from backend.modes.subasta_pokemon.poke_api import get_mega_info
 
 
 def export_team_to_showdown(username: str, pokemon_list: List[dict], items_list: List[str] = None) -> str:
     """
     Convierte la lista de Pokémon de un jugador a la sintaxis estándar de Pokémon Showdown.
+    Si el Pokémon es una forma Mega / Primigenia, se exporta con su nombre base y su
+    Mega Piedra / objeto respectivo como ítem equipado.
     """
     items = items_list or []
     if isinstance(items, dict):
@@ -15,12 +18,19 @@ def export_team_to_showdown(username: str, pokemon_list: List[dict], items_list:
     lines = [f"=== [gen9anythinggoes] Equipo de {username} ===", ""]
 
     for idx, poke in enumerate(pokemon_list):
-        name = poke.get("name", "Pikachu")
+        raw_name = poke.get("name", "Pikachu")
         level = poke.get("level", 40)
         ability = poke.get("ability", "Static")
         nature = poke.get("nature", "Hardy")
-        item = poke.get("item") or poke.get("held_item") or (items[idx] if idx < len(items) else "Leftovers")
         primary_type = poke.get("primary_type", "Normal")
+
+        mega_info = get_mega_info(poke)
+        if mega_info:
+            name = mega_info["base_name"]
+            item = mega_info["mega_stone"]
+        else:
+            name = raw_name
+            item = poke.get("item") or poke.get("held_item") or (items[idx] if idx < len(items) else "Leftovers")
 
         lines.append(f"{name} @ {item}")
         lines.append(f"Ability: {ability}")
@@ -36,7 +46,6 @@ def export_team_to_showdown(username: str, pokemon_list: List[dict], items_list:
         for move in moves[:4]:
             lines.append(f"- {move}")
         lines.append("")
-
 
     return "\n".join(lines)
 
