@@ -210,6 +210,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       btnBidCustom.addEventListener("click", () => {
         const val = parseInt(document.getElementById("custom-bid-amount").value, 10);
         if (val) {
+          btnBidCustom.disabled = true;
           sessionClient.send({ action: "subasta_bid", bid_amount: val });
         }
       });
@@ -219,6 +220,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const btnBuyout = document.getElementById("btn-buyout");
     if (btnBuyout) {
       btnBuyout.addEventListener("click", () => {
+        btnBuyout.disabled = true;
         sessionClient.send({ action: "subasta_buyout" });
       });
     }
@@ -227,6 +229,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const btnFold = document.getElementById("btn-fold");
     if (btnFold) {
       btnFold.addEventListener("click", () => {
+        btnFold.disabled = true;
         sessionClient.send({ action: "subasta_fold" });
       });
     }
@@ -236,11 +239,15 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const btnSecretNo = document.getElementById("btn-secret-no");
     if (btnSecretYes) {
       btnSecretYes.addEventListener("click", () => {
+        btnSecretYes.disabled = true;
+        if (btnSecretNo) btnSecretNo.disabled = true;
         sessionClient.send({ action: "subasta_secret_choice", keep_secret: true });
       });
     }
     if (btnSecretNo) {
       btnSecretNo.addEventListener("click", () => {
+        btnSecretNo.disabled = true;
+        if (btnSecretYes) btnSecretYes.disabled = true;
         sessionClient.send({ action: "subasta_secret_choice", keep_secret: false });
       });
     }

@@ -4,7 +4,27 @@
 
 function buildWikidexUrl(name) {
   if (!name) return "";
-  const formatted = String(name).trim().replace(/\s+/g, "_").replace(/[()]/g, "");
+  const raw = String(name).trim();
+
+  // Detectar variantes regionales (ej: "Rattata-alola", "Rattata Alola", "Meowth Galar", "Growlithe Hisui", "Wooper Paldea")
+  const regionalMatch = raw.match(/^(.*?)(?:[-_\s]+|\s*\()(alola|galar|hisui|paldea|paldean)\)?$/i);
+  if (regionalMatch) {
+    let base = regionalMatch[1].trim().replace(/[()]/g, "");
+    let region = regionalMatch[2].toLowerCase();
+    if (region === "paldean") region = "paldea";
+    const capitalizedRegion = region.charAt(0).toUpperCase() + region.slice(1);
+
+    base = base.replace(/[-_]+/g, " ");
+    const formattedBase = base
+      .split(/\s+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join("_");
+
+    const finalName = `${formattedBase}_de_${capitalizedRegion}`;
+    return `https://www.wikidex.net/wiki/${encodeURI(finalName)}`;
+  }
+
+  const formatted = raw.replace(/[()]/g, "").replace(/\s+/g, "_");
   return `https://www.wikidex.net/wiki/${encodeURI(formatted)}`;
 }
 
@@ -435,13 +455,25 @@ export function renderAuctionView(data, sessionClient, isHost) {
           </div>
         ` : `
           <div class="bidding-actions">
-            <div class="bid-input-group">
-              <input type="number" id="custom-bid-amount" value="${getNextBidValue(auction.current_bid || 0)}" step="5000" min="${getNextBidValue(auction.current_bid || 0)}" />
-              <button id="btn-bid-custom" class="btn btn-success" ${isFolded ? "disabled" : ""}>Pujar</button>
-            </div>
+            ${isHighBidder ? `
+              <div class="high-bidder-winning-notice">
+                <span class="high-bidder-icon">👑</span>
+                <div>
+                  <strong>¡Vas ganando la subasta!</strong>
+                  <p>Espera a que otro jugador puje o se retire para no gastar de más.</p>
+                </div>
+              </div>
+            ` : `
+              <div class="bid-input-group">
+                <input type="number" id="custom-bid-amount" value="${getNextBidValue(auction.current_bid || 0)}" step="5000" min="${getNextBidValue(auction.current_bid || 0)}" />
+                <button id="btn-bid-custom" class="btn btn-success" ${isFolded ? "disabled" : ""}>Pujar</button>
+              </div>
+            `}
 
             <div class="btn-group">
-              <button id="btn-buyout" class="btn btn-warning" ${isFolded ? "disabled" : ""}>⚡ Compra Directa ($${formatMoneyCompact(auction.buyout_price || 5000)})</button>
+              ${!isHighBidder ? `
+                <button id="btn-buyout" class="btn btn-warning" ${isFolded ? "disabled" : ""}>⚡ Compra Directa ($${formatMoneyCompact(auction.buyout_price || 5000)})</button>
+              ` : ""}
               <button id="btn-fold" class="btn btn-danger" ${!canFold ? "disabled" : ""}>${isFolded ? "Retirado" : isHighBidder ? "🔒 Mayor Pujador" : "🚪 Retirarse"}</button>
             </div>
           </div>

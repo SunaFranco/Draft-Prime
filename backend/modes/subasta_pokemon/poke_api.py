@@ -169,37 +169,91 @@ def is_mega_pokemon(poke_or_name: Any) -> bool:
     return get_mega_info(poke_or_name) is not None
 
 
-def get_pokemon_regional_form_options(poke_or_name: Any) -> List[Dict[str, str]]:
-    """Devuelve las variantes regionales disponibles para un Pokémon, por ejemplo alola/galar/hisui."""
-    if isinstance(poke_or_name, dict):
-        species_name = poke_or_name.get("base_species") or poke_or_name.get("name") or ""
-    else:
-        species_name = str(poke_or_name or "")
+def find_chain_node(chain_node: Optional[dict], target_slug: str) -> Optional[dict]:
+    if not chain_node:
+        return None
+    sp_name = clean_poke_api_name((chain_node.get("species") or {}).get("name", ""))
+    if sp_name == target_slug:
+        return chain_node
+    for child in chain_node.get("evolves_to", []):
+        res = find_chain_node(child, target_slug)
+        if res:
+            return res
+    return None
 
-    species_name = str(species_name).strip()
-    if not species_name:
+
+def get_pokemon_regional_form_options(poke_or_name: Any) -> List[Dict[str, str]]:
+    """Devuelve las formas disponibles para un Pokémon (incluyendo la normal y variantes regionales), excluyendo la forma actual."""
+    import re
+    if isinstance(poke_or_name, dict):
+        raw_name = poke_or_name.get("name") or ""
+        base_name = poke_or_name.get("base_species") or raw_name
+    else:
+        raw_name = str(poke_or_name or "")
+        base_name = raw_name
+
+    raw_slug = clean_poke_api_name(raw_name)
+    base_slug = clean_poke_api_name(base_name)
+    current_form_slug = raw_slug or base_slug
+    if not current_form_slug:
         return []
 
-    species_slug = clean_poke_api_name(species_name)
-    url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(species_slug)}"
+    reg_match = re.match(r'^(.*?)-(alola|galar|hisui|paldea|paldean)$', current_form_slug)
+    if reg_match:
+        species_slug = reg_match.group(1)
+    else:
+        base_reg_match = re.match(r'^(.*?)-(alola|galar|hisui|paldea|paldean)$', base_slug)
+        species_slug = base_reg_match.group(1) if base_reg_match else base_slug
+
+    species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(species_slug)}"
 
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "DraftPrimeApp/1.0"})
-        with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
-            species = json.loads(resp.read().decode())
+        req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+        try:
+            with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
+                species = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as error:
+            if error.code != 404:
+                raise
+            pokemon_url = f"{POKEAPI_BASE_URL}/{urllib.parse.quote(current_form_slug)}"
+            pokemon_req = urllib.request.Request(pokemon_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+            with urllib.request.urlopen(pokemon_req, context=ssl.create_default_context(), timeout=5) as resp:
+                pokemon_data = json.loads(resp.read().decode())
+            species_slug = (pokemon_data.get("species") or {}).get("name") or species_slug
+            species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(species_slug)}"
+            species_req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+            with urllib.request.urlopen(species_req, context=ssl.create_default_context(), timeout=5) as resp:
+                species = json.loads(resp.read().decode())
 
         options: List[Dict[str, str]] = []
         seen = set()
+        base_title = species_slug.replace("-", " ").title()
+
         for variety in species.get("varieties", []):
             variant_name = (variety.get("pokemon", {}) or {}).get("name", "")
-            if not variant_name or variant_name.lower() == species_slug.lower():
+            if not variant_name:
                 continue
 
             variant_key = variant_name.lower()
+            if variant_key == current_form_slug.lower():
+                continue
+
+            if variant_key == species_slug.lower():
+                # Forma Normal disponible si actualmente se tiene una forma regional
+                if variant_key not in seen:
+                    seen.add(variant_key)
+                    options.append({
+                        "target_name": variant_name,
+                        "display_name": f"{base_title} (Normal)",
+                        "form_name": "normal",
+                        "slug": variant_name,
+                    })
+                continue
+
             form_name = None
             if "-" in variant_key:
                 form_name = variant_key.rsplit("-", 1)[1]
-            if form_name not in {"alola", "galar", "hisui", "paldean"}:
+            if form_name not in {"alola", "galar", "hisui", "paldea", "paldean"}:
                 continue
 
             if variant_key in seen:
@@ -207,7 +261,7 @@ def get_pokemon_regional_form_options(poke_or_name: Any) -> List[Dict[str, str]]
             seen.add(variant_key)
             options.append({
                 "target_name": variant_name,
-                "display_name": variant_name.replace("-", " ").title(),
+                "display_name": f"{base_title} {form_name.capitalize()}",
                 "form_name": form_name,
                 "slug": variant_name,
             })
@@ -217,7 +271,7 @@ def get_pokemon_regional_form_options(poke_or_name: Any) -> List[Dict[str, str]]
 
 
 def apply_regional_form(poke: Dict[str, Any], target_name: str) -> bool:
-    """Cambia la forma regional de un Pokémon usando el nombre completo de la variante regional."""
+    """Cambia la forma de un Pokémon (regional o normal) conservando datos del jugador."""
     if not poke or not target_name:
         return False
 
@@ -226,24 +280,54 @@ def apply_regional_form(poke: Dict[str, Any], target_name: str) -> bool:
     if not target_key or target_key == current_key:
         return False
 
+    level = int(poke.get("level", 20))
     try:
-        updated = fetch_pokemon_data(target_key, level_cap=int(poke.get("level", 20)))
+        updated = fetch_pokemon_data(target_key, level_cap=level)
     except Exception:
         return False
 
-    preserved_fields = [
-        "selected_moves", "learned_tm_moves", "item", "held_item", "nature", "ability",
-        "ability_slot", "abilities", "ability_slots", "level", "is_shiny", "money",
-        "pokemon_id", "received_by_trade", "is_hidden"
-    ]
-    for field in preserved_fields:
-        if field in poke:
-            updated[field] = poke[field]
+    current_item = poke.get("item") or poke.get("held_item")
+    current_nature = poke.get("nature")
+    current_slot = poke.get("ability_slot", 1)
+    is_shiny = bool(poke.get("is_shiny"))
+    received_by_trade = bool(poke.get("received_by_trade"))
+    is_hidden = bool(poke.get("is_hidden"))
+    selected_moves = poke.get("selected_moves", [])
+    learned_tm_moves = poke.get("learned_tm_moves", [])
 
-    updated["base_species"] = poke.get("base_species") or poke.get("name") or target_name
+    new_abilities = updated.get("abilities", [])
+    new_slots = updated.get("ability_slots", [])
+    if current_slot in new_slots:
+        slot_idx = new_slots.index(current_slot)
+        assigned_ability = new_abilities[slot_idx] if slot_idx < len(new_abilities) else (new_abilities[0] if new_abilities else "Desconocida")
+        assigned_slot = current_slot
+    else:
+        assigned_ability = updated.get("ability") or (new_abilities[0] if new_abilities else "Desconocida")
+        assigned_slot = updated.get("ability_slot") or 1
+
+    updated["level"] = level
+    updated["is_shiny"] = is_shiny
+    if is_shiny and updated.get("shiny_image_url"):
+        updated["image_url"] = updated["shiny_image_url"]
+    updated["nature"] = current_nature or updated.get("nature", "Hardy")
+    updated["ability"] = assigned_ability
+    updated["ability_slot"] = assigned_slot
+    updated["item"] = current_item
+    updated["held_item"] = current_item
+    updated["received_by_trade"] = received_by_trade
+    updated["is_hidden"] = is_hidden
+    updated["learned_tm_moves"] = learned_tm_moves
+
+    new_valid_moves = [m["name"] for m in updated.get("level_up_moves", []) if m.get("level", 0) <= level] + learned_tm_moves
+    valid_selected = [m for m in selected_moves if m in new_valid_moves]
+    if len(valid_selected) == 4:
+        updated["selected_moves"] = valid_selected
+    else:
+        updated["selected_moves"] = [m["name"] for m in updated.get("level_up_moves", []) if m.get("level", 0) <= level][-4:]
+
+    updated["base_species"] = updated.get("base_species") or updated.get("name") or target_name
     updated["regional_form"] = target_name
-    updated["regional_form_options"] = get_pokemon_regional_form_options(updated.get("base_species") or updated.get("name"))
-    updated["name"] = updated.get("name", "").replace("-", " ").title()
+    updated["regional_form_options"] = get_pokemon_regional_form_options(updated)
     poke.clear()
     poke.update(updated)
     return True
@@ -343,11 +427,22 @@ def clean_poke_api_name(name: str) -> str:
 
 def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> list:
     """Devuelve todas las opciones de evolución aplicables para el Pokémon, deduplicadas."""
+    import re
     options = []
     seen = set()
     try:
         slug = clean_poke_api_name(name_or_id)
-        species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(slug)}"
+        reg_match = re.match(r'^(.*?)-(alola|galar|hisui|paldea|paldean)$', slug)
+        if reg_match:
+            base_species_slug = reg_match.group(1)
+            regional_form = reg_match.group(2)
+            if regional_form == "paldean":
+                regional_form = "paldea"
+        else:
+            base_species_slug = slug
+            regional_form = None
+
+        species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(base_species_slug)}"
         req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
         try:
             with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
@@ -356,23 +451,19 @@ def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> 
             if error.code != 404:
                 raise
 
-            # Regional forms are Pokémon varieties; their evolution chain belongs to the base species.
             pokemon_url = f"{POKEAPI_BASE_URL}/{urllib.parse.quote(slug)}"
             pokemon_req = urllib.request.Request(pokemon_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
             with urllib.request.urlopen(pokemon_req, context=ssl.create_default_context(), timeout=5) as resp:
                 pokemon_data = json.loads(resp.read().decode())
-            species_slug = (pokemon_data.get("species") or {}).get("name")
-            if not species_slug:
-                return options
-
-            regional_form = slug[len(species_slug) + 1:] if slug.startswith(f"{species_slug}-") else None
-            species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(species_slug)}"
+            base_species_slug = (pokemon_data.get("species") or {}).get("name") or base_species_slug
+            if not regional_form and slug.startswith(f"{base_species_slug}-"):
+                regional_form = slug[len(base_species_slug) + 1:]
+                if regional_form == "paldean":
+                    regional_form = "paldea"
+            species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(base_species_slug)}"
             species_req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
             with urllib.request.urlopen(species_req, context=ssl.create_default_context(), timeout=5) as resp:
                 species = json.loads(resp.read().decode())
-        else:
-            species_slug = species.get("name") or slug
-            regional_form = None
 
         chain_url = species.get("evolution_chain", {}).get("url")
         if not chain_url:
@@ -382,76 +473,94 @@ def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> 
         with urllib.request.urlopen(chain_req, context=ssl.create_default_context(), timeout=5) as chain_resp:
             evo_data = json.loads(chain_resp.read().decode())
 
-        current = evo_data.get("chain")
+        current = find_chain_node(evo_data.get("chain"), base_species_slug)
         if not current:
             return options
 
-        while current:
-            species_name = current.get("species", {}).get("name", "")
-            if species_name and clean_poke_api_name(species_name) == species_slug:
-                candidates = current.get("evolves_to", [])
-                for candidate in candidates:
-                    target_name = candidate.get("species", {}).get("name")
-                    if not target_name:
-                        continue
-                    target_slug = target_name
-                    if regional_form:
-                        regional_target_slug = f"{target_name}-{regional_form}"
-                        target_species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(target_name)}"
-                        target_species_req = urllib.request.Request(target_species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
-                        try:
-                            with urllib.request.urlopen(target_species_req, context=ssl.create_default_context(), timeout=5) as resp:
-                                target_species = json.loads(resp.read().decode())
-                            varieties = {
-                                (variety.get("pokemon") or {}).get("name")
-                                for variety in target_species.get("varieties", [])
-                            }
-                            if regional_target_slug in varieties:
-                                target_slug = regional_target_slug
-                        except Exception:
-                            pass
-
-                    details_list = candidate.get("evolution_details") or [{}]
-                    for details in details_list:
-                        trigger = (details.get("trigger") or {}).get("name")
-                        min_level = details.get("min_level")
-                        item = details.get("item") or details.get("held_item") or {}
-                        item_name = item.get("name") if item else None
-                        is_trade = (trigger == "trade") or bool(details.get("trade_species"))
-                        is_friendship = bool(details.get("min_happiness") or details.get("min_affection"))
-
-                        formatted_item = item_name.replace("-", " ").title() if item_name else None
-
-                        opt_key = (
-                            target_slug.lower(),
-                            (formatted_item or "").lower(),
-                            bool(is_trade),
-                            bool(is_friendship),
-                            min_level if min_level is not None else 0,
-                        )
-                        if opt_key not in seen:
-                            seen.add(opt_key)
-                            options.append({
-                                "target": target_slug,
-                                "level": int(min_level) if min_level is not None else None,
-                                "item": formatted_item,
-                                "trade": is_trade,
-                                "friendship": is_friendship,
-                            })
-                break
-            if current.get("evolves_to"):
-                matched = None
-                for child in current["evolves_to"]:
-                    child_name = child.get("species", {}).get("name", "")
-                    if child_name and clean_poke_api_name(child_name) == slug:
-                        matched = child
+        candidates = current.get("evolves_to", [])
+        any_candidate_matches_regional = False
+        if regional_form:
+            for cand in candidates:
+                for d in (cand.get("evolution_details") or []):
+                    req_name = (d.get("required_pokemon_form") or {}).get("name")
+                    if req_name and (regional_form in req_name or slug == req_name):
+                        any_candidate_matches_regional = True
                         break
-                if matched:
-                    current = matched
+
+        for candidate in candidates:
+            target_name = candidate.get("species", {}).get("name")
+            if not target_name:
+                continue
+
+            details_list = candidate.get("evolution_details") or [{}]
+            cand_has_regional_match = any(
+                regional_form and (d.get("required_pokemon_form") or {}).get("name") and (
+                    regional_form in (d.get("required_pokemon_form") or {}).get("name") or
+                    slug == (d.get("required_pokemon_form") or {}).get("name")
+                )
+                for d in details_list
+            )
+
+            for details in details_list:
+                req_form = (details.get("required_pokemon_form") or {}).get("name")
+                evolved_form = (details.get("evolved_pokemon_form") or {}).get("name")
+
+                if regional_form:
+                    if req_form:
+                        if regional_form not in req_form and req_form != slug:
+                            continue
+                    else:
+                        if cand_has_regional_match:
+                            continue
+                        if any_candidate_matches_regional and not evolved_form:
+                            continue
                 else:
-                    current = current["evolves_to"][0]
-            else:
-                break
+                    if req_form:
+                        continue
+
+                target_slug = evolved_form or target_name
+                if regional_form and not evolved_form:
+                    regional_target_slug = f"{target_name}-{regional_form}"
+                    target_species_url = f"https://pokeapi.co/api/v2/pokemon-species/{urllib.parse.quote(target_name)}"
+                    target_species_req = urllib.request.Request(target_species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+                    try:
+                        with urllib.request.urlopen(target_species_req, context=ssl.create_default_context(), timeout=5) as resp:
+                            target_species = json.loads(resp.read().decode())
+                        varieties = {
+                            (variety.get("pokemon") or {}).get("name")
+                            for variety in target_species.get("varieties", [])
+                        }
+                        if regional_target_slug in varieties:
+                            target_slug = regional_target_slug
+                    except Exception:
+                        pass
+
+                trigger = (details.get("trigger") or {}).get("name")
+                min_level = details.get("min_level")
+                item = details.get("item") or details.get("held_item") or {}
+                item_name = item.get("name") if item else None
+                is_trade = (trigger == "trade") or bool(details.get("trade_species"))
+                is_friendship = bool(details.get("min_happiness") or details.get("min_affection"))
+
+                formatted_item = item_name.replace("-", " ").title() if item_name else None
+
+                opt_key = (
+                    target_slug.lower(),
+                    (formatted_item or "").lower(),
+                    bool(is_trade),
+                    bool(is_friendship),
+                    min_level if min_level is not None else 0,
+                )
+                if opt_key not in seen:
+                    seen.add(opt_key)
+                    options.append({
+                        "target": target_slug,
+                        "level": int(min_level) if min_level is not None else None,
+                        "item": formatted_item,
+                        "trade": is_trade,
+                        "friendship": is_friendship,
+                    })
+
         return options
     except Exception:
         return options

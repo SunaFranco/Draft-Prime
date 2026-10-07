@@ -61,6 +61,13 @@ ITEM_SHOP_PRICES = {
     "Water Stone": 100000,
     "Fire Stone": 100000,
     "Leaf Stone": 100000,
+    "Ice Stone": 100000,
+    "Thunder Stone": 100000,
+    "Moon Stone": 100000,
+    "Sun Stone": 100000,
+    "Dusk Stone": 100000,
+    "Dawn Stone": 100000,
+    "Shiny Stone": 100000,
     "Cambia Formas": 75000,
 }
 
@@ -78,6 +85,13 @@ YEAR_SHOP_ITEMS = {
         "Water Stone",
         "Fire Stone",
         "Leaf Stone",
+        "Ice Stone",
+        "Thunder Stone",
+        "Moon Stone",
+        "Sun Stone",
+        "Dusk Stone",
+        "Dawn Stone",
+        "Shiny Stone",
     ],
     2: [
         "Capsula Habilidad",
@@ -381,7 +395,8 @@ def evolve_single_pokemon(poke: dict, max_lvl: int, target_name: Optional[str] =
 
 def refresh_pokemon_evolution_status(poke: dict, max_lvl: int):
     """Actualiza si el Pokémon puede evolucionar al cambiar de año."""
-    evolution_details = poke_api.get_pokemon_evolution_details(poke.get("name"), max_level=max_lvl)
+    evolution_options = poke_api.get_pokemon_all_evolution_options(poke.get("name"), max_level=max_lvl)
+    evolution_details = evolution_options[0] if evolution_options else None
     target_name = evolution_details.get("target") if evolution_details else None
     next_level = evolution_details.get("level") if evolution_details else None
     requires_trade = bool(evolution_details and evolution_details.get("trade"))
@@ -390,6 +405,16 @@ def refresh_pokemon_evolution_status(poke: dict, max_lvl: int):
     poke["next_evolution_level"] = next_level
     poke["evolution_item"] = evolution_details.get("item") if evolution_details else None
     poke["evolution_trade"] = requires_trade
+    poke["evolution_options"] = [
+        {
+            "target": opt["target"].capitalize() if opt.get("target") else "",
+            "level": opt.get("level"),
+            "item": opt.get("item"),
+            "trade": bool(opt.get("trade")),
+            "friendship": bool(opt.get("friendship")),
+        }
+        for opt in evolution_options
+    ]
     return poke["can_evolve"]
 
 
@@ -758,6 +783,10 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "La subasta ya terminó."}})
                 return True
 
+            if auction.get("high_bidder") == username:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Ya eres el mayor pujador de esta subasta."}})
+                return True
+
             if bid_amount % MIN_BID_INCREMENT != 0:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe ser múltiplo de ${MIN_BID_INCREMENT}."}})
                 return True
@@ -833,6 +862,12 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "No eres el ganador de la subasta."}})
                 return True
 
+            if not auction.get("awaiting_secret_choice") or auction.get("awarded"):
+                return True
+
+            auction["awaiting_secret_choice"] = False
+            auction["awarded"] = True
+
             keep_secret = bool(message.get("keep_secret", False))
             player = subasta_state["players"][username]
             cost = auction["current_bid"]
@@ -859,7 +894,6 @@ class SubastaPokemonMode(BaseGameMode):
             player["money"] -= cost
             player["pokemon"].append(won_pokemon)
             auction["finished"] = True
-            auction["awaiting_secret_choice"] = False
             auction["reveal_hold_until"] = None
             subasta_state["auction_turn_index"] += 1
 
@@ -892,14 +926,6 @@ class SubastaPokemonMode(BaseGameMode):
 
             if player and event and not player.get("resolved_turn"):
                 summary = events_data.apply_event_to_player(player, event)
-                if event.get("granted_pokemon"):
-                    granted_pokemon = poke_api.fetch_pokemon_data(
-                        event["granted_pokemon"],
-                        level_cap=get_year_level_cap(subasta_state.get("current_year", 1)),
-                    )
-                    granted_pokemon["is_hidden"] = False
-                    player.setdefault("pokemon", []).append(granted_pokemon)
-                    summary["pokemon_count"] = len(player["pokemon"])
                 player["resolved_turn"] = True
 
                 self._advance_after_event_resolution(subasta_state)
