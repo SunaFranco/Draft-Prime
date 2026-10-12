@@ -779,11 +779,10 @@ def get_random_pokemon_form_choice(base_name: str) -> str:
 def get_random_pokemon_from_tier(tier: str = "normal", year: Optional[int] = None, level_cap: int = 20) -> dict:
     """Devuelve un Pokémon aleatorio desde la base de datos o desde el pool estático, incluyendo forma regional con probabilidad uniforme."""
     from backend import database
-    db_pool = database.get_pokemon_pools_from_db(year=year, auction_type=tier)
+    chosen_base_name = database.get_random_pokemon_from_db(year=year, auction_type=tier)
 
-    if db_pool:
-        print(f"[OK] [DATABASE] Se cargaron {len(db_pool)} Pokémon desde Supabase (Año {year}, Tipo '{tier}').")
-        chosen_base_name = random.choice(db_pool)
+    if chosen_base_name:
+        print(f"[OK] [DATABASE] Pokémon aleatorio obtenido desde Supabase (Año {year}, Tipo '{tier}').")
     else:
         print(f"[INFO] [LOCAL] Usando pool estático por defecto (Año {year}, Tipo '{tier}').")
         pool = SAMPLE_POKEMON_POOLS.get(tier.lower(), SAMPLE_POKEMON_POOLS["normal"])

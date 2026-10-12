@@ -1419,8 +1419,9 @@ class SubastaPokemonMode(BaseGameMode):
                     }
                 else:
                     from backend import database
-                    pool = database.get_pokemon_pools_from_db(year=1, auction_type="normal") or poke_api.SAMPLE_POKEMON_POOLS["normal"]
-                    chosen_poke = random.choice(pool)
+                    chosen_poke = database.get_random_pokemon_from_db(year=1, auction_type="normal")
+                    if not chosen_poke:
+                        chosen_poke = random.choice(poke_api.SAMPLE_POKEMON_POOLS["normal"])
                     shiny_data = poke_api.fetch_pokemon_data(chosen_poke, level_cap=20)
                     shiny_data["is_shiny"] = True
                     if shiny_data.get("shiny_image_url"):

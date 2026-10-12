@@ -7,6 +7,7 @@ fallback usando datos en memoria para no romper el flujo de trabajo.
 """
 
 import os
+import random
 from typing import Optional, Dict, List
 from dotenv import load_dotenv
 
@@ -340,6 +341,74 @@ def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional
         print(f"[WARNING] Error consultando pokemon_pools en Supabase: {e}")
 
     return []
+
+
+def get_random_pokemon_from_db(year: Optional[int] = None, auction_type: Optional[str] = None) -> Optional[str]:
+    """Obtiene un único Pokémon aleatorio sin cargar completa la pool en memoria."""
+    if not supabase_client:
+        return None
+
+    clean_type = auction_type.strip().lower() if auction_type else None
+
+    if clean_type == "mega":
+        try:
+            count_res = supabase_client.table("mega_pokemon").select("name", count="exact", head=True).execute()
+            if count_res.count:
+                index = random.randrange(count_res.count)
+                res = supabase_client.table("mega_pokemon").select("name").range(index, index).execute()
+                if res.data:
+                    return res.data[0].get("name")
+        except Exception:
+            pass  # Si la tabla mega_pokemon no existe, continúa buscando en pokemon_pools
+
+    def choose_from_pools(pool_year: Optional[int]) -> Optional[str]:
+        query = supabase_client.table("pokemon_pools").select("id, pokemon_pool_cards(count)")
+        if pool_year is not None:
+            query = query.eq("year", pool_year)
+        if clean_type:
+            query = query.ilike("auction_type", clean_type)
+
+        pool_res = query.execute()
+        pool_sizes = []
+        for pool in pool_res.data or []:
+            counts = pool.get("pokemon_pool_cards") or []
+            card_count = counts[0].get("count", 0) if counts else 0
+            if card_count:
+                pool_sizes.append((pool["id"], card_count))
+
+        total_cards = sum(size for _, size in pool_sizes)
+        if not total_cards:
+            return None
+
+        selected_index = random.randrange(total_cards)
+        for pool_id, card_count in pool_sizes:
+            if selected_index < card_count:
+                card_res = (
+                    supabase_client.table("pokemon_pools")
+                    .select("pokemon_pool_cards(pokemon_name)")
+                    .eq("id", pool_id)
+                    .range(0, 0)
+                    .range(selected_index, selected_index, foreign_table="pokemon_pool_cards")
+                    .execute()
+                )
+                if card_res.data:
+                    cards = card_res.data[0].get("pokemon_pool_cards") or []
+                    if cards:
+                        return cards[0].get("pokemon_name")
+                return None
+            selected_index -= card_count
+        return None
+
+    try:
+        chosen = choose_from_pools(year)
+        if chosen:
+            return chosen
+        if clean_type and year is not None:
+            return choose_from_pools(None)
+    except Exception as e:
+        print(f"[WARNING] Error eligiendo Pokémon aleatorio desde Supabase: {e}")
+
+    return None
 
 
 
