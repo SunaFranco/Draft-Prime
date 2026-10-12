@@ -907,6 +907,40 @@ button.btn-danger:hover {
   box-shadow: 4px 4px 0px #f59e0b;
 }
 
+.debt-warning {
+  border: 2px solid #dc2626;
+  background: #450a0a;
+  color: #fee2e2;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.debt-warning p,
+.solvency-status p {
+  margin: 0.4rem 0 0;
+}
+
+.pokemon-sale-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.pokemon-sale-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--border-dim);
+  padding: 0.5rem 0;
+}
+
+.solvency-status {
+  border-bottom: 1px solid var(--accent-gold);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
 /* ── Inventario Mis Pokémon Conseguidos ─────────────────────────────────── */
 .inventory-card {
   margin-top: 2rem;

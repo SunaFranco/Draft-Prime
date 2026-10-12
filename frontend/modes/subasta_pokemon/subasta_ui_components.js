@@ -542,6 +542,9 @@ export function renderExportView(data, sessionClient, isHost, lockedText = null)
   const standings = data.standings || [];
   const players = Object.keys(data.all_players || {});
   const isFinalStage = Number(data.stage) === 12;
+  const myData = data.my_data || {};
+  const isInDebt = Number(myData.money || 0) < 0;
+  const pokemonForSale = myData.pokemon || [];
 
   return `
     <div class="card export-card">
@@ -551,17 +554,38 @@ export function renderExportView(data, sessionClient, isHost, lockedText = null)
         : "Edita si lo necesitas y luego fija tu equipo para poder copiarlo a <strong>Pokémon Showdown</strong>:"
       }</p>
 
-      <textarea id="showdown-text-area" rows="12" class="code-area" ${isLocked ? "readonly" : ""}>${showdownText}</textarea>
+      ${isInDebt ? `
+        <div class="debt-warning" role="alert">
+          <strong>Saldo negativo: no puedes fijar tu equipo todavía.</strong>
+          <p>Vende Pokémon a la máquina por el 25% de su precio de compra inmediata para recuperar saldo.</p>
+        </div>
+        <div class="pokemon-sale-list">
+          ${pokemonForSale.map((pokemon, index) => `
+            <div class="pokemon-sale-row">
+              <span>${pokemon.name || `Pokémon ${index + 1}`}</span>
+              <button class="btn btn-small btn-warning btn-sell-pokemon" data-pokemon-index="${index}">
+                Vender · $${formatMoneyCompact(pokemon.sell_value || 0)}
+              </button>
+            </div>
+          `).join("") || '<p class="text-muted">No tienes Pokémon para vender.</p>'}
+        </div>
+      ` : `<textarea id="showdown-text-area" rows="12" class="code-area" ${isLocked ? "readonly" : ""}>${showdownText}</textarea>`}
 
       <div class="btn-group">
         ${isLocked
           ? `<button id="btn-copy-showdown" class="btn btn-success">📋 Copiar al Portapapeles</button>`
-          : `<button id="btn-lock-team" class="btn btn-primary">🔒 Fijar Equipo</button>`
+          : `<button id="btn-lock-team" class="btn btn-primary" ${isInDebt ? "disabled" : ""}>🔒 Fijar Equipo</button>`
         }
       </div>
 
       ${isHost ? `
         <div class="admin-match-box">
+          <div class="solvency-status">
+            <strong>Jugadores con saldo positivo: ${data.positive_player_count || 0}/${data.total_player_count || players.length}</strong>
+            ${data.negative_players?.length
+              ? `<p>En negativo: ${data.negative_players.join(", ")}</p>`
+              : '<p>Todos los jugadores están en positivo.</p>'}
+          </div>
           <h3>⚖️ Registrar resultados de esta fase</h3>
           <div class="form-group">
             <label>Ganador (+3 pts):</label>

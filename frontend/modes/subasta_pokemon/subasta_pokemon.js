@@ -316,6 +316,14 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     }
 
+    document.querySelectorAll(".btn-sell-pokemon").forEach((button) => {
+      button.addEventListener("click", () => {
+        const pokemonIndex = parseInt(button.getAttribute("data-pokemon-index"), 10);
+        button.disabled = true;
+        sessionClient.send({ action: "subasta_sell_pokemon", pokemon_index: pokemonIndex });
+      });
+    });
+
     // Copiar Showdown Text
     const btnCopyShowdown = document.getElementById("btn-copy-showdown");
     if (btnCopyShowdown) {

@@ -76,6 +76,25 @@ def get_year_level_cap(year: int) -> int:
 
 MIN_BID_INCREMENT = 5000
 
+
+def calculate_buyout_price(starting_money: int, phase_quota: int) -> int:
+    price = max(5000, int((starting_money * 2) / max(1, phase_quota)))
+    return ((price + MIN_BID_INCREMENT - 1) // MIN_BID_INCREMENT) * MIN_BID_INCREMENT
+
+
+def get_pokemon_sell_value(pokemon: dict, subasta_state: dict) -> int:
+    buyout_price = pokemon.get("instant_purchase_price")
+    if buyout_price is None:
+        year = int(pokemon.get("acquisition_year", subasta_state.get("current_year", 1)))
+        tier = pokemon.get("acquisition_tier") or ("mega" if poke_api.is_mega_pokemon(pokemon) else "normal")
+        year_pools = subasta_state.get("year_pools", {})
+        year_pool = year_pools.get(year) or year_pools.get(str(year)) or {}
+        phase_quota = year_pool.get(tier) or subasta_state.get("current_phase_quota", 1)
+        year_money = subasta_state.get("year_starting_money", {})
+        starting_money = year_money.get(year) or year_money.get(str(year)) or subasta_state.get("starting_money", 100000)
+        buyout_price = calculate_buyout_price(int(starting_money), int(phase_quota))
+    return int(int(buyout_price) * 0.25)
+
 ITEM_SHOP_PRICES = {
     "Caja Misteriosa 1": 50000,
     "Eviolite": 100000,
@@ -290,8 +309,7 @@ async def init_subasta_round(session: dict):
         subasta_state.get("starting_money", 100000)
     )
     phase_quota = max(1, subasta_state.get("current_phase_quota", 2))
-    buyout_price = max(5000, int((year_starting_money * 2) / phase_quota))
-    buyout_price = ((buyout_price + MIN_BID_INCREMENT - 1) // MIN_BID_INCREMENT) * MIN_BID_INCREMENT
+    buyout_price = calculate_buyout_price(year_starting_money, phase_quota)
 
     subasta_state["current_auction"] = {
         "pokemon": poke_data,
@@ -578,8 +596,10 @@ class SubastaPokemonMode(BaseGameMode):
         current_auction = subasta_state.get("current_auction", {})
 
         for p in player_data.get("pokemon", []):
-            if isinstance(p, dict) and "regional_form_options" not in p:
-                p["regional_form_options"] = poke_api.get_pokemon_regional_form_options(p)
+            if isinstance(p, dict):
+                if "regional_form_options" not in p:
+                    p["regional_form_options"] = poke_api.get_pokemon_regional_form_options(p)
+                p["sell_value"] = get_pokemon_sell_value(p, subasta_state)
 
         # Si el Pokémon del rival es secreto, ocultar detalles a otros jugadores
         filtered_players_info = {}
@@ -616,6 +636,11 @@ class SubastaPokemonMode(BaseGameMode):
         current_phase_tier = subasta_state.get("current_phase_tier", "normal")
         current_phase_quota = subasta_state.get("current_phase_quota", 1)
         phase_pokemon_won = subasta_state.get("phase_pokemon_won", {})
+        solvency = {
+            "positive_player_count": sum(1 for p in subasta_state["players"].values() if p.get("money", 0) > 0),
+            "total_player_count": len(subasta_state["players"]),
+            "negative_players": [u for u, p in subasta_state["players"].items() if p.get("money", 0) < 0],
+        }
 
         return {
             "stage": current_stage,
@@ -639,6 +664,7 @@ class SubastaPokemonMode(BaseGameMode):
             "current_year_phases": current_year_phases,
             "phase_pokemon_won": phase_pokemon_won,
             "my_phase_pokemon_won": phase_pokemon_won.get(username, 0),
+            **solvency,
         }
 
     def validate_config(self, message: dict) -> dict:
@@ -823,7 +849,7 @@ class SubastaPokemonMode(BaseGameMode):
                 return True
 
             player = subasta_state["players"].get(username)
-            if not player or player["money"] < bid_amount:
+            if not player:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Fondos insuficientes."}})
                 return True
 
@@ -923,6 +949,9 @@ class SubastaPokemonMode(BaseGameMode):
                 auction["publicly_revealed"] = True
 
             player["money"] -= cost
+            won_pokemon["instant_purchase_price"] = int(auction.get("buyout_price", cost))
+            won_pokemon["acquisition_year"] = int(subasta_state.get("current_year", 1))
+            won_pokemon["acquisition_tier"] = auction.get("phase_tier", "normal")
             player["pokemon"].append(won_pokemon)
             auction["finished"] = True
             auction["reveal_hold_until"] = None
@@ -1474,6 +1503,33 @@ class SubastaPokemonMode(BaseGameMode):
                 })
             else:
                 add_item_to_inventory(player, item_name)
+
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_sell_pokemon":
+            if subasta_state.get("current_stage") not in (4, 8, 12):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo puedes vender Pokémon durante la preparación de Showdown."}})
+                return True
+
+            player = subasta_state["players"].get(username)
+            if not player or player.get("money", 0) >= 0:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo puedes vender Pokémon mientras tu saldo sea negativo."}})
+                return True
+
+            pokemon_index = int(message.get("pokemon_index", -1))
+            pokemon = player.get("pokemon", [])
+            if not 0 <= pokemon_index < len(pokemon):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido para vender."}})
+                return True
+
+            sold_pokemon = pokemon.pop(pokemon_index)
+            sell_value = get_pokemon_sell_value(sold_pokemon, subasta_state)
+            equipped_item = sold_pokemon.get("item") or sold_pokemon.get("held_item")
+            if equipped_item:
+                add_item_to_inventory(player, equipped_item)
+            player["money"] += sell_value
 
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
