@@ -172,11 +172,11 @@ def touch_session(session_id: str) -> None:
         session["last_activity"] = datetime.utcnow().timestamp()
 
 
-def cleanup_inactive_sessions(max_age_seconds: int = 10800, empty_timeout_seconds: int = 1800) -> int:
+def cleanup_inactive_sessions(max_age_seconds: int = 10800, empty_timeout_seconds: int = 900) -> int:
     """
     Elimina sesiones inactivas para liberar memoria en RAM:
       - Sesiones sin actividad por más de `max_age_seconds` (default 3 horas).
-      - Sesiones sin jugadores conectados por más de `empty_timeout_seconds` (default 30 min).
+    - Sesiones sin jugadores conectados por más de `empty_timeout_seconds` (default 15 min).
     """
     from backend.database import delete_game_session
 
@@ -188,7 +188,7 @@ def cleanup_inactive_sessions(max_age_seconds: int = 10800, empty_timeout_second
         last_activity = s.get("last_activity", created_ts)
         has_connected = any(p.get("connected", False) for p in s.get("players", []))
 
-        # Si nadie está conectado y no hubo actividad en 30 minutos
+        # Las sesiones desconectadas pueden restaurarse desde Supabase al reconectar.
         if not has_connected and (now - last_activity > empty_timeout_seconds):
             to_delete.append(s_id)
         # O si la sesión superó la edad máxima

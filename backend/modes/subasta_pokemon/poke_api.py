@@ -12,7 +12,7 @@ from collections import OrderedDict
 from typing import Dict, List, Any, Optional
 
 POKEAPI_BASE_URL = "https://pokeapi.co/api/v2/pokemon"
-MAX_POKE_CACHE = 150
+MAX_POKE_CACHE = 32
 POKE_CACHE: OrderedDict[str, dict] = OrderedDict()
 
 POKEMON_NATURES = [

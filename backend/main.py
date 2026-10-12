@@ -6,7 +6,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from backend.routes import session, cubes
-from backend.services.session_manager import cleanup_inactive_sessions
+from backend.modes.cube_draft_yugioh.card_api import CARD_CACHE
+from backend.modes.subasta_pokemon.poke_api import POKE_CACHE
+from backend.services.session_manager import cleanup_inactive_sessions, sessions
+
+
+def get_process_memory_mb():
+    """Devuelve el RSS actual en Linux, si está disponible."""
+    try:
+        with open("/proc/self/status", encoding="utf-8") as status_file:
+            for line in status_file:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1]) / 1024
+    except (OSError, ValueError):
+        pass
+    return None
 
 
 async def memory_cleanup_loop():
@@ -14,8 +28,15 @@ async def memory_cleanup_loop():
     while True:
         try:
             await asyncio.sleep(600)  # Cada 10 minutos
-            cleanup_inactive_sessions()
+            cleaned = cleanup_inactive_sessions()
             gc.collect()
+            rss_mb = get_process_memory_mb()
+            rss_label = f"{rss_mb:.1f}" if rss_mb is not None else "unavailable"
+            print(
+                f"[MEMORY] rss_mb={rss_label} sessions={len(sessions)} "
+                f"pokemon_cache={len(POKE_CACHE)} card_cache={len(CARD_CACHE)} "
+                f"sessions_cleaned={cleaned}"
+            )
         except asyncio.CancelledError:
             break
         except Exception as e:

@@ -3,14 +3,41 @@ backend/modes/subasta_pokemon/handler.py - Implementación completa del modo Sub
 """
 
 import asyncio
+import copy
 import math
 import random
 import time
 from typing import Dict, List, Any, Optional
 from backend.modes.base import BaseGameMode
 from backend.modes.subasta_pokemon import poke_api, events_data, showdown
-from backend.database import save_game_session, get_game_session
+from backend.database import save_game_session, save_full_session, get_game_session
 from backend.services.session_manager import get_connected_player_order
+
+_PENDING_BID_SAVES: dict[str, dict] = {}
+_BID_SAVE_TASKS: dict[str, asyncio.Task] = {}
+
+
+def queue_bid_session_save(session: dict) -> None:
+    session_id = session["id"]
+    _PENDING_BID_SAVES[session_id] = session
+    task = _BID_SAVE_TASKS.get(session_id)
+    if task is None or task.done():
+        _BID_SAVE_TASKS[session_id] = asyncio.create_task(_flush_bid_session_saves(session_id))
+
+
+async def _flush_bid_session_saves(session_id: str) -> None:
+    while True:
+        await asyncio.sleep(0.35)
+        session = _PENDING_BID_SAVES.pop(session_id, None)
+        if session is None:
+            _BID_SAVE_TASKS.pop(session_id, None)
+            return
+
+        try:
+            snapshot = copy.deepcopy(session)
+            await asyncio.to_thread(save_full_session, snapshot)
+        except Exception as error:
+            print(f"[WARNING] No se pudo persistir la puja de la sesión {session_id}: {error}")
 
 # Mapeo de etapas (1 a 13)
 STAGE_NAMES = {
@@ -229,7 +256,7 @@ def setup_year_auction_phases(subasta_state: dict, year: int) -> bool:
     return True
 
 
-def init_subasta_round(session: dict):
+async def init_subasta_round(session: dict):
     """Inicializa una nueva ronda de subasta para un Pokémon."""
     subasta_state = session["subasta"]
     current_year = subasta_state["current_year"]
@@ -237,7 +264,12 @@ def init_subasta_round(session: dict):
 
     tier = subasta_state.get("current_phase_tier", "normal")
 
-    poke_data = poke_api.get_random_pokemon_from_tier(tier, year=current_year, level_cap=level_cap)
+    poke_data = await asyncio.to_thread(
+        poke_api.get_random_pokemon_from_tier,
+        tier,
+        current_year,
+        level_cap,
+    )
     poke_data["is_shiny"] = random.random() < 0.01
     if poke_data["is_shiny"] and poke_data.get("shiny_image_url"):
         poke_data["image_url"] = poke_data["shiny_image_url"]
@@ -461,7 +493,7 @@ class SubastaPokemonMode(BaseGameMode):
         # requerido para esa pool actual. Si alguien queda corto, la subasta no avanza.
         return all(phase_won.get(player, 0) >= quota for player in players)
 
-    def _advance_auction_flow(self, session: dict):
+    async def _advance_auction_flow(self, session: dict):
         subasta_state = session["subasta"]
         quota = subasta_state.get("current_phase_quota", 1)
         phase_won = subasta_state.setdefault("phase_pokemon_won", {})
@@ -481,7 +513,7 @@ class SubastaPokemonMode(BaseGameMode):
                 subasta_state["current_phase_quota"] = max(1, int(next_phase.get("count", 1)))
                 subasta_state["phase_pokemon_won"] = {u: 0 for u in all_players}
                 subasta_state["current_auction"] = {}
-                init_subasta_round(session)
+                await init_subasta_round(session)
             else:
                 # Todas las sub-fases del año concluyeron: dejar la subasta y entrar a eventos.
                 subasta_state["current_auction"] = {}
@@ -494,7 +526,7 @@ class SubastaPokemonMode(BaseGameMode):
         else:
             # Si no llegó a la cuota, sigue con otra subasta de la misma fase.
             subasta_state["current_auction"] = {}
-            init_subasta_round(session)
+            await init_subasta_round(session)
 
     async def _advance_after_reveal_delay(self, session: dict, session_id: str, manager: Any):
         await asyncio.sleep(self.reveal_hold_seconds)
@@ -507,9 +539,9 @@ class SubastaPokemonMode(BaseGameMode):
         if not auction or auction.get("winner") is None:
             return
 
-        self._advance_auction_flow(session)
+        await self._advance_auction_flow(session)
 
-        save_game_session(session_id, self.key, subasta_state)
+        await asyncio.to_thread(save_game_session, session_id, self.key, subasta_state)
         await self._broadcast_subasta_state(session, manager)
 
     @property
@@ -546,7 +578,7 @@ class SubastaPokemonMode(BaseGameMode):
         current_auction = subasta_state.get("current_auction", {})
 
         for p in player_data.get("pokemon", []):
-            if isinstance(p, dict):
+            if isinstance(p, dict) and "regional_form_options" not in p:
                 p["regional_form_options"] = poke_api.get_pokemon_regional_form_options(p)
 
         # Si el Pokémon del rival es secreto, ocultar detalles a otros jugadores
@@ -714,13 +746,9 @@ class SubastaPokemonMode(BaseGameMode):
         has_phases = setup_year_auction_phases(subasta_state, 1)
         session["subasta"] = subasta_state
 
-        if has_phases:
-            init_subasta_round(session)
-        else:
+        if not has_phases:
             subasta_state["current_stage"] = 3
             self._generate_turn_events(subasta_state)
-
-        save_game_session(session["id"], self.key, session["subasta"])
 
     async def handle_action(
         self,
@@ -763,6 +791,9 @@ class SubastaPokemonMode(BaseGameMode):
 
             self.start_game(session)
             session["started"] = True
+            if session["subasta"].get("current_phase_quota", 0) > 0:
+                await init_subasta_round(session)
+            await asyncio.to_thread(save_game_session, session["id"], self.key, session["subasta"])
 
             await manager.broadcast(session_id, {
                 "event": "draft_started",
@@ -808,8 +839,8 @@ class SubastaPokemonMode(BaseGameMode):
             multiplier = bid_amount / auction["base_price"]
             auction["hints"] = poke_api.get_hints_for_multiplier(auction["pokemon"], multiplier)
 
-            save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            queue_bid_session_save(session)
+            await self._broadcast_bid_update(session, manager)
             return True
 
         elif action == "subasta_fold":
@@ -911,8 +942,8 @@ class SubastaPokemonMode(BaseGameMode):
                 asyncio.create_task(self._advance_after_reveal_delay(session, session_id, manager))
                 return True
 
-            self._advance_auction_flow(session)
-            save_game_session(session_id, self.key, subasta_state)
+            await self._advance_auction_flow(session)
+            await asyncio.to_thread(save_game_session, session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True
 
@@ -987,7 +1018,7 @@ class SubastaPokemonMode(BaseGameMode):
                     has_phases = setup_year_auction_phases(subasta_state, 2)
                     if has_phases:
                         subasta_state["current_stage"] = 6  # Salta a Subasta Año 2
-                        init_subasta_round(session)
+                        await init_subasta_round(session)
                     else:
                         subasta_state["current_stage"] = 7  # Salta a Eventos Año 2
                         subasta_state["current_turn"] = 1
@@ -1004,7 +1035,7 @@ class SubastaPokemonMode(BaseGameMode):
                     has_phases = setup_year_auction_phases(subasta_state, 3)
                     if has_phases:
                         subasta_state["current_stage"] = 10  # Salta a Subasta Año 3
-                        init_subasta_round(session)
+                        await init_subasta_round(session)
                     else:
                         subasta_state["current_stage"] = 11  # Salta a Eventos Año 3
                         subasta_state["current_turn"] = 1
@@ -1082,7 +1113,7 @@ class SubastaPokemonMode(BaseGameMode):
                     has_phases = setup_year_auction_phases(subasta_state, 2)
                     if has_phases:
                         subasta_state["current_stage"] = 6
-                        init_subasta_round(session)
+                        await init_subasta_round(session)
                     else:
                         subasta_state["current_stage"] = 7
                         subasta_state["current_turn"] = 1
@@ -1098,7 +1129,7 @@ class SubastaPokemonMode(BaseGameMode):
                     has_phases = setup_year_auction_phases(subasta_state, 3)
                     if has_phases:
                         subasta_state["current_stage"] = 10
-                        init_subasta_round(session)
+                        await init_subasta_round(session)
                     else:
                         subasta_state["current_stage"] = 11
                         subasta_state["current_turn"] = 1
@@ -1569,6 +1600,19 @@ class SubastaPokemonMode(BaseGameMode):
             self._generate_turn_events(subasta_state)
         else:
             subasta_state["current_stage"] += 1
+
+    async def _broadcast_bid_update(self, session: dict, manager: Any):
+        auction = session["subasta"].get("current_auction") or {}
+        update = {
+            "current_bid": auction.get("current_bid"),
+            "high_bidder": auction.get("high_bidder"),
+            "hints": auction.get("hints", {}),
+        }
+        for user in session["subasta"]["player_order"]:
+            await manager.send_personal_to_user(session["id"], user, {
+                "event": "subasta_bid_update",
+                "data": update,
+            })
 
     async def _broadcast_subasta_state(self, session: dict, manager: Any):
         """Envía a cada jugador conectado su estado formateado."""
