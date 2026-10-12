@@ -425,6 +425,16 @@ def clean_poke_api_name(name: str) -> str:
     return s
 
 
+def get_male_pokemon_slug(name_or_id: str) -> str:
+    """Usa la forma por defecto (macho) cuando PokeAPI separa la forma hembra."""
+    slug = clean_poke_api_name(name_or_id)
+    species_slug = slug.removesuffix("-female").removesuffix("-male")
+    gendered_species = {"jellicent", "oinkologne", "meowstic", "indeedee"}
+    if species_slug in gendered_species:
+        return f"{species_slug}-male"
+    return species_slug
+
+
 def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> list:
     """Devuelve todas las opciones de evolución aplicables para el Pokémon, deduplicadas."""
     import re
@@ -588,9 +598,14 @@ def get_pokemon_next_evolution_level(name_or_id: str) -> Optional[int]:
 
 def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
     """Consulta datos de Pokémon desde PokeAPI con fallback en caso de error/offline."""
-    key = str(name_or_id).lower().strip()
-    api_slug = clean_poke_api_name(name_or_id)
-    cache_key = f"{key}_{level_cap}"
+    original_slug = clean_poke_api_name(name_or_id)
+    api_slug = get_male_pokemon_slug(name_or_id)
+    canonical_name = (
+        api_slug.removesuffix("-male").replace("-", " ").title()
+        if api_slug != original_slug
+        else str(name_or_id).capitalize()
+    )
+    cache_key = f"{api_slug}_{level_cap}"
     if cache_key in POKE_CACHE:
         POKE_CACHE.move_to_end(cache_key)
         return POKE_CACHE[cache_key].copy()
@@ -602,7 +617,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
         with urllib.request.urlopen(req, context=ctx, timeout=5) as resp:
             data = json.loads(resp.read().decode())
             poke_id = data.get("id", 1)
-            name = str(name_or_id).capitalize()
+            name = canonical_name
             types = [t["type"]["name"].capitalize() for t in data.get("types", [])]
             ability_entries = data.get("abilities", [])
             abilities = [a["ability"]["name"].replace("-", " ").capitalize() for a in ability_entries]
@@ -699,7 +714,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
     except Exception as e:
         print(f"[WARNING] No se pudo cargar '{name_or_id}' ({api_slug}) desde PokeAPI ({e}). Usando fallback local.")
         # Fallback local
-        name_clean = str(name_or_id).capitalize()
+        name_clean = canonical_name
         mega_info = get_mega_info(name_or_id) or get_mega_info(name_clean)
         is_mega = bool(mega_info)
         base_species = mega_info["base_name"] if mega_info else name_clean
@@ -799,8 +814,8 @@ def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:
       - 1.0x: Primera letra del nombre
       - 2.0x: Región de origen
       - 3.0x: Estadística base más alta
-      - 5.0x: Tipo primario
-      - 8.0x: Habilidad asignada 
+    - 3.5x: Tipo primario
+    - 4.0x: Habilidad asignada
     """
     hints = {}
     name = poke_data.get("name", "???")
@@ -814,10 +829,10 @@ def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:
     if multiplier >= 3.0:
         hints["highest_stat"] = poke_data.get("highest_stat", "HP (50)")
 
-    if multiplier >= 5.0:
+    if multiplier >= 3.5:
         hints["primary_type"] = poke_data.get("primary_type", "Normal")
 
-    if multiplier >= 8.0:
+    if multiplier >= 4.0:
         hints["ability"] = poke_data.get("ability", "Desconocida")
 
     return hints
