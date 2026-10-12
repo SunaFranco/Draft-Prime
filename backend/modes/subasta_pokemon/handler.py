@@ -840,7 +840,7 @@ class SubastaPokemonMode(BaseGameMode):
             auction["hints"] = poke_api.get_hints_for_multiplier(auction["pokemon"], multiplier)
 
             queue_bid_session_save(session)
-            await self._broadcast_bid_update(session, manager)
+            await self._broadcast_subasta_state(session, manager)
             return True
 
         elif action == "subasta_fold":
@@ -1600,19 +1600,6 @@ class SubastaPokemonMode(BaseGameMode):
             self._generate_turn_events(subasta_state)
         else:
             subasta_state["current_stage"] += 1
-
-    async def _broadcast_bid_update(self, session: dict, manager: Any):
-        auction = session["subasta"].get("current_auction") or {}
-        update = {
-            "current_bid": auction.get("current_bid"),
-            "high_bidder": auction.get("high_bidder"),
-            "hints": auction.get("hints", {}),
-        }
-        for user in session["subasta"]["player_order"]:
-            await manager.send_personal_to_user(session["id"], user, {
-                "event": "subasta_bid_update",
-                "data": update,
-            })
 
     async def _broadcast_subasta_state(self, session: dict, manager: Any):
         """Envía a cada jugador conectado su estado formateado."""

@@ -126,19 +126,6 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
   }
 
   handleEvent(event, data, context) {
-    if (event === "subasta_bid_update") {
-      if (!this.latestState) return false;
-      this.latestState = {
-        ...this.latestState,
-        current_auction: {
-          ...this.latestState.current_auction,
-          ...data,
-        },
-      };
-      this.renderCurrentStageView(this.latestState, context.sessionClient, context.isHost);
-      return true;
-    }
-
     if (event === "subasta_state_update" || (event === "session_state" && data.draft_state)) {
       const state = event === "subasta_state_update" ? data : data.draft_state;
       if (!state || Object.keys(state).length === 0) return false;

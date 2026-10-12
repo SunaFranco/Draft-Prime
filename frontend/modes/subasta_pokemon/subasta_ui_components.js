@@ -381,7 +381,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
   );
   const hintAbility = hints.ability && !String(hints.ability).includes("🔒")
     ? `<a href="${buildWikidexUrl(hints.ability)}" target="_blank" rel="noopener noreferrer" class="badge-link">${hints.ability}</a>`
-    : hints.ability || "🔒 Incógnito (8.0x)";
+    : hints.ability || "🔒 Incógnito (4.0x)";
 
   const tier = data.current_phase_tier || (auction.phase_tier || (isMegaPokemon(poke) ? "mega" : "normal"));
   const tierDisplayName = tier === "mega" ? "🟣 Pool Mega" : (tier === "legendary" ? "🟡 Pool Legendaria" : "🔵 Pool Normal");
@@ -426,7 +426,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
             <li><strong>Letra Inicial:</strong> ${hints.first_letter || "?"} (1.0x)</li>
             <li><strong>Región:</strong> ${hints.region || "🔒 Incógnito (2.0x)"}</li>
             <li><strong>Mejor Stat Base:</strong> ${hints.highest_stat || "🔒 Incógnito (3.0x)"}</li>
-            <li><strong>Tipo Primario:</strong> ${hints.primary_type || "🔒 Incógnito (5.0x)"}</li>
+            <li><strong>Tipo Primario:</strong> ${hints.primary_type || "🔒 Incógnito (3.5x)"}</li>
             <li><strong>Habilidad:</strong> ${hintAbility}</li>
           </ul>
         </div>
