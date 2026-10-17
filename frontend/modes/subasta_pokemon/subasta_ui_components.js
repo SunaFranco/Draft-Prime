@@ -28,6 +28,84 @@ function buildWikidexUrl(name) {
   return `https://www.wikidex.net/wiki/${encodeURI(formatted)}`;
 }
 
+export const TM_MOVES = {
+  "MT Earthquake": "Earthquake",
+  "MT Ice Beam": "Ice Beam",
+  "MT Flamethrower": "Flamethrower",
+  "MT Thunderbolt": "Thunderbolt",
+  "MT Psychic": "Psychic",
+  "MT Shadow Ball": "Shadow Ball",
+  "MT Protect": "Protect",
+  "MT Substitute": "Substitute",
+  "MT Swords Dance": "Swords Dance",
+  "MT Calm Mind": "Calm Mind",
+  "MT Surf": "Surf",
+  "MT Dragon Claw": "Dragon Claw",
+  "MT Stone Edge": "Stone Edge",
+  "MT U-turn": "U Turn",
+  "MT Volt Switch": "Volt Switch",
+  "MT Stealth Rock": "Stealth Rock",
+  "MT Spikes": "Spikes",
+  "MT Toxic": "Toxic",
+  "MT Roost": "Roost",
+  "MT Iron Head": "Iron Head",
+  "MT Close Combat": "Close Combat",
+  "MT Dazzling Gleam": "Dazzling Gleam",
+  "MT Energy Ball": "Energy Ball",
+  "MT Dark Pulse": "Dark Pulse",
+  "MT Sludge Bomb": "Sludge Bomb",
+  "MT Focus Blast": "Focus Blast",
+  "MT Thunder Wave": "Thunder Wave",
+  "MT Will-O-Wisp": "Will O Wisp",
+  "MT Taunt": "Taunt",
+  "MT Trick Room": "Trick Room",
+  "MT Giga Drain": "Giga Drain",
+  "MT Brick Break": "Brick Break",
+  "MT Knock Off": "Knock Off",
+  "MT Ice Spinner": "Ice Spinner",
+  "MT Fire Punch": "Fire Punch",
+  "MT Thunder Punch": "Thunder Punch",
+  "MT Ice Punch": "Ice Punch",
+};
+
+export function getTmMoveName(itemName) {
+  if (!itemName) return "";
+  if (TM_MOVES[itemName]) return TM_MOVES[itemName];
+  if (String(itemName).startsWith("MT ")) {
+    return String(itemName).slice(3).replace(/-/g, " ").trim();
+  }
+  return String(itemName).trim();
+}
+
+function normalizeMoveIdentifier(name) {
+  return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export function checkTmCompatibility(poke, itemNameOrMoveName) {
+  if (!poke) {
+    return { canLearn: false, reason: "no_poke", label: "No seleccionado", badgeClass: "badge-muted" };
+  }
+  const moveName = getTmMoveName(itemNameOrMoveName);
+  const targetNorm = normalizeMoveIdentifier(moveName);
+  if (!targetNorm) {
+    return { canLearn: false, reason: "unknown_move", label: "Desconocido", badgeClass: "badge-muted" };
+  }
+
+  const learnedTmMoves = (poke.learned_tm_moves || []).map(normalizeMoveIdentifier);
+  const selectedMoves = (poke.selected_moves || []).map(normalizeMoveIdentifier);
+
+  if (learnedTmMoves.includes(targetNorm) || selectedMoves.includes(targetNorm)) {
+    return { canLearn: false, reason: "already_learned", label: "⚠️ Ya la sabe", badgeClass: "badge-warning" };
+  }
+
+  const tmMoves = (poke.tm_moves || []).map(normalizeMoveIdentifier);
+  if (tmMoves.includes(targetNorm)) {
+    return { canLearn: true, reason: "can_learn", label: "✅ Puede aprender", badgeClass: "badge-success" };
+  }
+
+  return { canLearn: false, reason: "incompatible", label: "❌ No puede", badgeClass: "badge-danger" };
+}
+
 function getItemWikiName(itemName) {
   const name = String(itemName || "");
   return name.startsWith("MT ") ? name.slice(3) : name;
@@ -946,10 +1024,51 @@ export function renderMyPokemonInventory(data, sessionClient) {
                   </select>
                   <button class="btn btn-small btn-secondary btn-use-form-change" data-item-name="${itemName}">Usar</button>
                 `;
-              })() : pokemonList.length && itemName.startsWith("MT ") ? `<select class="tm-pokemon-select" data-item-name="${itemName}">
-                ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
-              </select>
-              <button class="btn btn-small btn-secondary btn-use-tm" data-item-name="${itemName}">Usar</button>` : pokemonList.length ? (() => {
+              })() : pokemonList.length && itemName.startsWith("MT ") ? (() => {
+                const moveName = getTmMoveName(itemName);
+                const classified = pokemonList.map((poke, idx) => {
+                  const compat = checkTmCompatibility(poke, moveName);
+                  return { poke, idx, compat };
+                });
+
+                classified.sort((a, b) => {
+                  const score = (reason) => (reason === "can_learn" ? 0 : reason === "already_learned" ? 1 : 2);
+                  const diff = score(a.compat.reason) - score(b.compat.reason);
+                  if (diff !== 0) return diff;
+                  return a.idx - b.idx;
+                });
+
+                const hasCompatible = classified.some((c) => c.compat.reason === "can_learn");
+                const firstChoice = classified[0];
+                const initialCompat = hasCompatible
+                  ? firstChoice.compat
+                  : { reason: "incompatible", label: "❌ Sin compatibles", badgeClass: "badge-danger" };
+                const canUseInitial = hasCompatible && firstChoice.compat.canLearn;
+
+                const optionsHtml = classified.map(({ poke, idx, compat }) => {
+                  let tag = "❌";
+                  let note = "No puede";
+                  if (compat.reason === "can_learn") {
+                    tag = "✅";
+                    note = "Puede";
+                  } else if (compat.reason === "already_learned") {
+                    tag = "⚠️";
+                    note = "Ya la sabe";
+                  }
+                  return `<option value="${idx}">${tag} ${poke.name || `Pokémon ${idx + 1}`} (${note})</option>`;
+                }).join("");
+
+                return `
+                  <div class="tm-action-group">
+                    <select class="tm-pokemon-select" data-item-name="${itemName}">
+                      ${!hasCompatible ? `<option value="" disabled selected>Sin Pokémon compatibles</option>` : ""}
+                      ${optionsHtml}
+                    </select>
+                    <span class="tm-compat-status badge ${initialCompat.badgeClass}">${initialCompat.label}</span>
+                    <button class="btn btn-small btn-secondary btn-use-tm" data-item-name="${itemName}" ${canUseInitial ? "" : "disabled"} title="${canUseInitial ? `Enseñar ${moveName} a ${firstChoice?.poke?.name}` : 'Selecciona un Pokémon compatible'}">Usar</button>
+                  </div>
+                `;
+              })() : pokemonList.length ? (() => {
                 const eligiblePokes = pokemonList
                   .map((poke, idx) => ({ poke, idx }))
                   .filter(({ poke }) => !isMegaPokemon(poke));

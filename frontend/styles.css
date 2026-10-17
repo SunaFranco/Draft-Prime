@@ -673,6 +673,18 @@ button.btn-danger:hover {
   border-color: #34d399;
 }
 
+.badge-danger {
+  background: var(--accent-danger);
+  color: #ffffff;
+  border-color: #990033;
+}
+
+.badge-warning {
+  background: var(--accent-gold);
+  color: #000;
+  border-color: #b45309;
+}
+
 .btn-remove-item {
   margin-left: 0.45rem;
   padding: 0 0.25rem;
@@ -1142,9 +1154,24 @@ button.btn-danger:hover {
   }
 
   .bag-item-select,
-  .shop-item-row button {
+  .shop-item-row button,
+  .tm-action-group {
     grid-column: 2 / -1;
   }
+}
+
+.tm-action-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tm-compat-status {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+  box-shadow: 2px 2px 0 #000;
+  white-space: nowrap;
 }
 
 .move-label {

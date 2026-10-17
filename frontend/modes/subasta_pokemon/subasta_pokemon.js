@@ -14,6 +14,8 @@ import {
   renderMyPokemonInventory,
   NATURE_EFFECTS,
   formatNature,
+  getTmMoveName,
+  checkTmCompatibility,
 } from "./subasta_ui_components.js";
 
 const ROULETTE_ITEMS = [
@@ -489,15 +491,74 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
+    document.querySelectorAll(".tm-pokemon-select").forEach((pokemonSelect) => {
+      const row = pokemonSelect.closest(".bag-item-row");
+      const useBtn = row?.querySelector(".btn-use-tm");
+      const statusBadge = row?.querySelector(".tm-compat-status");
+      const itemName = pokemonSelect.getAttribute("data-item-name");
+      const moveName = getTmMoveName(itemName);
+
+      const updateCompatibility = () => {
+        const val = pokemonSelect.value;
+        if (val === "" || val === undefined || isNaN(parseInt(val, 10))) {
+          if (statusBadge) {
+            statusBadge.className = "tm-compat-status badge badge-danger";
+            statusBadge.textContent = "❌ Sin compatibles";
+          }
+          if (useBtn) {
+            useBtn.disabled = true;
+            useBtn.title = "Ningún Pokémon compatible seleccionado";
+          }
+          return;
+        }
+        const pokeIdx = parseInt(val, 10);
+        const poke = state.my_data?.pokemon?.[pokeIdx];
+        const compat = checkTmCompatibility(poke, moveName);
+
+        if (statusBadge) {
+          statusBadge.className = `tm-compat-status badge ${compat.badgeClass}`;
+          statusBadge.textContent = compat.label;
+        }
+        if (useBtn) {
+          useBtn.disabled = !compat.canLearn;
+          useBtn.title = compat.canLearn
+            ? `Enseñar ${moveName} a ${poke?.name || "Pokémon"}`
+            : `${poke?.name || "Este Pokémon"} no puede aprender esta MT`;
+        }
+      };
+
+      pokemonSelect.addEventListener("change", updateCompatibility);
+    });
+
     document.querySelectorAll(".btn-use-tm").forEach((btn) => {
       btn.addEventListener("click", () => {
         const row = btn.closest(".bag-item-row");
         const pokemonSelect = row?.querySelector(".tm-pokemon-select");
         if (!pokemonSelect) return;
+        const rawVal = pokemonSelect.value;
+        if (rawVal === "" || isNaN(parseInt(rawVal, 10))) {
+          alert("Selecciona un Pokémon que pueda aprender esta MT.");
+          return;
+        }
+        const pokeIdx = parseInt(rawVal, 10);
+        const itemName = btn.getAttribute("data-item-name");
+        const poke = state.my_data?.pokemon?.[pokeIdx];
+        const moveName = getTmMoveName(itemName);
+        const compat = checkTmCompatibility(poke, moveName);
+
+        if (!compat.canLearn) {
+          if (compat.reason === "already_learned") {
+            alert(`⚠️ ${poke?.name || "Este Pokémon"} ya conoce el movimiento ${moveName}.`);
+          } else {
+            alert(`❌ ${poke?.name || "Este Pokémon"} no puede aprender la ${itemName}.`);
+          }
+          return;
+        }
+
         sessionClient.send({
           action: "subasta_use_tm",
-          poke_index: parseInt(pokemonSelect.value, 10),
-          item_name: btn.getAttribute("data-item-name"),
+          poke_index: pokeIdx,
+          item_name: itemName,
         });
       });
     });

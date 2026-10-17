@@ -58,6 +58,9 @@ TM_MOVES = {
     "MT Brick Break": "Brick Break",
     "MT Knock Off": "Knock Off",
     "MT Ice Spinner": "Ice Spinner",
+    "MT Fire Punch": "Fire Punch",
+    "MT Thunder Punch": "Thunder Punch",
+    "MT Ice Punch": "Ice Punch",
 }
 
 # Mapeo completo de Pokémon Mega / Primigenios a su especie base y Mega Piedra / Objeto

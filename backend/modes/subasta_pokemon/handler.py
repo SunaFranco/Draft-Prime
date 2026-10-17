@@ -1315,7 +1315,7 @@ class SubastaPokemonMode(BaseGameMode):
             player = subasta_state["players"].get(username)
             poke_idx = message.get("poke_index")
             item_name = message.get("item_name")
-            move_name = poke_api.TM_MOVES.get(item_name)
+            move_name = poke_api.TM_MOVES.get(item_name) or (item_name[3:].strip() if isinstance(item_name, str) and item_name.startswith("MT ") else None)
             inventory = normalize_item_inventory(player.get("items", {})) if player else {}
 
             if not player or inventory.get(item_name, 0) <= 0 or not move_name:
