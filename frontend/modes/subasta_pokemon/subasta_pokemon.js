@@ -434,19 +434,40 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
+    const backdrop = document.querySelector(".backpack-backdrop");
+    const closeAllInventoryMenus = () => {
+      document.querySelectorAll(".backpack-menu--open").forEach((openMenu) => {
+        openMenu.classList.remove("backpack-menu--open");
+        const openButton = document.querySelector(`[data-menu-target="${openMenu.dataset.menu}"]`);
+        if (openButton) openButton.setAttribute("aria-expanded", "false");
+      });
+      if (backdrop) backdrop.classList.remove("backpack-backdrop--open");
+    };
+
+    if (backdrop) {
+      backdrop.addEventListener("click", closeAllInventoryMenus);
+    }
+
+    document.querySelectorAll(".btn-close-menu").forEach((closeBtn) => {
+      closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeAllInventoryMenus();
+      });
+    });
+
     document.querySelectorAll(".inventory-menu-toggle").forEach((btn) => {
       btn.addEventListener("click", () => {
         const menu = btn.parentElement?.querySelector(`[data-menu="${btn.dataset.menuTarget}"]`);
         if (!menu) return;
-        document.querySelectorAll(".backpack-menu--open").forEach((openMenu) => {
-          if (openMenu !== menu) {
-            openMenu.classList.remove("backpack-menu--open");
-            const openButton = document.querySelector(`[data-menu-target="${openMenu.dataset.menu}"]`);
-            if (openButton) openButton.setAttribute("aria-expanded", "false");
-          }
-        });
-        const isOpen = menu.classList.toggle("backpack-menu--open");
-        btn.setAttribute("aria-expanded", String(isOpen));
+        const willOpen = !menu.classList.contains("backpack-menu--open");
+
+        closeAllInventoryMenus();
+
+        if (willOpen) {
+          menu.classList.add("backpack-menu--open");
+          btn.setAttribute("aria-expanded", "true");
+          if (backdrop) backdrop.classList.add("backpack-backdrop--open");
+        }
       });
     });
 
@@ -501,6 +522,8 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       const updateCompatibility = () => {
         const val = pokemonSelect.value;
         if (val === "" || val === undefined || isNaN(parseInt(val, 10))) {
+          pokemonSelect.classList.remove("is-compatible", "is-warning");
+          pokemonSelect.classList.add("is-incompatible");
           if (statusBadge) {
             statusBadge.className = "tm-compat-status badge badge-danger";
             statusBadge.textContent = "❌ Sin compatibles";
@@ -514,6 +537,15 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         const pokeIdx = parseInt(val, 10);
         const poke = state.my_data?.pokemon?.[pokeIdx];
         const compat = checkTmCompatibility(poke, moveName);
+
+        pokemonSelect.classList.remove("is-compatible", "is-incompatible", "is-warning");
+        if (compat.canLearn) {
+          pokemonSelect.classList.add("is-compatible");
+        } else if (compat.reason === "already_learned") {
+          pokemonSelect.classList.add("is-warning");
+        } else {
+          pokemonSelect.classList.add("is-incompatible");
+        }
 
         if (statusBadge) {
           statusBadge.className = `tm-compat-status badge ${compat.badgeClass}`;

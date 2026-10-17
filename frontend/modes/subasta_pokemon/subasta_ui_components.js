@@ -997,10 +997,14 @@ export function renderMyPokemonInventory(data, sessionClient) {
       </div>
 
       <div class="inventory-actions">
+        <div class="backpack-backdrop"></div>
         <div class="backpack-panel">
           <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="backpack-menu" aria-expanded="false">🎒 Mochila</button>
           <div class="backpack-menu" data-menu="backpack-menu">
-          <h4>Mochila</h4>
+            <div class="backpack-menu-header">
+              <h4>Mochila</h4>
+              <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
+            </div>
           ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
             <div class="bag-item-row">
               <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
@@ -1044,24 +1048,31 @@ export function renderMyPokemonInventory(data, sessionClient) {
                   ? firstChoice.compat
                   : { reason: "incompatible", label: "❌ Sin compatibles", badgeClass: "badge-danger" };
                 const canUseInitial = hasCompatible && firstChoice.compat.canLearn;
+                const selectStateClass = !hasCompatible
+                  ? "is-incompatible"
+                  : canUseInitial
+                  ? "is-compatible"
+                  : firstChoice?.compat?.reason === "already_learned"
+                  ? "is-warning"
+                  : "is-incompatible";
 
                 const optionsHtml = classified.map(({ poke, idx, compat }) => {
                   let tag = "❌";
-                  let note = "No puede";
+                  let note = "No";
                   if (compat.reason === "can_learn") {
                     tag = "✅";
-                    note = "Puede";
+                    note = "Aprende";
                   } else if (compat.reason === "already_learned") {
                     tag = "⚠️";
-                    note = "Ya la sabe";
+                    note = "Ya sabe";
                   }
                   return `<option value="${idx}">${tag} ${poke.name || `Pokémon ${idx + 1}`} (${note})</option>`;
                 }).join("");
 
                 return `
                   <div class="tm-action-group">
-                    <select class="tm-pokemon-select" data-item-name="${itemName}">
-                      ${!hasCompatible ? `<option value="" disabled selected>Sin Pokémon compatibles</option>` : ""}
+                    <select class="tm-pokemon-select ${selectStateClass}" data-item-name="${itemName}">
+                      ${!hasCompatible ? `<option value="" disabled selected>❌ Sin compatibles</option>` : ""}
                       ${optionsHtml}
                     </select>
                     <span class="tm-compat-status badge ${initialCompat.badgeClass}">${initialCompat.label}</span>
@@ -1092,7 +1103,10 @@ export function renderMyPokemonInventory(data, sessionClient) {
           <div class="backpack-panel">
             <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="shop-menu" aria-expanded="false">🛒 Tienda</button>
             <div class="backpack-menu shop-menu" data-menu="shop-menu">
-              <h4>${shopTitle}</h4>
+              <div class="backpack-menu-header">
+                <h4>${shopTitle}</h4>
+                <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
+              </div>
               <p class="shop-balance">Dinero actual: <strong>$${formatMoneyCompact(myData.money || 0)}</strong></p>
               <div class="shop-items">
                 ${currentShopItems.map((shopItem) => `
