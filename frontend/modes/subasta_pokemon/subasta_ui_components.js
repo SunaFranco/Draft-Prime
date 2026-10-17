@@ -1138,8 +1138,11 @@ export function renderMyPokemonInventory(data, sessionClient) {
                 <div class="shop-item-row ${isBox ? 'shop-item-row--box' : ''}">
                   <img src="${buildItemSpriteUrl(shopItem.name)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
                   ${isBox ? `
-                    <span class="badge-link shop-box-link" ${tooltipAttr} style="cursor:help;">
-                      ${shopItem.name} <span class="badge badge-info" style="font-size:0.65rem;margin-left:4px;">🎰 Ruleta</span>
+                    <span class="badge-link shop-box-link" ${tooltipAttr} style="display:inline-flex;align-items:center;gap:4px;">
+                      <span>${shopItem.name}</span>
+                      <button type="button" class="btn-show-box-odds" data-box-name="${shopItem.name}" title="Ver probabilidades de esta caja">
+                        🎰 Ruleta ℹ️
+                      </button>
                     </span>
                   ` : `
                     <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
@@ -1155,5 +1158,80 @@ export function renderMyPokemonInventory(data, sessionClient) {
       ` : ""}
     </div>
   `;
+}
+
+export const BOX_ODDS_DATA = {
+  "Caja Misteriosa I": {
+    title: "Caja Misteriosa I",
+    price: "$100,000",
+    note: "Al comprarla, la ruleta girará y obtendrás exactamente una de las siguientes recompensas según sus probabilidades:",
+    items: [
+      { name: "Oran Berry (x1)", rate: "75%", tier: "common", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png" },
+      { name: "MT Earthquake", rate: "5%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png" },
+      { name: "MT Flamethrower", rate: "5%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png" },
+      { name: "MT Shadow Ball", rate: "5%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png" },
+      { name: "Cápsula Habilidad", rate: "5%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ability-capsule.png" },
+      { name: "Porygon (aleatorio) + Objeto Mejora (Up-Grade)", rate: "3%", tier: "epic", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/137.png" },
+      { name: "$500,000 en efectivo", rate: "1%", tier: "legendary", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png" },
+      { name: "Pokémon Shiny aleatorio (Pool normal)", rate: "1%", tier: "legendary", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-stone.png" },
+    ]
+  },
+  "Regalo del Primo jeque": {
+    title: "Regalo del Primo jeque",
+    price: "$250,000",
+    note: "Al comprarla, la ruleta girará entre los 4 Pokémon del jeque (todos Nv. 20, con naturaleza y habilidad aleatorias):",
+    items: [
+      { name: "Galvantula", rate: "25%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/596.png" },
+      { name: "Scolipede", rate: "25%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/545.png" },
+      { name: "Sawk", rate: "25%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/539.png" },
+      { name: "Gardevoir", rate: "25%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/282.png" },
+    ]
+  }
+};
+BOX_ODDS_DATA["Caja Misteriosa 1"] = BOX_ODDS_DATA["Caja Misteriosa I"];
+
+export function showBoxOddsModal(boxName) {
+  const data = BOX_ODDS_DATA[boxName];
+  if (!data) return;
+
+  document.querySelectorAll(".box-odds-modal-overlay").forEach((el) => el.remove());
+
+  const overlay = document.createElement("div");
+  overlay.className = "box-odds-modal-overlay";
+  overlay.innerHTML = `
+    <div class="box-odds-modal" role="dialog" aria-modal="true" aria-labelledby="box-odds-title">
+      <div class="box-odds-header">
+        <h3 id="box-odds-title">🎁 ${data.title} <span style="font-size:0.85rem;color:var(--text-muted);font-weight:normal;">(${data.price})</span></h3>
+        <button type="button" class="btn-close-menu btn-close-odds" aria-label="Cerrar">✕</button>
+      </div>
+      <p class="box-odds-note">${data.note}</p>
+      <div class="box-odds-list">
+        ${data.items.map((item) => `
+          <div class="box-odds-item">
+            <div class="box-odds-item-info">
+              <img src="${item.image}" alt="${item.name}" onerror="this.style.display='none'" />
+              <span>${item.name}</span>
+            </div>
+            <span class="box-odds-rate box-odds-rate--${item.tier || 'common'}">${item.rate}</span>
+          </div>
+        `).join("")}
+      </div>
+      <div class="box-odds-actions">
+        <button type="button" class="btn btn-primary btn-small btn-close-odds">Entendido</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const closeModal = () => {
+    overlay.remove();
+  };
+
+  overlay.querySelectorAll(".btn-close-odds").forEach((btn) => {
+    btn.addEventListener("click", closeModal);
+  });
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeModal();
+  });
 }
 

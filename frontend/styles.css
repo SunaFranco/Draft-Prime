@@ -1297,23 +1297,173 @@ button.btn-danger:hover {
 }
 
 .event-roulette-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: flex;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 200000 !important;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(0, 0, 0, 0.88) !important;
 }
 
 .event-roulette-modal {
+  position: relative !important;
+  z-index: 200001 !important;
   width: min(720px, 100%);
   padding: 2rem 1.25rem;
   text-align: center;
   background: var(--bg-surface-card);
   border: 3px solid var(--border-neon);
   box-shadow: 8px 8px 0 #00ff66;
+}
+
+/* ── Modal de Probabilidades de Cajas ────────────────────────────────────────── */
+.box-odds-modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 150000 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.78) !important;
+}
+
+.box-odds-modal {
+  position: relative !important;
+  z-index: 150001 !important;
+  width: min(520px, 95vw);
+  background: var(--bg-surface-card);
+  border: 2px solid var(--border-neon);
+  box-shadow: 6px 6px 0 var(--border-neon);
+  border-radius: 8px;
+  padding: 1.25rem;
+  color: var(--text-main);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.box-odds-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-dim);
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.box-odds-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.box-odds-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.85rem;
+  line-height: 1.35;
+}
+
+.box-odds-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  max-height: 55vh;
+  padding-right: 0.35rem;
+}
+
+.box-odds-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.65rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  gap: 0.5rem;
+}
+
+.box-odds-item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.box-odds-item-info img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.box-odds-item-info span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.box-odds-rate {
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.box-odds-rate--common {
+  background: rgba(156, 163, 175, 0.2);
+  color: #e5e7eb;
+}
+
+.box-odds-rate--rare {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+.box-odds-rate--epic {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+}
+
+.box-odds-rate--legendary {
+  background: rgba(234, 179, 8, 0.2);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.5);
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.3);
+}
+
+.box-odds-actions {
+  margin-top: 1rem;
+  text-align: right;
+}
+
+.btn-show-box-odds {
+  cursor: pointer;
+  border: 1px solid rgba(56, 189, 248, 0.6) !important;
+  background: rgba(14, 165, 233, 0.25) !important;
+  color: #38bdf8 !important;
+  border-radius: 4px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.btn-show-box-odds:hover {
+  background: rgba(14, 165, 233, 0.45) !important;
+  border-color: #38bdf8 !important;
+  color: #fff !important;
+  transform: translateY(-1px);
 }
 
 .event-roulette-kicker {

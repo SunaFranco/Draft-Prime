@@ -17,6 +17,7 @@ import {
   getTmMoveName,
   checkTmCompatibility,
   buildItemSpriteUrl,
+  showBoxOddsModal,
 } from "./subasta_ui_components.js";
 
 const ROULETTE_ITEMS = [
@@ -747,6 +748,17 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           this._isRouletteSpinning = true;
         }
         sessionClient.send({ action: "subasta_shop_buy", item_name: itemName });
+      });
+    });
+
+    document.querySelectorAll(".btn-show-box-odds").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const boxName = btn.getAttribute("data-box-name");
+        if (boxName) {
+          showBoxOddsModal(boxName);
+        }
       });
     });
 
