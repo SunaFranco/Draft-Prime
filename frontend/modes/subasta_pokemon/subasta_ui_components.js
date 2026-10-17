@@ -129,8 +129,15 @@ function normalizeItemMap(items) {
   }, {});
 }
 
-function buildItemSpriteUrl(name) {
-  const slugOverrides = { "Capsula Habilidad": "ability-capsule" };
+export function buildItemSpriteUrl(name) {
+  const slugOverrides = {
+    "Capsula Habilidad": "ability-capsule",
+    "Caja Misteriosa I": "relic-silver",
+    "Caja Misteriosa 1": "relic-silver",
+    "Regalo del Primo jeque": "relic-gold",
+    "Up-Grade": "up-grade",
+    "Mejora": "up-grade",
+  };
   const tmMove = String(name || "").startsWith("MT ") ? String(name).slice(3) : "";
   const slug = slugOverrides[name] || String(name || "").trim().toLowerCase().replace(/\s+/g, "-");
   const itemSlug = tmMove ? "tm-normal" : slug;
@@ -747,6 +754,8 @@ export function renderMyPokemonInventory(data, sessionClient) {
   const shopOpen = [4, 8, 12, 13].includes(Number(data.stage || 0));
   const shopCatalogByYear = {
     1: [
+      { name: "Caja Misteriosa I", price: 100000, isBox: true, description: "Oran Berry 75%, MT Earthquake 5%, MT Flamethrower 5%, MT Shadow Ball 5%, Cápsula Hab. 5%, Porygon + Objeto Mejora 3%, Pokémon Shiny 1%, $500,000 1%" },
+      { name: "Regalo del Primo jeque", price: 250000, isBox: true, description: "Galvantula 25%, Scolipede 25%, Sawk 25%, Gardevoir 25% (con Naturaleza y Habilidad aleatorias)" },
       { name: "Eviolite", price: 100000 },
       { name: "Sitrus Berry", price: 50000 },
       { name: "MT Fire Punch", price: 30000 },
@@ -876,12 +885,17 @@ export function renderMyPokemonInventory(data, sessionClient) {
 
           const validEvolutionOptions = evolutionOptions.filter((opt) => {
             const optItem = opt.item || '';
-            const hasOptItem = optItem && (bagItems[optItem] || 0) > 0;
+            const hasOptItem = optItem && (
+              (bagItems[optItem] || 0) > 0 ||
+              (optItem.replace(/\s+/g, "-") && (bagItems[optItem.replace(/\s+/g, "-")] || 0) > 0) ||
+              (optItem.replace(/-/g, " ") && (bagItems[optItem.replace(/-/g, " ")] || 0) > 0) ||
+              (optItem.toLowerCase().includes("grade") && ((bagItems["Up-Grade"] || 0) > 0 || (bagItems["Up Grade"] || 0) > 0 || (bagItems["Mejora"] || 0) > 0))
+            );
             const currentYear = Number(data.current_year || 1);
             const currentLevel = Number(poke.level || (currentYear === 1 ? 20 : (currentYear === 2 ? 40 : 100)));
 
             if (optItem && !hasOptItem) return false;
-            if (opt.trade && !poke.received_by_trade) return false;
+            if (opt.trade && !optItem && !poke.received_by_trade) return false;
             if (opt.friendship && currentYear < 2) return false;
             if (currentYear === 1 && !optItem) return false;
 
@@ -1117,14 +1131,24 @@ export function renderMyPokemonInventory(data, sessionClient) {
             </div>
             <p class="shop-balance">Dinero actual: <strong>$${formatMoneyCompact(myData.money || 0)}</strong></p>
             <div class="backpack-menu-body shop-items">
-              ${currentShopItems.map((shopItem) => `
-                <div class="shop-item-row">
+              ${currentShopItems.map((shopItem) => {
+                const isBox = Boolean(shopItem.isBox || shopItem.name.startsWith("Caja Misteriosa") || shopItem.name.startsWith("Regalo del Primo"));
+                const tooltipAttr = shopItem.description ? `title="${shopItem.description}"` : '';
+                return `
+                <div class="shop-item-row ${isBox ? 'shop-item-row--box' : ''}">
                   <img src="${buildItemSpriteUrl(shopItem.name)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
-                  <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
+                  ${isBox ? `
+                    <span class="badge-link shop-box-link" ${tooltipAttr} style="cursor:help;">
+                      ${shopItem.name} <span class="badge badge-info" style="font-size:0.65rem;margin-left:4px;">🎰 Ruleta</span>
+                    </span>
+                  ` : `
+                    <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
+                  `}
                   <span>$${formatMoneyCompact(shopItem.price)}</span>
                   <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
                 </div>
-              `).join("")}
+              `;
+              }).join("")}
             </div>
           </div>
         </div>

@@ -16,6 +16,7 @@ import {
   formatNature,
   getTmMoveName,
   checkTmCompatibility,
+  buildItemSpriteUrl,
 } from "./subasta_ui_components.js";
 
 const ROULETTE_ITEMS = [
@@ -27,14 +28,18 @@ const ROULETTE_ITEMS = [
 ];
 
 function rouletteItemName(item) {
+  if (typeof item === "object" && item !== null) {
+    return item.name || item.display || "";
+  }
   return String(item || "").startsWith("MT ") ? String(item).slice(3) : String(item || "");
 }
 
 function rouletteItemImage(item) {
-  const slug = item === "Capsula Habilidad"
-    ? "ability-capsule"
-    : String(item || "").startsWith("MT ") ? "tm-normal" : String(item || "").toLowerCase().replace(/\s+/g, "-");
-  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${slug}.png`;
+  if (typeof item === "object" && item !== null && item.image) {
+    return item.image;
+  }
+  const rawName = typeof item === "object" && item !== null ? item.name : item;
+  return buildItemSpriteUrl(rawName);
 }
 
 function buildRouletteItems(count) {
@@ -47,6 +52,78 @@ function wait(milliseconds) {
 
 const ROULETTE_SPIN_DURATION_MS = 3000;
 const ROULETTE_RESULT_PAUSE_MS = 800;
+
+async function playMysteryBoxRoulette(boxData, onComplete) {
+  const overlay = document.createElement("div");
+  overlay.className = "event-roulette-overlay";
+  overlay.innerHTML = `
+    <div class="event-roulette-modal">
+      <div class="event-roulette-kicker">🎁 TIENDA DEL PRIMER AÑO</div>
+      <h2>${boxData.box_name || "Caja Misteriosa"}</h2>
+      <div class="event-roulette-stage">
+        <div class="event-roulette-pointer">▼</div>
+        <div class="event-roulette-window"><div class="event-roulette-strip"></div></div>
+      </div>
+      <p class="event-roulette-status">La suerte está girando...</p>
+      <div class="event-roulette-actions" style="margin-top: 1.25rem; display: none;">
+        <button type="button" class="btn btn-primary btn-large btn-roulette-close">¡Genial!</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const strip = overlay.querySelector(".event-roulette-strip");
+  const rouletteWindow = overlay.querySelector(".event-roulette-window");
+  const status = overlay.querySelector(".event-roulette-status");
+  const actionsEl = overlay.querySelector(".event-roulette-actions");
+  const closeBtn = overlay.querySelector(".btn-roulette-close");
+
+  const pool = Array.isArray(boxData.pool) && boxData.pool.length > 0 ? boxData.pool : ROULETTE_ITEMS;
+  const reward = boxData.reward || { name: "Recompensa", display: "Recompensa" };
+
+  const targetIndex = 22 + Math.floor(Math.random() * 5);
+  const options = [
+    ...Array.from({ length: targetIndex }, () => pool[Math.floor(Math.random() * pool.length)]),
+    reward,
+    ...Array.from({ length: 6 }, () => pool[Math.floor(Math.random() * pool.length)]),
+  ];
+
+  strip.innerHTML = options.map((item, idx) => `
+    <div class="event-roulette-slot" data-slot-index="${idx}">
+      <img src="${rouletteItemImage(item)}" alt="" onerror="this.style.display='none'" />
+      <span>${rouletteItemName(item)}</span>
+    </div>
+  `).join("");
+
+  strip.classList.remove("event-roulette-strip--spinning");
+  strip.style.transition = "none";
+  strip.style.transform = "translateX(0)";
+  void strip.offsetWidth;
+
+  const targetOffset = targetIndex * 125 - (rouletteWindow.clientWidth / 2 - 62.5);
+  strip.style.transition = `transform ${ROULETTE_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.7, 0.18, 1)`;
+  strip.style.transform = `translateX(-${targetOffset}px)`;
+
+  await wait(ROULETTE_SPIN_DURATION_MS);
+
+  const winningSlot = strip.querySelector(`[data-slot-index="${targetIndex}"]`);
+  if (winningSlot) {
+    winningSlot.classList.add("is-winner");
+  }
+
+  status.innerHTML = `<span style="color: var(--accent-gold); font-size: 1.1rem; font-weight: bold;">Has obtenido: ${reward.display || rouletteItemName(reward)}</span>`;
+  actionsEl.style.display = "block";
+
+  const closeOverlay = () => {
+    overlay.remove();
+    if (onComplete) onComplete();
+  };
+
+  closeBtn.addEventListener("click", closeOverlay);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeOverlay();
+  });
+}
 
 async function playEventRoulette(event, onComplete) {
   const rewards = event.type === "tm_booster_pack" ? event.granted_items : [event.granted_item];
@@ -103,6 +180,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     super("subasta_pokemon", "Subasta (Pokemon)");
     this.latestState = null;
     this._lockedShowdownText = null;
+    this._isRouletteSpinning = false;
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -128,6 +206,15 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
   }
 
   handleEvent(event, data, context) {
+    if (event === "subasta_mystery_box_result") {
+      playMysteryBoxRoulette(data, () => {
+        this._isRouletteSpinning = false;
+      });
+      return true;
+    }
+    if (event === "error") {
+      this._isRouletteSpinning = false;
+    }
     if (event === "subasta_state_update" || (event === "session_state" && data.draft_state)) {
       const state = event === "subasta_state_update" ? data : data.draft_state;
       if (!state || Object.keys(state).length === 0) return false;
@@ -653,8 +740,12 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
     document.querySelectorAll(".btn-buy-item").forEach((btn) => {
       btn.addEventListener("click", () => {
+        if (this._isRouletteSpinning) return;
         const itemName = btn.getAttribute("data-item-name");
         if (!itemName) return;
+        if (itemName.startsWith("Caja Misteriosa") || itemName.startsWith("Regalo del Primo")) {
+          this._isRouletteSpinning = true;
+        }
         sessionClient.send({ action: "subasta_shop_buy", item_name: itemName });
       });
     });

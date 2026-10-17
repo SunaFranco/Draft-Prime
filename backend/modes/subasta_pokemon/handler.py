@@ -96,7 +96,9 @@ def get_pokemon_sell_value(pokemon: dict, subasta_state: dict) -> int:
     return int(int(buyout_price) * 0.25)
 
 ITEM_SHOP_PRICES = {
-    "Caja Misteriosa 1": 50000,
+    "Caja Misteriosa I": 100000,
+    "Caja Misteriosa 1": 100000,
+    "Regalo del Primo jeque": 250000,
     "Eviolite": 100000,
     "Sitrus Berry": 50000,
     "MT Fire Punch": 30000,
@@ -119,7 +121,8 @@ ITEM_SHOP_PRICES = {
 
 YEAR_SHOP_ITEMS = {
     1: [
-        "Caja Misteriosa 1",
+        "Caja Misteriosa I",
+        "Regalo del Primo jeque",
         "Eviolite",
         "Sitrus Berry",
         "MT Fire Punch",
@@ -1404,6 +1407,9 @@ class SubastaPokemonMode(BaseGameMode):
 
             current_year = int(subasta_state.get("current_year", 1))
             year_shop_items = YEAR_SHOP_ITEMS.get(current_year, YEAR_SHOP_ITEMS[1])
+            if item_name == "Caja Misteriosa 1" and "Caja Misteriosa I" in year_shop_items:
+                item_name = "Caja Misteriosa I"
+
             if item_name not in year_shop_items:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Ese objeto no está disponible en la tienda del Año {current_year}."}})
                 return True
@@ -1415,16 +1421,27 @@ class SubastaPokemonMode(BaseGameMode):
 
             player["money"] -= price
 
-            if item_name == "Caja Misteriosa 1":
+            if item_name in ("Caja Misteriosa I", "Caja Misteriosa 1"):
                 roll = random.random()
                 reward_info = {}
+
+                box_pool_preview = [
+                    {"name": "Oran Berry", "display": "Oran Berry (x1)", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png"},
+                    {"name": "MT Earthquake", "display": "MT Earthquake", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png"},
+                    {"name": "MT Flamethrower", "display": "MT Flamethrower", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png"},
+                    {"name": "MT Shadow Ball", "display": "MT Shadow Ball", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png"},
+                    {"name": "Capsula Habilidad", "display": "Cápsula Habilidad", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ability-capsule.png"},
+                    {"name": "Porygon + Mejora", "display": "Porygon + Objeto Mejora", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/137.png"},
+                    {"name": "$500,000", "display": "$500,000 en efectivo", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png"},
+                    {"name": "Pokémon Shiny ✨", "display": "Pokémon Shiny Random ✨", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-stone.png"},
+                ]
 
                 if roll < 0.75:
                     add_item_to_inventory(player, "Oran Berry")
                     reward_info = {
                         "type": "item",
                         "name": "Oran Berry",
-                        "display": "Oran Berry",
+                        "display": "Oran Berry (x1)",
                         "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png",
                     }
                 elif roll < 0.80:
@@ -1436,14 +1453,6 @@ class SubastaPokemonMode(BaseGameMode):
                         "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png",
                     }
                 elif roll < 0.85:
-                    add_item_to_inventory(player, "Capsula Habilidad")
-                    reward_info = {
-                        "type": "item",
-                        "name": "Capsula Habilidad",
-                        "display": "Cápsula Habilidad",
-                        "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ability-capsule.png",
-                    }
-                elif roll < 0.90:
                     add_item_to_inventory(player, "MT Flamethrower")
                     reward_info = {
                         "type": "item",
@@ -1451,7 +1460,7 @@ class SubastaPokemonMode(BaseGameMode):
                         "display": "MT Flamethrower",
                         "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png",
                     }
-                elif roll < 0.95:
+                elif roll < 0.90:
                     add_item_to_inventory(player, "MT Shadow Ball")
                     reward_info = {
                         "type": "item",
@@ -1459,46 +1468,88 @@ class SubastaPokemonMode(BaseGameMode):
                         "display": "MT Shadow Ball",
                         "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png",
                     }
+                elif roll < 0.95:
+                    add_item_to_inventory(player, "Capsula Habilidad")
+                    reward_info = {
+                        "type": "item",
+                        "name": "Capsula Habilidad",
+                        "display": "Cápsula Habilidad",
+                        "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ability-capsule.png",
+                    }
                 elif roll < 0.98:
                     porygon_data = poke_api.fetch_pokemon_data("Porygon", level_cap=20)
                     player.setdefault("pokemon", []).append(porygon_data)
                     add_item_to_inventory(player, "Up-Grade")
+                    nature_str = porygon_data.get("nature", "Hardy")
+                    ability_str = porygon_data.get("ability", "Trace")
                     reward_info = {
                         "type": "porygon",
                         "name": "Porygon + Mejora",
-                        "display": "¡Porygon + Objeto Mejora (Up-Grade)!",
+                        "display": f"¡Porygon ({nature_str} / {ability_str}) + Objeto Mejora (Up-Grade)!",
                         "image": porygon_data.get("image_url") or "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/137.png",
+                        "pokemon": porygon_data,
                     }
                 elif roll < 0.99:
-                    player["money"] += 500000
+                    player["money"] = player.get("money", 0) + 500000
                     reward_info = {
                         "type": "money",
                         "name": "$500,000",
-                        "display": "$500,000 en efectivo",
-                        "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/nugget.png",
+                        "display": "¡$500,000 en efectivo!",
+                        "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png",
                     }
                 else:
                     from backend import database
                     chosen_poke = database.get_random_pokemon_from_db(year=1, auction_type="normal")
                     if not chosen_poke:
-                        chosen_poke = random.choice(poke_api.SAMPLE_POKEMON_POOLS["normal"])
+                        chosen_poke = random.choice(poke_api.SAMPLE_POKEMON_POOLS.get("normal", ["Pikachu", "Eevee", "Charmander", "Squirtle", "Bulbasaur"]))
                     shiny_data = poke_api.fetch_pokemon_data(chosen_poke, level_cap=20)
                     shiny_data["is_shiny"] = True
                     if shiny_data.get("shiny_image_url"):
                         shiny_data["image_url"] = shiny_data["shiny_image_url"]
                     player.setdefault("pokemon", []).append(shiny_data)
+                    nature_str = shiny_data.get("nature", "Hardy")
+                    ability_str = shiny_data.get("ability", "Static")
                     reward_info = {
                         "type": "shiny_pokemon",
-                        "name": f"{shiny_data['name']} Shiny",
-                        "display": f"¡{shiny_data['name']} Shiny ✨!",
+                        "name": f"{shiny_data['name']} Shiny ✨",
+                        "display": f"¡{shiny_data['name']} Shiny ✨ ({nature_str} / {ability_str})!",
                         "image": shiny_data.get("shiny_image_url") or shiny_data.get("image_url"),
+                        "pokemon": shiny_data,
                     }
 
                 await manager.send_personal(websocket, {
                     "event": "subasta_mystery_box_result",
                     "data": {
-                        "box_name": "Caja Misteriosa 1",
+                        "box_name": "Caja Misteriosa I",
                         "reward": reward_info,
+                        "pool": box_pool_preview,
+                    },
+                })
+            elif item_name == "Regalo del Primo jeque":
+                jeque_pool_preview = [
+                    {"name": "Galvantula", "display": "Galvantula", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/596.png"},
+                    {"name": "Scolipede", "display": "Scolipede", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/545.png"},
+                    {"name": "Sawk", "display": "Sawk", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/539.png"},
+                    {"name": "Gardevoir", "display": "Gardevoir", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/282.png"},
+                ]
+                chosen_species = random.choice(["Galvantula", "Scolipede", "Sawk", "Gardevoir"])
+                poke_data = poke_api.fetch_pokemon_data(chosen_species, level_cap=20)
+                player.setdefault("pokemon", []).append(poke_data)
+                nature_str = poke_data.get("nature", "Hardy")
+                ability_str = poke_data.get("ability", "")
+                reward_info = {
+                    "type": "pokemon",
+                    "name": poke_data["name"],
+                    "display": f"¡{poke_data['name']} ({nature_str} / {ability_str})!",
+                    "image": poke_data.get("image_url") or f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{poke_data.get('id', 1)}.png",
+                    "pokemon": poke_data,
+                }
+                await manager.send_personal(websocket, {
+                    "event": "subasta_mystery_box_result",
+                    "data": {
+                        "box_name": "Regalo del Primo jeque",
+                        "reward": reward_info,
+                        "pool": jeque_pool_preview,
                     },
                 })
             else:
@@ -1590,12 +1641,17 @@ class SubastaPokemonMode(BaseGameMode):
                     opt_level = opt.get("level")
                     t_name = (opt.get("target") or "este Pokémon").capitalize()
 
-                    if opt_item and inventory.get(opt_item, 0) <= 0:
-                        if not first_error:
-                            first_error = f"Necesitas {opt_item} para evolucionar a {t_name}."
-                        continue
+                    has_req_item = True
+                    if opt_item:
+                        has_req_item = inventory.get(opt_item, 0) > 0
+                        if not has_req_item and opt_item.lower().replace("-", " ") in ("up grade", "upgrade"):
+                            has_req_item = any(inventory.get(k, 0) > 0 for k in ("Up-Grade", "Up Grade", "Mejora", "Objeto Mejora"))
+                        if not has_req_item:
+                            if not first_error:
+                                first_error = f"Necesitas {opt_item} para evolucionar a {t_name}."
+                            continue
 
-                    if opt_trade and not poke.get("received_by_trade"):
+                    if opt_trade and not opt_item and not poke.get("received_by_trade"):
                         if not first_error:
                             first_error = "Este Pokémon debe haber sido recibido mediante intercambio."
                         continue
@@ -1628,7 +1684,13 @@ class SubastaPokemonMode(BaseGameMode):
 
                 if evolve_single_pokemon(poke, target_limit, target_name=target_species):
                     if evolution_item:
-                        remove_item_from_inventory(player, evolution_item)
+                        item_to_remove = evolution_item
+                        if evolution_item.lower().replace("-", " ") in ("up grade", "upgrade") and inventory.get(evolution_item, 0) <= 0:
+                            for alias in ("Up-Grade", "Up Grade", "Mejora", "Objeto Mejora"):
+                                if inventory.get(alias, 0) > 0:
+                                    item_to_remove = alias
+                                    break
+                        remove_item_from_inventory(player, item_to_remove)
                     poke["selected_moves"] = (poke.get("selected_moves", []) or [])[:4]
 
                 save_game_session(session_id, self.key, subasta_state)
