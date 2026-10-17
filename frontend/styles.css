@@ -1092,42 +1092,44 @@ button.btn-danger:hover {
   z-index: 2;
 }
 
-.backpack-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  z-index: 1050;
+/* ── Modales de Inventario (Mochila y Tienda) ────────────────────────────── */
+.inventory-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  background: rgba(0, 0, 0, 0.8) !important;
   display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999 !important;
+  padding: 1rem;
 }
 
-.backpack-backdrop--open {
-  display: block;
+.inventory-modal-overlay.is-open {
+  display: flex !important;
 }
 
-.backpack-menu {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  top: 50dvh;
-  left: 50vw;
-  transform: translate(-50%, -50%);
-  width: min(640px, calc(100vw - 2rem));
-  max-height: min(85vh, 680px);
-  max-height: min(85dvh, 680px);
-  overflow-y: auto;
-  display: none;
-  padding: 1.25rem;
-  background: var(--bg-surface-card);
-  border: 2px solid var(--border-bright);
-  box-shadow: 6px 6px 0 var(--border-neon);
-  z-index: 1100;
-}
-
-.backpack-menu--open {
-  display: block;
+.inventory-modal-overlay .backpack-menu {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  display: flex !important;
+  flex-direction: column;
+  width: min(640px, 100%) !important;
+  max-height: min(85vh, 680px) !important;
+  max-height: min(85dvh, 680px) !important;
+  padding: 1.25rem !important;
+  background: var(--bg-surface-card) !important;
+  border: 2.5px solid var(--border-bright) !important;
+  box-shadow: 6px 6px 0 var(--border-neon) !important;
+  z-index: 100000 !important;
+  margin: auto !important;
 }
 
 .backpack-menu-header {
@@ -1141,17 +1143,17 @@ button.btn-danger:hover {
 
 .backpack-menu-header h4 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 .btn-close-menu {
   background: transparent;
   border: 1px solid var(--border-bright);
   color: var(--text-muted);
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 700;
   line-height: 1;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.6rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1160,6 +1162,12 @@ button.btn-danger:hover {
   background: var(--accent-danger);
   border-color: var(--accent-danger);
   color: #fff;
+}
+
+.backpack-menu-body {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding-right: 0.25rem;
 }
 
 .bag-item-row,
@@ -1204,6 +1212,16 @@ button.btn-danger:hover {
 }
 
 @media (max-width: 560px) {
+  .inventory-modal-overlay {
+    padding: 0.5rem !important;
+  }
+
+  .inventory-modal-overlay .backpack-menu {
+    width: 100% !important;
+    max-height: 90dvh !important;
+    padding: 1rem 0.75rem !important;
+  }
+
   .inventory-actions {
     flex-wrap: wrap;
   }

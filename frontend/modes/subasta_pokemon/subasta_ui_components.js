@@ -997,131 +997,138 @@ export function renderMyPokemonInventory(data, sessionClient) {
       </div>
 
       <div class="inventory-actions">
-        <div class="backpack-backdrop"></div>
         <div class="backpack-panel">
           <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="backpack-menu" aria-expanded="false">🎒 Mochila</button>
-          <div class="backpack-menu" data-menu="backpack-menu">
-            <div class="backpack-menu-header">
-              <h4>Mochila</h4>
-              <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
-            </div>
-          ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
-            <div class="bag-item-row">
-              <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
-              <a href="${buildWikidexUrl(getItemWikiName(itemName))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(itemName)}</a>
-              <span class="item-qty">x${qty}</span>
-              ${pokemonList.length && itemName === "Capsula Habilidad" ? `<select class="ability-capsule-pokemon-select" data-item-name="${itemName}">
-                ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
-              </select>
-              <select class="ability-capsule-select" data-poke-idx="0">
-                ${(pokemonList[0]?.abilities || []).filter((ability) => ability !== pokemonList[0]?.ability).map((ability) => `<option value="${ability}">${ability}</option>`).join("")}
-              </select>
-              <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName === "Cambia Formas" ? (() => {
-                const selectedPoke = pokemonList[0];
-                const formOptions = Array.isArray(selectedPoke?.regional_form_options) ? selectedPoke.regional_form_options : [];
-                return `
-                  <select class="form-change-pokemon-select" data-item-name="${itemName}">
-                    ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
-                  </select>
-                  <select class="form-change-form-select" data-poke-idx="0">
-                    ${formOptions.length ? formOptions.map((option) => `<option value="${option.target_name}">${option.display_name}</option>`).join("") : `<option value="">Sin formas regionales</option>`}
-                  </select>
-                  <button class="btn btn-small btn-secondary btn-use-form-change" data-item-name="${itemName}">Usar</button>
-                `;
-              })() : pokemonList.length && itemName.startsWith("MT ") ? (() => {
-                const moveName = getTmMoveName(itemName);
-                const classified = pokemonList.map((poke, idx) => {
-                  const compat = checkTmCompatibility(poke, moveName);
-                  return { poke, idx, compat };
-                });
-
-                classified.sort((a, b) => {
-                  const score = (reason) => (reason === "can_learn" ? 0 : reason === "already_learned" ? 1 : 2);
-                  const diff = score(a.compat.reason) - score(b.compat.reason);
-                  if (diff !== 0) return diff;
-                  return a.idx - b.idx;
-                });
-
-                const hasCompatible = classified.some((c) => c.compat.reason === "can_learn");
-                const firstChoice = classified[0];
-                const initialCompat = hasCompatible
-                  ? firstChoice.compat
-                  : { reason: "incompatible", label: "❌ Sin compatibles", badgeClass: "badge-danger" };
-                const canUseInitial = hasCompatible && firstChoice.compat.canLearn;
-                const selectStateClass = !hasCompatible
-                  ? "is-incompatible"
-                  : canUseInitial
-                  ? "is-compatible"
-                  : firstChoice?.compat?.reason === "already_learned"
-                  ? "is-warning"
-                  : "is-incompatible";
-
-                const optionsHtml = classified.map(({ poke, idx, compat }) => {
-                  let tag = "❌";
-                  let note = "No";
-                  if (compat.reason === "can_learn") {
-                    tag = "✅";
-                    note = "Aprende";
-                  } else if (compat.reason === "already_learned") {
-                    tag = "⚠️";
-                    note = "Ya sabe";
-                  }
-                  return `<option value="${idx}">${tag} ${poke.name || `Pokémon ${idx + 1}`} (${note})</option>`;
-                }).join("");
-
-                return `
-                  <div class="tm-action-group">
-                    <select class="tm-pokemon-select ${selectStateClass}" data-item-name="${itemName}">
-                      ${!hasCompatible ? `<option value="" disabled selected>❌ Sin compatibles</option>` : ""}
-                      ${optionsHtml}
-                    </select>
-                    <span class="tm-compat-status badge ${initialCompat.badgeClass}">${initialCompat.label}</span>
-                    <button class="btn btn-small btn-secondary btn-use-tm" data-item-name="${itemName}" ${canUseInitial ? "" : "disabled"} title="${canUseInitial ? `Enseñar ${moveName} a ${firstChoice?.poke?.name}` : 'Selecciona un Pokémon compatible'}">Usar</button>
-                  </div>
-                `;
-              })() : pokemonList.length ? (() => {
-                const eligiblePokes = pokemonList
-                  .map((poke, idx) => ({ poke, idx }))
-                  .filter(({ poke }) => !isMegaPokemon(poke));
-                if (!eligiblePokes.length) {
-                  return `<span class="text-muted" style="font-size:0.75rem; margin-left:6px;">(Sin Pokémon para equipar)</span>`;
-                }
-                return `
-                  <select class="bag-item-select" data-item-name="${itemName}">
-                    ${eligiblePokes.map(({ poke, idx }) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
-                  </select>
-                  <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>
-                `;
-              })() : ""}
-            </div>
-          `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
-
-          </div>
         </div>
-
         ${shopOpen ? `
           <div class="backpack-panel">
             <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="shop-menu" aria-expanded="false">🛒 Tienda</button>
-            <div class="backpack-menu shop-menu" data-menu="shop-menu">
-              <div class="backpack-menu-header">
-                <h4>${shopTitle}</h4>
-                <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
-              </div>
-              <p class="shop-balance">Dinero actual: <strong>$${formatMoneyCompact(myData.money || 0)}</strong></p>
-              <div class="shop-items">
-                ${currentShopItems.map((shopItem) => `
-                  <div class="shop-item-row">
-                    <img src="${buildItemSpriteUrl(shopItem.name)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
-                    <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
-                    <span>$${formatMoneyCompact(shopItem.price)}</span>
-                    <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
-                  </div>
-                `).join("")}
-              </div>
-            </div>
           </div>
         ` : ""}
+      </div>
+
+      <div class="inventory-modal-overlay" data-modal="backpack-menu" aria-hidden="true">
+        <div class="backpack-menu" data-menu="backpack-menu">
+          <div class="backpack-menu-header">
+            <h4>🎒 Mochila</h4>
+            <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
+          </div>
+          <div class="backpack-menu-body">
+            ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
+              <div class="bag-item-row">
+                <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
+                <a href="${buildWikidexUrl(getItemWikiName(itemName))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(itemName)}</a>
+                <span class="item-qty">x${qty}</span>
+                ${pokemonList.length && itemName === "Capsula Habilidad" ? `<select class="ability-capsule-pokemon-select" data-item-name="${itemName}">
+                  ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+                </select>
+                <select class="ability-capsule-select" data-poke-idx="0">
+                  ${(pokemonList[0]?.abilities || []).filter((ability) => ability !== pokemonList[0]?.ability).map((ability) => `<option value="${ability}">${ability}</option>`).join("")}
+                </select>
+                <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName === "Cambia Formas" ? (() => {
+                  const selectedPoke = pokemonList[0];
+                  const formOptions = Array.isArray(selectedPoke?.regional_form_options) ? selectedPoke.regional_form_options : [];
+                  return `
+                    <select class="form-change-pokemon-select" data-item-name="${itemName}">
+                      ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+                    </select>
+                    <select class="form-change-form-select" data-poke-idx="0">
+                      ${formOptions.length ? formOptions.map((option) => `<option value="${option.target_name}">${option.display_name}</option>`).join("") : `<option value="">Sin formas regionales</option>`}
+                    </select>
+                    <button class="btn btn-small btn-secondary btn-use-form-change" data-item-name="${itemName}">Usar</button>
+                  `;
+                })() : pokemonList.length && itemName.startsWith("MT ") ? (() => {
+                  const moveName = getTmMoveName(itemName);
+                  const classified = pokemonList.map((poke, idx) => {
+                    const compat = checkTmCompatibility(poke, moveName);
+                    return { poke, idx, compat };
+                  });
+
+                  classified.sort((a, b) => {
+                    const score = (reason) => (reason === "can_learn" ? 0 : reason === "already_learned" ? 1 : 2);
+                    const diff = score(a.compat.reason) - score(b.compat.reason);
+                    if (diff !== 0) return diff;
+                    return a.idx - b.idx;
+                  });
+
+                  const hasCompatible = classified.some((c) => c.compat.reason === "can_learn");
+                  const firstChoice = classified[0];
+                  const initialCompat = hasCompatible
+                    ? firstChoice.compat
+                    : { reason: "incompatible", label: "❌ Sin compatibles", badgeClass: "badge-danger" };
+                  const canUseInitial = hasCompatible && firstChoice.compat.canLearn;
+                  const selectStateClass = !hasCompatible
+                    ? "is-incompatible"
+                    : canUseInitial
+                    ? "is-compatible"
+                    : firstChoice?.compat?.reason === "already_learned"
+                    ? "is-warning"
+                    : "is-incompatible";
+
+                  const optionsHtml = classified.map(({ poke, idx, compat }) => {
+                    let tag = "❌";
+                    let note = "No";
+                    if (compat.reason === "can_learn") {
+                      tag = "✅";
+                      note = "Aprende";
+                    } else if (compat.reason === "already_learned") {
+                      tag = "⚠️";
+                      note = "Ya sabe";
+                    }
+                    return `<option value="${idx}">${tag} ${poke.name || `Pokémon ${idx + 1}`} (${note})</option>`;
+                  }).join("");
+
+                  return `
+                    <div class="tm-action-group">
+                      <select class="tm-pokemon-select ${selectStateClass}" data-item-name="${itemName}">
+                        ${!hasCompatible ? `<option value="" disabled selected>❌ Sin compatibles</option>` : ""}
+                        ${optionsHtml}
+                      </select>
+                      <span class="tm-compat-status badge ${initialCompat.badgeClass}">${initialCompat.label}</span>
+                      <button class="btn btn-small btn-secondary btn-use-tm" data-item-name="${itemName}" ${canUseInitial ? "" : "disabled"} title="${canUseInitial ? `Enseñar ${moveName} a ${firstChoice?.poke?.name}` : 'Selecciona un Pokémon compatible'}">Usar</button>
+                    </div>
+                  `;
+                })() : pokemonList.length ? (() => {
+                  const eligiblePokes = pokemonList
+                    .map((poke, idx) => ({ poke, idx }))
+                    .filter(({ poke }) => !isMegaPokemon(poke));
+                  if (!eligiblePokes.length) {
+                    return `<span class="text-muted" style="font-size:0.75rem; margin-left:6px;">(Sin Pokémon para equipar)</span>`;
+                  }
+                  return `
+                    <select class="bag-item-select" data-item-name="${itemName}">
+                      ${eligiblePokes.map(({ poke, idx }) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+                    </select>
+                    <button class="btn btn-small btn-secondary btn-item-give" data-item-name="${itemName}">Dar</button>
+                  `;
+                })() : ""}
+              </div>
+            `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
+          </div>
         </div>
+      </div>
+
+      ${shopOpen ? `
+        <div class="inventory-modal-overlay" data-modal="shop-menu" aria-hidden="true">
+          <div class="backpack-menu shop-menu" data-menu="shop-menu">
+            <div class="backpack-menu-header">
+              <h4>🛒 ${shopTitle}</h4>
+              <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
+            </div>
+            <p class="shop-balance">Dinero actual: <strong>$${formatMoneyCompact(myData.money || 0)}</strong></p>
+            <div class="backpack-menu-body shop-items">
+              ${currentShopItems.map((shopItem) => `
+                <div class="shop-item-row">
+                  <img src="${buildItemSpriteUrl(shopItem.name)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
+                  <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
+                  <span>$${formatMoneyCompact(shopItem.price)}</span>
+                  <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      ` : ""}
     </div>
   `;
 }

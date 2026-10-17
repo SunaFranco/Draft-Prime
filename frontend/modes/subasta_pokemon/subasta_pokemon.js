@@ -162,9 +162,25 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       html = renderAdminAndStandingsView(state, sessionClient, isHost);
     }
 
+    const openModal = document.querySelector(".inventory-modal-overlay.is-open");
+    const currentlyOpenTarget = openModal ? openModal.dataset.modal : null;
+    document.querySelectorAll("body > .inventory-modal-overlay").forEach((el) => el.remove());
+
     const inventoryHtml = renderMyPokemonInventory(state, sessionClient);
     draftContainer.innerHTML = html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
+
+    if (currentlyOpenTarget) {
+      const modalToRestore = document.querySelector(`.inventory-modal-overlay[data-modal="${currentlyOpenTarget}"]`);
+      if (modalToRestore) {
+        document.body.appendChild(modalToRestore);
+        modalToRestore.classList.add("is-open");
+        modalToRestore.setAttribute("aria-hidden", "false");
+        const btn = document.querySelector(`[data-menu-target="${currentlyOpenTarget}"]`);
+        if (btn) btn.setAttribute("aria-expanded", "true");
+        document.body.style.overflow = "hidden";
+      }
+    }
   }
 
 
@@ -434,39 +450,50 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
-    const backdrop = document.querySelector(".backpack-backdrop");
-    const closeAllInventoryMenus = () => {
-      document.querySelectorAll(".backpack-menu--open").forEach((openMenu) => {
-        openMenu.classList.remove("backpack-menu--open");
-        const openButton = document.querySelector(`[data-menu-target="${openMenu.dataset.menu}"]`);
-        if (openButton) openButton.setAttribute("aria-expanded", "false");
+    const closeAllInventoryModals = () => {
+      document.querySelectorAll(".inventory-modal-overlay.is-open").forEach((modal) => {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        const target = modal.dataset.modal;
+        const btn = document.querySelector(`[data-menu-target="${target}"]`);
+        if (btn) btn.setAttribute("aria-expanded", "false");
       });
-      if (backdrop) backdrop.classList.remove("backpack-backdrop--open");
+      document.body.style.overflow = "";
     };
-
-    if (backdrop) {
-      backdrop.addEventListener("click", closeAllInventoryMenus);
-    }
 
     document.querySelectorAll(".btn-close-menu").forEach((closeBtn) => {
       closeBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        closeAllInventoryMenus();
+        closeAllInventoryModals();
+      });
+    });
+
+    document.querySelectorAll(".inventory-modal-overlay").forEach((overlay) => {
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) {
+          closeAllInventoryModals();
+        }
       });
     });
 
     document.querySelectorAll(".inventory-menu-toggle").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const menu = btn.parentElement?.querySelector(`[data-menu="${btn.dataset.menuTarget}"]`);
-        if (!menu) return;
-        const willOpen = !menu.classList.contains("backpack-menu--open");
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const target = btn.dataset.menuTarget;
+        const modal = document.querySelector(`.inventory-modal-overlay[data-modal="${target}"]`);
+        if (!modal) return;
 
-        closeAllInventoryMenus();
+        const willOpen = !modal.classList.contains("is-open");
+        closeAllInventoryModals();
 
         if (willOpen) {
-          menu.classList.add("backpack-menu--open");
+          if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+          }
+          modal.classList.add("is-open");
+          modal.setAttribute("aria-hidden", "false");
           btn.setAttribute("aria-expanded", "true");
-          if (backdrop) backdrop.classList.add("backpack-backdrop--open");
+          document.body.style.overflow = "hidden";
         }
       });
     });
