@@ -203,14 +203,16 @@ async function playTrafficAnimation(finalAmount, onComplete) {
   const maxAmount = 125000;
 
   if (finalAmount === 0) {
-    await wait(1200);
+    await wait(1800);
     counter.style.color = "#ef4444";
     status.innerHTML = `<span style="color: #ef4444; font-size: 1.1rem; font-weight: bold;">¡Te estafaron! No recibiste nada y perdiste tu Pokémon...</span>`;
   } else {
+    // Animación notablemente más lenta para generar suspenso
     for (let current = step; current <= finalAmount; current += step) {
       counter.textContent = `$${current.toLocaleString()}`;
       const progress = current / maxAmount;
-      const delay = 80 + progress * 300;
+      // Empieza en 350ms y se va ralentizando hasta ~950ms conforme sube el valor
+      const delay = 350 + progress * 600;
       await wait(delay);
     }
     counter.textContent = `$${finalAmount.toLocaleString()}`;
@@ -218,7 +220,7 @@ async function playTrafficAnimation(finalAmount, onComplete) {
     status.innerHTML = `<span style="color: #22c55e; font-size: 1.1rem; font-weight: bold;">¡Vendido por $${finalAmount.toLocaleString()}!</span>`;
   }
 
-  await wait(2500);
+  await wait(3000);
   overlay.remove();
   onComplete();
 }
