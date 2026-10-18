@@ -11,6 +11,16 @@ ITEMS_POOL = [
     "Focus Sash", "Assault Vest", "Heavy-Duty Boots", "Eviolite", "Rocky Helmet"
 ]
 
+BERRIES_POOL = [
+    "Oran Berry", "Sitrus Berry", "Lum Berry", "Cheri Berry", "Chesto Berry",
+    "Pecha Berry", "Rawst Berry", "Aspear Berry", "Leppa Berry", "Persim Berry",
+    "Figy Berry", "Wiki Berry", "Mago Berry", "Aguav Berry", "Iapapa Berry",
+    "Liechi Berry", "Ganlon Berry", "Salac Berry", "Petaya Berry", "Apicot Berry",
+    "Custap Berry", "Occa Berry", "Passho Berry", "Wacan Berry", "Rindo Berry",
+    "Yache Berry", "Chople Berry", "Shuca Berry", "Coba Berry", "Haban Berry",
+    "Colbur Berry", "Babiri Berry", "Roseli Berry",
+]
+
 CABLE_LINK_ITEM = "Cable Link"
 ABILITY_CAPSULE_ITEM = "Capsula Habilidad"
 TM_BOOSTER_PACK_SIZE = 2
@@ -47,6 +57,12 @@ EVENTS_YEAR_1 = [
         "title": "MT BOOSTER PACK",
         "description": "Encontraste un MT BOOSTER PACK con 4 MTs aleatorias.",
         "type": "tm_booster_pack",
+    },
+    {
+        "id": "e1_rebuscar_basura",
+        "title": "🗑️ Rebuscar la Basura",
+        "description": "Rebuscas en la basura y consigues 3 tiradas en la ruleta (5% Leftovers, 95% Baya aleatoria).",
+        "type": "trash_scavenge",
     },
 ]
 
@@ -105,10 +121,21 @@ def get_random_event_for_year(year: int, turn: int = 1) -> dict:
         pool = EVENTS_YEAR_3
 
     event = random.choice(pool).copy()
-    if event.get("type") == "tm_booster_pack":
+    if event.get("type") == "trash_scavenge":
+        spins = 3
+        granted = []
+        for _ in range(spins):
+            if random.random() < 0.05:
+                granted.append("Leftovers")
+            else:
+                granted.append(random.choice(BERRIES_POOL))
+        event["granted_items"] = granted
+        event["reward_is_random"] = True
+        event["roulette_pool"] = ["Leftovers"] + BERRIES_POOL
+    elif event.get("type") == "tm_booster_pack":
         event["granted_items"] = random.sample(list(TM_MOVES), min(TM_BOOSTER_PACK_SIZE, len(TM_MOVES)))
         event["reward_is_random"] = True
-    if event.get("type") in ("item_grant", "mixed_grant") and not event.get("granted_item"):
+    elif event.get("type") in ("item_grant", "mixed_grant") and not event.get("granted_item"):
         event["granted_item"] = random.choice(ITEMS_POOL)
         event["reward_is_random"] = True
 

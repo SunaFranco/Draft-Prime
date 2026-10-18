@@ -1251,13 +1251,7 @@ class SubastaPokemonMode(BaseGameMode):
 
         elif action == "subasta_trade_cancel":
             trade = subasta_state.get("trade_session")
-            if not trade:
-                return True
-            status = trade.get("status")
-            if status in ("selecting", "confirming", "completed", "cancelled"):
-                if username not in (trade.get("initiator"), trade.get("target")):
-                    return True
-            else:
+            if not trade or username != trade.get("initiator"):
                 return True
 
             subasta_state["trade_session"] = None

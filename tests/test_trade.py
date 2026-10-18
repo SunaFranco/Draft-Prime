@@ -187,7 +187,7 @@ class TestTradeMultipleTimes(unittest.IsolatedAsyncioTestCase):
 
     @patch("backend.modes.subasta_pokemon.handler.save_game_session")
     async def test_cancel_trade_and_dismiss_completed(self, mock_save):
-        # Iniciar y cancelar
+        # Iniciar trade: Ash -> Gary
         await self.mode.handle_action(
             self.session,
             "Ash",
@@ -196,13 +196,25 @@ class TestTradeMultipleTimes(unittest.IsolatedAsyncioTestCase):
             "ws_ash",
             self.manager,
         )
-        # Cancelar en fase selecting
+        # El target (Gary) intenta cancelar: NO debe permitirse
         await self.mode.handle_action(
             self.session,
             "Gary",
             "subasta_trade_cancel",
             {},
             "ws_gary",
+            self.manager,
+        )
+        self.assertIsNotNone(self.session["subasta"]["trade_session"])
+        self.assertEqual(self.session["subasta"]["trade_session"]["status"], "selecting")
+
+        # El que inició (Ash) cancela: SÍ debe cancelarse
+        await self.mode.handle_action(
+            self.session,
+            "Ash",
+            "subasta_trade_cancel",
+            {},
+            "ws_ash",
             self.manager,
         )
         self.assertIsNone(self.session["subasta"]["trade_session"])
@@ -242,7 +254,17 @@ class TestTradeMultipleTimes(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(self.session["subasta"]["trade_session"]["status"], "completed")
 
-        # Cerrar el cartel de trade completado
+        # Solo el iniciador (Ash) puede cerrar el cartel
+        await self.mode.handle_action(
+            self.session,
+            "Gary",
+            "subasta_trade_cancel",
+            {},
+            "ws_gary",
+            self.manager,
+        )
+        self.assertIsNotNone(self.session["subasta"]["trade_session"])
+
         await self.mode.handle_action(
             self.session,
             "Ash",

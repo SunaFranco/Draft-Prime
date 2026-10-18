@@ -127,7 +127,7 @@ async function playMysteryBoxRoulette(boxData, onComplete) {
 }
 
 async function playEventRoulette(event, onComplete) {
-  const rewards = event.type === "tm_booster_pack" ? event.granted_items : [event.granted_item];
+  const rewards = event.granted_items?.length ? event.granted_items : [event.granted_item];
   const overlay = document.createElement("div");
   overlay.className = "event-roulette-overlay";
   overlay.innerHTML = `
@@ -146,13 +146,18 @@ async function playEventRoulette(event, onComplete) {
   const rouletteWindow = overlay.querySelector(".event-roulette-window");
   const status = overlay.querySelector(".event-roulette-status");
 
+  const pool = Array.isArray(event.roulette_pool) && event.roulette_pool.length > 0
+    ? event.roulette_pool
+    : ROULETTE_ITEMS;
+  const buildItems = (count) => Array.from({ length: count }, () => pool[Math.floor(Math.random() * pool.length)]);
+
   for (let index = 0; index < rewards.length; index += 1) {
     const reward = rewards[index];
     const targetIndex = 18 + Math.floor(Math.random() * 5);
     const options = [
-      ...buildRouletteItems(targetIndex),
+      ...buildItems(targetIndex),
       reward,
-      ...buildRouletteItems(6),
+      ...buildItems(6),
     ];
     strip.innerHTML = options.map((item) => `
       <div class="event-roulette-slot">
