@@ -1180,7 +1180,8 @@ class SubastaPokemonMode(BaseGameMode):
             target_username = message.get("target_username")
             poke_idx = int(message.get("poke_index", -1))
             inventory = normalize_item_inventory(player.get("items", {})) if player else {}
-            if subasta_state.get("trade_session"):
+            current_trade = subasta_state.get("trade_session")
+            if current_trade and current_trade.get("status") in ("selecting", "confirming"):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Ya hay un intercambio en curso."}})
                 return True
             if not player or target_username not in subasta_state["players"] or target_username == username:
@@ -1250,7 +1251,13 @@ class SubastaPokemonMode(BaseGameMode):
 
         elif action == "subasta_trade_cancel":
             trade = subasta_state.get("trade_session")
-            if not trade or trade.get("status") != "confirming" or username != trade.get("initiator"):
+            if not trade:
+                return True
+            status = trade.get("status")
+            if status in ("selecting", "confirming", "completed", "cancelled"):
+                if username not in (trade.get("initiator"), trade.get("target")):
+                    return True
+            else:
                 return True
 
             subasta_state["trade_session"] = None

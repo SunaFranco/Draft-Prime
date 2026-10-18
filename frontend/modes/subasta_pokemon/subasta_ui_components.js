@@ -850,7 +850,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
           ${tradeSession.target_pokemon ? `
             <p><strong>${tradeSession.initiator_pokemon.name}</strong> ↔ <strong>${tradeSession.target_pokemon.name}</strong></p>
             <button class="btn btn-small btn-primary" id="btn-confirm-trade">Confirmar intercambio</button>
-            ${tradeSession.initiator === currentUsername ? '<button class="btn btn-small btn-danger" id="btn-cancel-trade">Rechazar intercambio</button>' : ''}
+            <button class="btn btn-small btn-danger" id="btn-cancel-trade">Cancelar intercambio</button>
             <p>${Object.keys(tradeSession.confirms || {}).length}/2 confirmaciones</p>
           ` : tradeSession.target === currentUsername ? `
             <p>Elige uno de tus Pokémon para ofrecerlo:</p>
@@ -858,10 +858,19 @@ export function renderMyPokemonInventory(data, sessionClient) {
               ${(pokemonList || []).map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
             </select>
             <button class="btn btn-small btn-primary" id="btn-select-trade-pokemon">Elegir Pokémon</button>
-          ` : '<p>Esperando a que el otro jugador elija su Pokémon.</p>'}
+            <button class="btn btn-small btn-danger" id="btn-cancel-trade">Rechazar</button>
+          ` : `
+            <p>Esperando a que el otro jugador elija su Pokémon.</p>
+            <button class="btn btn-small btn-danger" id="btn-cancel-trade">Cancelar solicitud</button>
+          `}
         </div>
       ` : ""}
-      ${tradeSession && tradeSession.status === 'completed' && (tradeSession.initiator === currentUsername || tradeSession.target === currentUsername) ? '<div class="trade-panel"><strong>Intercambio realizado.</strong> Los dos Pokémon han cambiado de entrenador.</div>' : ""}
+      ${tradeSession && tradeSession.status === 'completed' && (tradeSession.initiator === currentUsername || tradeSession.target === currentUsername) ? `
+        <div class="trade-panel">
+          <span><strong>Intercambio realizado.</strong> Los dos Pokémon han cambiado de entrenador.</span>
+          <button class="btn btn-small btn-secondary" id="btn-cancel-trade" style="margin-left: 8px;">Cerrar</button>
+        </div>
+      ` : ""}
       <div class="inventory-grid">
         ${pokemonList.length ? pokemonList.map((poke, pokeIdx) => {
           const isMega = isMegaPokemon(poke);
