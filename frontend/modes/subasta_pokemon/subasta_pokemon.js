@@ -181,6 +181,48 @@ async function playEventRoulette(event, onComplete) {
   onComplete();
 }
 
+async function playTrafficAnimation(finalAmount, onComplete) {
+  const overlay = document.createElement("div");
+  overlay.className = "event-roulette-overlay";
+  overlay.innerHTML = `
+    <div class="event-roulette-modal">
+      <div class="event-roulette-kicker">🕶️ TRÁFICO POKÉMON</div>
+      <h2>💰 Vendiendo Pokémon...</h2>
+      <div class="traffic-counter" style="font-size: 2.5rem; font-weight: bold; color: #f59e0b; margin: 1.5rem 0; text-align: center;">
+        $0
+      </div>
+      <p class="event-roulette-status">Negociando el precio...</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const counter = overlay.querySelector(".traffic-counter");
+  const status = overlay.querySelector(".event-roulette-status");
+
+  const step = 5000;
+  const maxAmount = 125000;
+
+  if (finalAmount === 0) {
+    await wait(1200);
+    counter.style.color = "#ef4444";
+    status.innerHTML = `<span style="color: #ef4444; font-size: 1.1rem; font-weight: bold;">¡Te estafaron! No recibiste nada y perdiste tu Pokémon...</span>`;
+  } else {
+    for (let current = step; current <= finalAmount; current += step) {
+      counter.textContent = `$${current.toLocaleString()}`;
+      const progress = current / maxAmount;
+      const delay = 80 + progress * 300;
+      await wait(delay);
+    }
+    counter.textContent = `$${finalAmount.toLocaleString()}`;
+    counter.style.color = "#22c55e";
+    status.innerHTML = `<span style="color: #22c55e; font-size: 1.1rem; font-weight: bold;">¡Vendido por $${finalAmount.toLocaleString()}!</span>`;
+  }
+
+  await wait(2500);
+  overlay.remove();
+  onComplete();
+}
+
 export class SubastaPokemonModeUI extends BaseGameModeUI {
   constructor() {
     super("subasta_pokemon", "Subasta (Pokemon)");
@@ -402,6 +444,31 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           });
         });
       }
+    }
+
+    // Tráfico Pokémon
+    const btnTrafficSell = document.getElementById("btn-pokemon-traffic-sell");
+    if (btnTrafficSell) {
+      btnTrafficSell.addEventListener("click", () => {
+        const select = document.getElementById("traffic-pokemon-select");
+        const pokeIdx = parseInt(select.value, 10);
+        const event = state.current_turn_event || {};
+        btnTrafficSell.disabled = true;
+        const skipBtn = document.getElementById("btn-pokemon-traffic-skip");
+        if (skipBtn) skipBtn.disabled = true;
+        playTrafficAnimation(event.traffic_amount || 0, () => {
+          sessionClient.send({ action: "subasta_pokemon_traffic", poke_index: pokeIdx });
+        });
+      });
+    }
+    const btnTrafficSkip = document.getElementById("btn-pokemon-traffic-skip");
+    if (btnTrafficSkip) {
+      btnTrafficSkip.addEventListener("click", () => {
+        btnTrafficSkip.disabled = true;
+        const sellBtn = document.getElementById("btn-pokemon-traffic-sell");
+        if (sellBtn) sellBtn.disabled = true;
+        sessionClient.send({ action: "subasta_pokemon_traffic", poke_index: -1 });
+      });
     }
 
     // Avanzar Etapa (Host)

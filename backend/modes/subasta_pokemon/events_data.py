@@ -64,6 +64,12 @@ EVENTS_YEAR_1 = [
         "description": "Rebuscas en la basura y consigues 3 tiradas en la ruleta (5% Leftovers, 95% Baya aleatoria).",
         "type": "trash_scavenge",
     },
+    {
+        "id": "e1_trafico_pokemon",
+        "title": "🕶️ Tráfico Pokémon",
+        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
+        "type": "pokemon_traffic",
+    },
 ]
 
 EVENTS_YEAR_2 = [
@@ -121,7 +127,9 @@ def get_random_event_for_year(year: int, turn: int = 1) -> dict:
         pool = EVENTS_YEAR_3
 
     event = random.choice(pool).copy()
-    if event.get("type") == "trash_scavenge":
+    if event.get("type") == "pokemon_traffic":
+        event["traffic_amount"] = _generate_traffic_amount()
+    elif event.get("type") == "trash_scavenge":
         spins = 3
         granted = []
         for _ in range(spins):
@@ -140,6 +148,20 @@ def get_random_event_for_year(year: int, turn: int = 1) -> dict:
         event["reward_is_random"] = True
 
     return event
+
+
+def _generate_traffic_amount() -> int:
+    """Genera un monto entre 0 y 125,000 con probabilidad creciente de parada."""
+    amount = 0
+    step = 5000
+    max_amount = 125000
+    while amount < max_amount:
+        # A medida que el monto sube, más probable que se detenga
+        stop_chance = (amount + step) / (max_amount + step)
+        if random.random() < stop_chance:
+            return amount
+        amount += step
+    return max_amount
 
 
 def normalize_item_counts(items) -> dict:

@@ -1028,6 +1028,42 @@ class SubastaPokemonMode(BaseGameMode):
             await self._broadcast_subasta_state(session, manager)
             return True
 
+        elif action == "subasta_pokemon_traffic":
+            current_stage = subasta_state["current_stage"]
+            if current_stage not in (3, 7, 11):
+                return True
+
+            player = subasta_state["players"].get(username)
+            event = subasta_state["current_turn_events"].get(username)
+
+            if not player or not event or player.get("resolved_turn") or event.get("type") != "pokemon_traffic":
+                return True
+
+            poke_idx = message.get("poke_index")
+
+            # Rechazar la oferta (poke_index = -1)
+            if poke_idx is None or poke_idx == -1:
+                player["resolved_turn"] = True
+                self._advance_after_event_resolution(subasta_state)
+                save_game_session(session_id, self.key, subasta_state)
+                await self._broadcast_subasta_state(session, manager)
+                return True
+
+            if not isinstance(poke_idx, int) or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido."}})
+                return True
+
+            # Eliminar el Pokémon y dar el dinero
+            player["pokemon"].pop(poke_idx)
+            traffic_amount = event.get("traffic_amount", 0)
+            player["money"] += traffic_amount
+            player["resolved_turn"] = True
+
+            self._advance_after_event_resolution(subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
         elif action == "subasta_next_stage":
             if username != session["host"]:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede avanzar de etapa."}})

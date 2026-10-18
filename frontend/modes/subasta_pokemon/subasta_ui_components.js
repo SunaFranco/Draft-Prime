@@ -577,6 +577,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const pokemonList = myData.pokemon || [];
   const natureNames = Object.keys(NATURE_EFFECTS);
   const isNatureChange = turnEvent.type === "nature_change";
+  const isPokemonTraffic = turnEvent.type === "pokemon_traffic";
   const isItemReward = turnEvent.reward_is_random === true
     && (turnEvent.granted_item || turnEvent.granted_items?.length);
 
@@ -604,6 +605,18 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
               ${natureNames.filter((nature) => nature !== (pokemonList[0]?.nature || "")).map((nature) => `<option value="${nature}">${formatNature(nature)}</option>`).join("")}
             </select>
             <button id="btn-change-nature" class="btn btn-primary btn-large" ${pokemonList.length ? "" : "disabled"}>Cambiar naturaleza</button>
+          </div>
+        ` : isPokemonTraffic ? `
+          <div class="pokemon-traffic-form">
+            <p>Elige un Pokémon para vender:</p>
+            <select id="traffic-pokemon-select" ${pokemonList.length ? "" : "disabled"}>
+              ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+            </select>
+            <div style="display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap;">
+              <button id="btn-pokemon-traffic-sell" class="btn btn-primary btn-large" ${pokemonList.length ? "" : "disabled"}>💰 Vender Pokémon</button>
+              <button id="btn-pokemon-traffic-skip" class="btn btn-secondary btn-large">❌ Rechazar oferta</button>
+            </div>
+            <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.5rem;">Perderás el Pokémon y ganarás entre $0 y $125,000</p>
           </div>
         ` : isItemReward ? `
           <button id="btn-resolve-event" class="btn btn-primary btn-large">🎰 Girar la ruleta</button>
