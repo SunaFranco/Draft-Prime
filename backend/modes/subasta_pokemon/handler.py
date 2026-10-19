@@ -134,6 +134,9 @@ YEAR_SHOP_ITEMS = {
         "Water Stone",
         "Fire Stone",
         "Leaf Stone",
+        
+    ],
+    2: [
         "Ice Stone",
         "Thunder Stone",
         "Moon Stone",
@@ -141,8 +144,6 @@ YEAR_SHOP_ITEMS = {
         "Dusk Stone",
         "Dawn Stone",
         "Shiny Stone",
-    ],
-    2: [
         "Capsula Habilidad",
     ],
     3: [
@@ -727,18 +728,18 @@ class SubastaPokemonMode(BaseGameMode):
             "buyout_multiplier": 10.0,
             "secret_fee": 500,
             "year_pools": {
-                1: {"normal": 2, "mega": 0, "legendary": 0},
-                2: {"normal": 2, "mega": 1, "legendary": 0},
-                3: {"normal": 0, "mega": 1, "legendary": 2},
+                1: {"normal": 8, "mega": 0, "legendary": 0},
+                2: {"normal": 3, "mega": 3, "legendary": 0},
+                3: {"normal": 3, "mega": 2, "legendary": 1},
             },
             "year_starting_money": {1: 1000000, 2: 1000000, 3: 1000000},
         })
         order = get_connected_player_order(session)
 
         year_pools = config.get("year_pools", {
-            1: {"normal": 2, "mega": 0, "legendary": 0},
-            2: {"normal": 2, "mega": 1, "legendary": 0},
-            3: {"normal": 0, "mega": 1, "legendary": 2},
+            1: {"normal": 8, "mega": 0, "legendary": 0},
+            2: {"normal": 3, "mega": 3, "legendary": 0},
+            3: {"normal": 3, "mega": 2, "legendary": 1},
         })
         starting_money = config.get("starting_money", 1000000)
         year_starting_money = config.get("year_starting_money", {1: starting_money, 2: starting_money, 3: starting_money})

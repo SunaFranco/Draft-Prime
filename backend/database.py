@@ -286,6 +286,22 @@ def delete_game_session(session_id: str) -> None:
     MEMORY_GAME_SESSIONS.pop(session_id, None)
 
 
+def get_legendary_pokemon_from_db() -> List[str]:
+    """Obtiene los nombres de Pokémon legendarios desde la tabla dedicada de Supabase."""
+    if not supabase_client:
+        return []
+
+    try:
+        res = supabase_client.table("legendarios").select("nombre").execute()
+        names = [row["nombre"] for row in res.data or [] if row.get("nombre")]
+        if names:
+            print(f"[OK] [SUPABASE] Se obtuvieron {len(names)} Pokémon desde la tabla 'legendarios'.")
+        return names
+    except Exception as e:
+        print(f"[WARNING] Error consultando la tabla 'legendarios' en Supabase: {e}")
+        return []
+
+
 def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional[str] = None) -> List[str]:
     """Obtiene la lista de nombres de Pokémon desde la base de datos filtrada por año y tipo de subasta."""
     if not supabase_client:
@@ -293,6 +309,11 @@ def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional
         return []
 
     clean_type = auction_type.strip().lower() if auction_type else None
+
+    if clean_type == "legendary":
+        names = get_legendary_pokemon_from_db()
+        if names:
+            return names
 
     # 1. Si se buscan megas, intentar primero si existe tabla dedicada 'mega_pokemon'
     if clean_type == "mega":
@@ -349,6 +370,11 @@ def get_random_pokemon_from_db(year: Optional[int] = None, auction_type: Optiona
         return None
 
     clean_type = auction_type.strip().lower() if auction_type else None
+
+    if clean_type == "legendary":
+        names = get_legendary_pokemon_from_db()
+        if names:
+            return random.choice(names)
 
     if clean_type == "mega":
         try:
@@ -409,6 +435,5 @@ def get_random_pokemon_from_db(year: Optional[int] = None, auction_type: Optiona
         print(f"[WARNING] Error eligiendo Pokémon aleatorio desde Supabase: {e}")
 
     return None
-
 
 
