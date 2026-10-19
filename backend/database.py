@@ -364,6 +364,80 @@ def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional
     return []
 
 
+def remove_pokemon_from_db(
+    pokemon_name: str, year: Optional[int] = None, auction_type: Optional[str] = None
+) -> bool:
+    """Elimina una carta Pokémon inválida del pool de subasta correspondiente."""
+    if not supabase_client:
+        return False
+
+    clean_type = auction_type.strip().lower() if auction_type else None
+    if clean_type == "legendary":
+        try:
+            response = (
+                supabase_client.table("legendarios")
+                .delete(returning="representation")
+                .eq("nombre", pokemon_name)
+                .execute()
+            )
+            if response.data:
+                return True
+        except Exception as error:
+            print(f"[WARNING] No se pudo eliminar '{pokemon_name}' de 'legendarios': {error}")
+
+    if clean_type == "mega":
+        try:
+            response = (
+                supabase_client.table("mega_pokemon")
+                .delete(returning="representation")
+                .eq("name", pokemon_name)
+                .execute()
+            )
+            if response.data:
+                return True
+        except Exception:
+            # Puede que la pool de Megas esté almacenada en pokemon_pools.
+            pass
+
+    try:
+        query = (
+            supabase_client.table("pokemon_pools")
+            .select("id, year, auction_type, pokemon_pool_cards(id, pokemon_name)")
+        )
+        if year is not None:
+            query = query.eq("year", year)
+        if clean_type:
+            query = query.ilike("auction_type", clean_type)
+
+        pools = query.execute().data or []
+        if not pools and year is not None:
+            fallback_query = (
+                supabase_client.table("pokemon_pools")
+                .select("id, year, auction_type, pokemon_pool_cards(id, pokemon_name)")
+            )
+            if clean_type:
+                fallback_query = fallback_query.ilike("auction_type", clean_type)
+            pools = fallback_query.execute().data or []
+
+        deleted = False
+        for pool in pools:
+            for card in pool.get("pokemon_pool_cards") or []:
+                card_name = card.get("pokemon_name")
+                if not card_name or card_name.casefold() != pokemon_name.casefold():
+                    continue
+                response = (
+                    supabase_client.table("pokemon_pool_cards")
+                    .delete(returning="representation")
+                    .eq("id", card["id"])
+                    .execute()
+                )
+                deleted = deleted or bool(response.data)
+        return deleted
+    except Exception as error:
+        print(f"[WARNING] No se pudo eliminar '{pokemon_name}' de 'pokemon_pools': {error}")
+        return False
+
+
 def get_random_pokemon_from_db(year: Optional[int] = None, auction_type: Optional[str] = None) -> Optional[str]:
     """Obtiene un único Pokémon aleatorio sin cargar completa la pool en memoria."""
     if not supabase_client:
@@ -435,5 +509,3 @@ def get_random_pokemon_from_db(year: Optional[int] = None, auction_type: Optiona
         print(f"[WARNING] Error eligiendo Pokémon aleatorio desde Supabase: {e}")
 
     return None
-
-

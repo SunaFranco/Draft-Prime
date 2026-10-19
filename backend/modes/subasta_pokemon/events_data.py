@@ -112,6 +112,27 @@ EVENTS_YEAR_1 = [
         "description": "En la primera ronda de la subasta del próximo año no podrás ver las pistas del Pokémon mientras se revelan.",
         "type": "pokemon_blind",
     },
+    {
+        "id": "e1_no_se_contar",
+        "category": "negative",
+        "title": "🧮 No Sé Contar",
+        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50,000 en $50,000.",
+        "type": "no_se_contar",
+    },
+    {
+        "id": "e1_a_deuda",
+        "category": "negative",
+        "title": "💸 A Deuda",
+        "description": "Hasta que ganes una subasta, pagarás un 25% más por tus pujas.",
+        "type": "a_deuda",
+    },
+    {
+        "id": "e1_se_mira_no_se_toca",
+        "category": "negative",
+        "title": "👀 Se Mira Pero NO se Toca",
+        "description": "En las primeras 2 subastas del próximo año no podrás apostar, pero verás qué Pokémon se subasta desde el comienzo.",
+        "type": "se_mira_no_se_toca",
+    },
 ]
 
 EVENTS_YEAR_2 = [
@@ -143,6 +164,27 @@ EVENTS_YEAR_2 = [
         "title": "🙈 El Pokémon Ciego",
         "description": "En la primera ronda de la subasta del próximo año no podrás ver las pistas del Pokémon mientras se revelan.",
         "type": "pokemon_blind",
+    },
+    {
+        "id": "e2_no_se_contar",
+        "category": "negative",
+        "title": "🧮 No Sé Contar",
+        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50,000 en $50,000.",
+        "type": "no_se_contar",
+    },
+    {
+        "id": "e2_a_deuda",
+        "category": "negative",
+        "title": "💸 A Deuda",
+        "description": "Hasta que ganes una subasta, pagarás un 25% más por tus pujas.",
+        "type": "a_deuda",
+    },
+    {
+        "id": "e2_se_mira_no_se_toca",
+        "category": "negative",
+        "title": "👀 Se Mira Pero NO se Toca",
+        "description": "En las primeras 2 subastas del próximo año no podrás apostar, pero verás qué Pokémon se subasta desde el comienzo.",
+        "type": "se_mira_no_se_toca",
     },
     {
         "id": "e2_trafico_pokemon",
@@ -195,6 +237,27 @@ EVENTS_YEAR_3 = [
         "title": "🌿 Cambio de Naturaleza",
         "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
         "type": "nature_change",
+    },
+    {
+        "id": "e3_no_se_contar",
+        "category": "negative",
+        "title": "🧮 No Sé Contar",
+        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50,000 en $50,000.",
+        "type": "no_se_contar",
+    },
+    {
+        "id": "e3_a_deuda",
+        "category": "negative",
+        "title": "💸 A Deuda",
+        "description": "Hasta que ganes una subasta, pagarás un 25% más por tus pujas.",
+        "type": "a_deuda",
+    },
+    {
+        "id": "e3_se_mira_no_se_toca",
+        "category": "negative",
+        "title": "👀 Se Mira Pero NO se Toca",
+        "description": "En las primeras 2 subastas del próximo año no podrás apostar, pero verás qué Pokémon se subasta desde el comienzo.",
+        "type": "se_mira_no_se_toca",
     },
     {
         "id": "e3_mt_booster_pack",

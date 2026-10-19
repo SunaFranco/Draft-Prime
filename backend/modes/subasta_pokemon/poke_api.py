@@ -9,11 +9,21 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections import OrderedDict
-from typing import Dict, List, Any, Optional
+from typing import Callable, Dict, List, Any, Optional
 
 POKEAPI_BASE_URL = "https://pokeapi.co/api/v2/pokemon"
 MAX_POKE_CACHE = 32
 POKE_CACHE: OrderedDict[str, dict] = OrderedDict()
+
+
+class PokemonNotFoundError(LookupError):
+    """Indica que PokeAPI respondió que la especie solicitada no existe."""
+
+    def __init__(self, name: str):
+        self.pokemon_name = name
+        super().__init__(f"Pokémon '{name}' no encontrado en PokeAPI.")
+
+
 POKEMON_TYPES = [
     "Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison",
     "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark",
@@ -720,6 +730,8 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             POKE_CACHE[cache_key] = res
             return res.copy()
     except Exception as e:
+        if isinstance(e, urllib.error.HTTPError) and e.code == 404:
+            raise PokemonNotFoundError(str(name_or_id)) from e
         print(f"[WARNING] No se pudo cargar '{name_or_id}' ({api_slug}) desde PokeAPI ({e}). Usando fallback local.")
         # Fallback local
         name_clean = canonical_name
@@ -799,20 +811,86 @@ def get_random_pokemon_form_choice(base_name: str) -> str:
     return random.choice(options)
 
 
-def get_random_pokemon_from_tier(tier: str = "normal", year: Optional[int] = None, level_cap: int = 20) -> dict:
-    """Devuelve un Pokémon aleatorio desde la base de datos o desde el pool estático, incluyendo forma regional con probabilidad uniforme."""
+def get_random_pokemon_from_tier(
+    tier: str = "normal",
+    year: Optional[int] = None,
+    level_cap: int = 20,
+    on_pokemon_not_found: Optional[Callable[[dict], None]] = None,
+) -> dict:
+    """Elige desde una pool y retira de la DB las especies que PokeAPI devuelve como inexistentes."""
     from backend import database
-    chosen_base_name = database.get_random_pokemon_from_db(year=year, auction_type=tier)
+    unavailable_names = set()
 
-    if chosen_base_name:
-        print(f"[OK] [DATABASE] Pokémon aleatorio obtenido desde Supabase (Año {year}, Tipo '{tier}').")
-    else:
-        print(f"[INFO] [LOCAL] Usando pool estático por defecto (Año {year}, Tipo '{tier}').")
-        pool = SAMPLE_POKEMON_POOLS.get(tier.lower(), SAMPLE_POKEMON_POOLS["normal"])
-        chosen_base_name = random.choice(pool)
+    while True:
+        if not unavailable_names:
+            chosen_base_name = database.get_random_pokemon_from_db(
+                year=year, auction_type=tier
+            )
+            selected_from_database = bool(chosen_base_name)
+        else:
+            database_pool = [
+                name
+                for name in database.get_pokemon_pools_from_db(year=year, auction_type=tier)
+                if name.casefold() not in unavailable_names
+            ]
+            if database_pool:
+                available_pool = database_pool
+                selected_from_database = True
+            else:
+                selected_from_database = False
+                available_pool = [
+                    name
+                    for name in SAMPLE_POKEMON_POOLS.get(
+                        tier.lower(), SAMPLE_POKEMON_POOLS["normal"]
+                    )
+                    if name.casefold() not in unavailable_names
+                ]
+            if not available_pool:
+                raise RuntimeError(
+                    f"No quedan Pokémon disponibles para la pool '{tier}' del año {year}."
+                )
+            chosen_base_name = random.choice(available_pool)
 
-    chosen_name = get_random_pokemon_form_choice(chosen_base_name)
-    return fetch_pokemon_data(chosen_name, level_cap=level_cap)
+        if not chosen_base_name:
+            selected_from_database = False
+            print(f"[INFO] [LOCAL] Usando pool estático por defecto (Año {year}, Tipo '{tier}').")
+            local_pool = SAMPLE_POKEMON_POOLS.get(
+                tier.lower(), SAMPLE_POKEMON_POOLS["normal"]
+            )
+            available_pool = [
+                name for name in local_pool if name.casefold() not in unavailable_names
+            ]
+            if not available_pool:
+                raise RuntimeError(
+                    f"No quedan Pokémon disponibles para la pool local '{tier}' del año {year}."
+                )
+            chosen_base_name = random.choice(available_pool)
+
+        chosen_name = get_random_pokemon_form_choice(chosen_base_name)
+        try:
+            pokemon = fetch_pokemon_data(chosen_name, level_cap=level_cap)
+        except PokemonNotFoundError:
+            unavailable_names.add(chosen_base_name.casefold())
+            database_removed = database.remove_pokemon_from_db(
+                chosen_base_name, year=year, auction_type=tier
+            )
+            print(
+                f"[WARNING] PokeAPI no encontró '{chosen_name}'. "
+                f"Eliminado de la base de datos: {'sí' if database_removed else 'no'}."
+            )
+            if on_pokemon_not_found:
+                on_pokemon_not_found({
+                    "pokemon_name": chosen_base_name,
+                    "api_name": chosen_name,
+                    "year": year,
+                    "pool": tier,
+                    "database_removed": database_removed,
+                })
+            continue
+
+        if selected_from_database:
+            print(f"[OK] [DATABASE] Pokémon aleatorio obtenido desde Supabase (Año {year}, Tipo '{tier}').")
+        return pokemon
 
 
 

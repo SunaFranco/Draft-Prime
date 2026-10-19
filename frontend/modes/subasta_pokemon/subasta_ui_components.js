@@ -8,6 +8,16 @@ const POKEMON_TYPES = [
   "Steel", "Fairy",
 ];
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[char]);
+}
+
 function buildWikidexUrl(name) {
   if (!name) return "";
   const raw = String(name).trim();
@@ -515,21 +525,36 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const isHighBidder = auction.high_bidder === sessionClient.currentUsername;
   const canFold = !isFolded && !isHighBidder && !isWinnerPendingSecret;
   const pokeradarDiscount = auction.pokeradar_discount === true;
-  const effectiveWinningBid = pokeradarDiscount
+  const noSeContarActive = auction.no_se_contar_active === true;
+  const aDeudaActive = auction.a_deuda_active === true;
+  const noTouchBlocked = auction.no_touch_blocked === true;
+  const minimumBidIncrement = noSeContarActive ? 50000 : 5000;
+  const nextBidValue = noSeContarActive
+    ? (Number(auction.current_bid) || 0) + minimumBidIncrement
+    : getNextBidValue(auction.current_bid || 0);
+  const getEffectiveAuctionCost = (bid) => {
+    const discountedBid = pokeradarDiscount ? Math.floor(bid / 2) : bid;
+    return aDeudaActive ? Math.ceil(discountedBid * 1.25) : discountedBid;
+  };
+  const discountedWinningBid = pokeradarDiscount
     ? Math.floor((auction.current_bid || 0) / 2)
     : (auction.current_bid || 0);
+  const effectiveWinningBid = getEffectiveAuctionCost(auction.current_bid || 0);
   const secretCost = Math.ceil(effectiveWinningBid * 0.1);
   const revealHoldUntil = Number(auction.reveal_hold_until || 0) * 1000;
   const revealCountdownMs = revealHoldUntil > 0 ? Math.max(0, revealHoldUntil - Date.now()) : 0;
   const revealPercent = revealHoldUntil > 0 ? Math.max(0, Math.min(100, (revealCountdownMs / 5000) * 100)) : 0;
   const isPubliclyRevealed = Boolean(auction.publicly_revealed === true || (auction.finished && !poke.is_hidden && poke.name && poke.image_url));
   const isPokemonRevealed = Boolean(
-    !auction.awaiting_secret_choice &&
-    auction.finished &&
-    poke &&
-    poke.name &&
-    poke.image_url &&
-    (isPubliclyRevealed || (!auction.reveal_hold_until || revealCountdownMs <= 5000))
+    auction.early_reveal === true ||
+    (
+      !auction.awaiting_secret_choice &&
+      auction.finished &&
+      poke &&
+      poke.name &&
+      poke.image_url &&
+      (isPubliclyRevealed || (!auction.reveal_hold_until || revealCountdownMs <= 5000))
+    )
   );
   const hintAbility = hints.ability && !String(hints.ability).includes("🔒")
     ? `<a href="${buildWikidexUrl(hints.ability)}" target="_blank" rel="noopener noreferrer" class="badge-link">${hints.ability}</a>`
@@ -558,7 +583,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
             ? `<img src="${poke.image_url}" alt="${poke.name}" class="poke-thumb poke-thumb--revealed" />`
             : `<div class="poke-unknown-avatar">❓</div>`}
         </div>
-        ${isPokemonRevealed ? `<p class="base-price"><strong>Adjudicado a:</strong> ${auction.winner || "Ninguno"}</p>` : `<p class="base-price">Precio Inicial: <strong>$${formatMoneyCompact(auction.base_price || 5000)}</strong></p>`}
+        ${isPokemonRevealed && auction.finished ? `<p class="base-price"><strong>Adjudicado a:</strong> ${auction.winner || "Ninguno"}</p>` : `<p class="base-price">Precio Inicial: <strong>$${formatMoneyCompact(auction.base_price || 5000)}</strong></p>`}
 
         ${auction.reveal_hold_until ? `
           <div class="reveal-countdown" style="margin-top: 12px;">
@@ -592,7 +617,16 @@ export function renderAuctionView(data, sessionClient, isHost) {
         ${auction.pokeradar_blocked ? `
           <p class="text-warning">📡 Tu Pokeradar no permite pujar por este Pokémon: no es de ninguno de los dos tipos elegidos.</p>
         ` : pokeradarDiscount ? `
-          <p class="text-success">📡 Pokeradar: si ganas, pagarás la mitad de tu puja ($${formatMoneyCompact(effectiveWinningBid)} al precio actual).</p>
+          <p class="text-success">📡 Pokeradar: reduce a la mitad el precio de tu puja ($${formatMoneyCompact(discountedWinningBid)} antes de otros efectos).</p>
+        ` : ""}
+        ${noSeContarActive ? `
+          <p class="text-warning">🧮 No Sé Contar: tus pujas deben aumentar de $50,000 en $50,000 hasta que ganes una subasta.</p>
+        ` : ""}
+        ${aDeudaActive ? `
+          <p class="text-warning">💸 A Deuda: pagarás un 25% extra al ganar. ${auction.current_bid ? `Coste actual: $${formatMoneyCompact(effectiveWinningBid)}.` : ""} El efecto termina cuando ganes una subasta.</p>
+        ` : ""}
+        ${noTouchBlocked ? `
+          <p class="text-warning">👀 Se Mira Pero NO se Toca: no puedes apostar en esta ronda; puedes ver el Pokémon desde el comienzo.</p>
         ` : ""}
 
         ${isAuctionFinished && !isWinnerPendingSecret ? `
@@ -622,14 +656,14 @@ export function renderAuctionView(data, sessionClient, isHost) {
               </div>
             ` : `
               <div class="bid-input-group">
-                <input type="number" id="custom-bid-amount" value="${getNextBidValue(auction.current_bid || 0)}" step="5000" min="${getNextBidValue(auction.current_bid || 0)}" />
-                <button id="btn-bid-custom" class="btn btn-success" ${isFolded || auction.pokeradar_blocked ? "disabled" : ""}>Pujar</button>
+                <input type="number" id="custom-bid-amount" value="${nextBidValue}" step="${minimumBidIncrement}" min="${nextBidValue}" />
+                <button id="btn-bid-custom" class="btn btn-success" ${isFolded || auction.pokeradar_blocked || noTouchBlocked ? "disabled" : ""}>Pujar</button>
               </div>
             `}
 
             <div class="btn-group">
               ${!isHighBidder ? `
-                <button id="btn-buyout" class="btn btn-warning" ${isFolded || auction.pokeradar_blocked ? "disabled" : ""}>⚡ Compra Directa ($${formatMoneyCompact(pokeradarDiscount ? Math.floor((auction.buyout_price || 5000) / 2) : (auction.buyout_price || 5000))}${pokeradarDiscount ? " con Pokeradar" : ""})</button>
+                <button id="btn-buyout" class="btn btn-warning" ${isFolded || auction.pokeradar_blocked || noTouchBlocked ? "disabled" : ""}>⚡ Compra Directa ($${formatMoneyCompact(getEffectiveAuctionCost(auction.buyout_price || 5000))}${pokeradarDiscount ? " con Pokeradar" : ""}${aDeudaActive ? " con A Deuda" : ""})</button>
               ` : ""}
               <button id="btn-fold" class="btn btn-danger" ${!canFold ? "disabled" : ""}>${isFolded ? "Retirado" : isHighBidder ? "🔒 Mayor Pujador" : "🚪 Retirarse"}</button>
             </div>
@@ -873,6 +907,7 @@ export function renderExportView(data, sessionClient, isHost, lockedText = null)
 export function renderAdminAndStandingsView(data, sessionClient, isHost) {
   const standings = data.standings || [];
   const winner = standings[0];
+  const removedPokemon = data.removed_pokemon || [];
 
   return `
     <div class="card standings-card">
@@ -884,6 +919,26 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
           <h2>🏆 Evento finalizado</h2>
           <p>El ganador es <strong>${winner.username}</strong> con <strong>${winner.points} pts</strong>.</p>
         </div>
+      ` : ""}
+
+      ${data.event_finished ? `
+        <section class="secret-choice-modal">
+          <h3>Pokémon no encontrados en PokeAPI</h3>
+          ${removedPokemon.length ? `
+            <ul>
+              ${removedPokemon.map((entry) => `
+                <li>
+                  <strong>${escapeHtml(entry.pokemon_name || "Nombre desconocido")}</strong>
+                  ${entry.api_name && entry.api_name !== entry.pokemon_name
+                    ? `(forma consultada: ${escapeHtml(entry.api_name)})`
+                    : ""}
+                  — Año ${escapeHtml(entry.year)}, pool ${escapeHtml(entry.pool || "")}
+                  (${entry.database_removed ? "eliminado de la base de datos" : "no se pudo confirmar su eliminación de la base de datos"})
+                </li>
+              `).join("")}
+            </ul>
+          ` : "<p>No se retiraron Pokémon por errores 404 de PokeAPI.</p>"}
+        </section>
       ` : ""}
 
       <table class="standings-table">
