@@ -74,7 +74,7 @@ EVENTS_YEAR_1 = [
         "id": "e1_trafico_pokemon",
         "category": "neutral",
         "title": "🕶️ Tráfico Pokémon",
-        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
+        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0K y $125K — cuanto más suba, más probable es que se detenga.",
         "type": "pokemon_traffic",
     },
     {
@@ -88,14 +88,14 @@ EVENTS_YEAR_1 = [
         "id": "e1_coinflip",
         "category": "neutral",
         "title": "🪙 Coinflip",
-        "description": "Apuesta hasta $100,000. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
+        "description": "Apuesta hasta $100K. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
         "type": "coinflip",
     },
     {
         "id": "e1_maestro_disco",
         "category": "neutral",
         "title": "💿 Maestro Disco",
-        "description": "Paga $100,000 para que durante todo el próximo año haya un 10% de probabilidad de conservar cada MT al usarla. También puedes rechazar la oferta.",
+        "description": "Paga $100K para que durante todo el próximo año haya un 10% de probabilidad de conservar cada MT al usarla. También puedes rechazar la oferta.",
         "type": "master_disk",
     },
     {
@@ -116,7 +116,7 @@ EVENTS_YEAR_1 = [
         "id": "e1_no_se_contar",
         "category": "negative",
         "title": "🧮 No Sé Contar",
-        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50,000 en $50,000.",
+        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50K en $50K.",
         "type": "no_se_contar",
     },
     {
@@ -169,7 +169,7 @@ EVENTS_YEAR_2 = [
         "id": "e2_no_se_contar",
         "category": "negative",
         "title": "🧮 No Sé Contar",
-        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50,000 en $50,000.",
+        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50K en $50K.",
         "type": "no_se_contar",
     },
     {
@@ -190,7 +190,7 @@ EVENTS_YEAR_2 = [
         "id": "e2_trafico_pokemon",
         "category": "neutral",
         "title": "🕶️ Tráfico Pokémon",
-        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
+        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0K y $125K — cuanto más suba, más probable es que se detenga.",
         "type": "pokemon_traffic",
     },
     {
@@ -204,21 +204,21 @@ EVENTS_YEAR_2 = [
         "id": "e2_coinflip",
         "category": "neutral",
         "title": "🪙 Coinflip",
-        "description": "Apuesta hasta $100,000. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
+        "description": "Apuesta hasta $100K. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
         "type": "coinflip",
     },
     {
         "id": "e2_maestro_disco",
         "category": "neutral",
         "title": "💿 Maestro Disco",
-        "description": "Paga $100,000 para que durante todo el próximo año haya un 10% de probabilidad de conservar cada MT al usarla. También puedes rechazar la oferta.",
+        "description": "Paga $100K para que durante todo el próximo año haya un 10% de probabilidad de conservar cada MT al usarla. También puedes rechazar la oferta.",
         "type": "master_disk",
     },
     {
         "id": "e2_gholdengo_usurero",
         "category": "neutral",
         "title": "🪙 Gholdengo el Usurero",
-        "description": "Paga $1,000,000 para robar un Pokémon aleatorio a cada uno de dos rivales que elijas.",
+        "description": "Paga $1000K para robar un Pokémon aleatorio a cada uno de dos rivales que elijas.",
         "type": "gholdengo_usurer",
     },
     {
@@ -242,7 +242,7 @@ EVENTS_YEAR_3 = [
         "id": "e3_no_se_contar",
         "category": "negative",
         "title": "🧮 No Sé Contar",
-        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50,000 en $50,000.",
+        "description": "Hasta que ganes una subasta, tus pujas deben aumentar de $50K en $50K.",
         "type": "no_se_contar",
     },
     {
@@ -270,7 +270,7 @@ EVENTS_YEAR_3 = [
         "id": "e3_trafico_pokemon",
         "category": "neutral",
         "title": "🕶️ Tráfico Pokémon",
-        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
+        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0K y $125K — cuanto más suba, más probable es que se detenga.",
         "type": "pokemon_traffic",
     },
     {
@@ -284,14 +284,14 @@ EVENTS_YEAR_3 = [
         "id": "e3_coinflip",
         "category": "neutral",
         "title": "🪙 Coinflip",
-        "description": "Apuesta hasta $100,000. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
+        "description": "Apuesta hasta $100K. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
         "type": "coinflip",
     },
     {
         "id": "e3_gholdengo_usurero",
         "category": "neutral",
         "title": "🪙 Gholdengo el Usurero",
-        "description": "Paga $1,000,000 para robar un Pokémon aleatorio a cada uno de dos rivales que elijas.",
+        "description": "Paga $1000K para robar un Pokémon aleatorio a cada uno de dos rivales que elijas.",
         "type": "gholdengo_usurer",
     },
 ]
@@ -385,6 +385,12 @@ def normalize_item_counts(items) -> dict:
     return {}
 
 
+def _format_money_k(amount: int) -> str:
+    value = amount / 1000
+    formatted = f"{value:.3f}".rstrip("0").rstrip(".")
+    return f"${formatted}K"
+
+
 def apply_event_to_player(player_state: dict, event: dict) -> dict:
     """Aplica los efectos de un evento al estado del jugador y retorna un resumen del impacto."""
     event_type = event.get("type")
@@ -392,7 +398,10 @@ def apply_event_to_player(player_state: dict, event: dict) -> dict:
 
     if "amount" in event:
         player_state["money"] += event["amount"]
-        msg_parts.append(f"+${event['amount']} agregados a tus fondos (Saldo: ${player_state['money']}).")
+        msg_parts.append(
+            f"+{_format_money_k(event['amount'])} agregados a tus fondos "
+            f"(Saldo: {_format_money_k(player_state['money'])})."
+        )
 
     if event.get("granted_item"):
         item = event["granted_item"]

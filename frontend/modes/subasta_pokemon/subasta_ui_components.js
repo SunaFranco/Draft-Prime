@@ -160,17 +160,9 @@ export function buildItemSpriteUrl(name) {
   return itemSlug ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(itemSlug)}.png` : "";
 }
 
-function formatMoneyCompact(value) {
+export function formatMoneyCompact(value) {
   const amount = Number(value) || 0;
-  if (Math.abs(amount) >= 1000000) {
-    const formatted = (amount / 1000000).toFixed(1).replace(/\.0$/, '');
-    return `${formatted}M`;
-  }
-  if (Math.abs(amount) >= 1000) {
-    const formatted = (amount / 1000).toFixed(amount % 1000 === 0 ? 0 : 1).replace(/\.0$/, '');
-    return `${formatted}k`;
-  }
-  return `${amount}`;
+  return `${(amount / 1000).toFixed(3).replace(/\.?0+$/, "")}K`;
 }
 
 function getNextBidValue(currentBid) {
@@ -353,8 +345,8 @@ export function renderConfigForm(containerEl, data, isHost) {
       <div class="config-section-title">⚙️ Configuración General</div>
       <div class="subasta-config-panel">
         <div class="form-group">
-          <label for="subasta-yearly-money">💰 Dinero Inicial / Añadido por Año ($):</label>
-          <input type="number" id="subasta-yearly-money" value="${yearly_money}" min="0" step="50000" ${!isHost ? "disabled" : ""} />
+          <label for="subasta-yearly-money">💰 Dinero Inicial / Añadido por Año (K):</label>
+          <input type="number" id="subasta-yearly-money" value="${yearly_money / 1000}" min="0" step="50" ${!isHost ? "disabled" : ""} />
         </div>
       </div>
 
@@ -486,7 +478,7 @@ export function readConfigForm(containerEl) {
     },
   };
 
-  const yearly_money = getInt("subasta-yearly-money", 1000000);
+  const yearly_money = getInt("subasta-yearly-money", 1000) * 1000;
 
   return {
     year_event_counts,
@@ -620,7 +612,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
           <p class="text-success">📡 Pokeradar: reduce a la mitad el precio de tu puja ($${formatMoneyCompact(discountedWinningBid)} antes de otros efectos).</p>
         ` : ""}
         ${noSeContarActive ? `
-          <p class="text-warning">🧮 No Sé Contar: tus pujas deben aumentar de $50,000 en $50,000 hasta que ganes una subasta.</p>
+          <p class="text-warning">🧮 No Sé Contar: tus pujas deben aumentar de $50K en $50K hasta que ganes una subasta.</p>
         ` : ""}
         ${aDeudaActive ? `
           <p class="text-warning">💸 A Deuda: pagarás un 25% extra al ganar. ${auction.current_bid ? `Coste actual: $${formatMoneyCompact(effectiveWinningBid)}.` : ""} El efecto termina cuando ganes una subasta.</p>
@@ -641,7 +633,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
             <p>¿Deseas pagar <strong>$${formatMoneyCompact(secretCost)}</strong> (10% del coste de adquisición${pokeradarDiscount ? " con Pokeradar" : ""}) para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
             <div class="btn-group">
               <button id="btn-secret-yes" class="btn btn-primary">🔒 Pagar $${formatMoneyCompact(secretCost)} y Ocultar</button>
-              <button id="btn-secret-no" class="btn btn-secondary">👁️ Mostrar a todos ($0)</button>
+              <button id="btn-secret-no" class="btn btn-secondary">👁️ Mostrar a todos ($0K)</button>
             </div>
           </div>
         ` : `
@@ -716,6 +708,12 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
         ${isResolved ? `
           <p class="text-success">✓ Has resuelto tu evento de este turno. Esperando a los demás jugadores...</p>
           ${turnEvent.result_message ? `<p>${turnEvent.result_message}</p>` : ""}
+          ${turnEvent.type === "wonder_trade" && turnEvent.result_pokemon ? `
+            <div class="wonder-trade-result">
+              <h3>🎁 Pokémon obtenido: ${turnEvent.result_pokemon.name}</h3>
+              ${turnEvent.result_pokemon.image_url ? `<img src="${turnEvent.result_pokemon.image_url}" alt="${turnEvent.result_pokemon.name}" style="width: 160px; height: 160px; object-fit: contain;" />` : ""}
+            </div>
+          ` : ""}
         ` : isNatureChange ? `
           <div class="nature-change-form">
             <label for="nature-change-pokemon">Pokémon:</label>
@@ -738,7 +736,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
               <button id="btn-pokemon-traffic-sell" class="btn btn-primary btn-large" ${pokemonList.length ? "" : "disabled"}>💰 Vender Pokémon</button>
               <button id="btn-pokemon-traffic-skip" class="btn btn-secondary btn-large">❌ Rechazar oferta</button>
             </div>
-            <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.5rem;">Perderás el Pokémon y ganarás entre $0 y $125,000</p>
+            <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.5rem;">Perderás el Pokémon y ganarás entre $0K y $125K</p>
           </div>
         ` : isWonderTrade ? `
           <div class="pokemon-traffic-form">
@@ -755,17 +753,17 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
           </div>
         ` : isCoinflip ? `
           <div class="pokemon-traffic-form">
-            <label for="coinflip-amount">Cantidad a apostar (máximo $100,000):</label>
-            <input type="number" id="coinflip-amount" min="1" max="${Math.min(100000, playerMoney)}" step="5000" value="${Math.min(100000, playerMoney)}" ${playerMoney > 0 ? "" : "disabled"} />
+            <label for="coinflip-amount">Cantidad a apostar (máximo $100K):</label>
+            <input type="number" id="coinflip-amount" min="0.001" max="${Math.min(100, Math.floor(playerMoney) / 1000)}" step="0.001" value="${Math.min(100, Math.floor(playerMoney) / 1000)}" ${playerMoney >= 1 ? "" : "disabled"} />
             <div style="display:flex;gap:0.75rem;margin-top:0.75rem;flex-wrap:wrap;">
-              <button id="btn-coinflip-accept" class="btn btn-primary btn-large" ${playerMoney > 0 ? "" : "disabled"}>🪙 Apostar</button>
+              <button id="btn-coinflip-accept" class="btn btn-primary btn-large" ${playerMoney >= 1 ? "" : "disabled"}>🪙 Apostar</button>
               <button id="btn-coinflip-decline" class="btn btn-secondary btn-large">Rechazar oferta</button>
             </div>
           </div>
         ` : isMasterDisk ? `
           <div class="pokemon-traffic-form">
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-              <button id="btn-master-disk-accept" class="btn btn-primary btn-large" ${playerMoney >= 100000 ? "" : "disabled"}>💿 Pagar $100,000</button>
+              <button id="btn-master-disk-accept" class="btn btn-primary btn-large" ${playerMoney >= 100000 ? "" : "disabled"}>💿 Pagar $100K</button>
               <button id="btn-master-disk-decline" class="btn btn-secondary btn-large">Rechazar oferta</button>
             </div>
             ${playerMoney < 100000 ? '<p>No tienes suficiente dinero para aceptar.</p>' : ""}
@@ -783,7 +781,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
                 ${availableGholdengoTargets.map((username, index) => `<option value="${username}" ${index === 1 ? "selected" : ""}>${username}</option>`).join("")}
               </select>
               <div style="display:flex;gap:0.75rem;margin-top:0.75rem;flex-wrap:wrap;">
-                <button id="btn-gholdengo-accept" class="btn btn-primary btn-large" ${playerMoney >= 1000000 ? "" : "disabled"}>🪙 Pagar $1,000,000 y robar</button>
+                <button id="btn-gholdengo-accept" class="btn btn-primary btn-large" ${playerMoney >= 1000000 ? "" : "disabled"}>🪙 Pagar $1000K y robar</button>
                 <button id="btn-gholdengo-decline" class="btn btn-secondary btn-large">Rechazar oferta</button>
               </div>
               ${playerMoney < 1000000 ? '<p>No tienes suficiente dinero para aceptar.</p>' : ""}
@@ -875,15 +873,23 @@ export function renderExportView(data, sessionClient, isHost, lockedText = null)
           </div>
           <h3>⚖️ Registrar resultados de esta fase</h3>
           <div class="form-group">
-            <label>Ganador (+3 pts):</label>
-            <select id="admin-match-winner">
+            <label>Jugador 1:</label>
+            <select id="admin-match-player-one">
               ${players.map((p) => `<option value="${p}">${p}</option>`).join("")}
+            </select>
+            <label for="admin-match-points-one">Puntos (0–3):</label>
+            <select id="admin-match-points-one">
+              ${[0, 1, 2, 3].map((points) => `<option value="${points}" ${points === 3 ? "selected" : ""}>${points}</option>`).join("")}
             </select>
           </div>
           <div class="form-group">
-            <label>Perdedor (+1 pt):</label>
-            <select id="admin-match-loser">
+            <label>Jugador 2:</label>
+            <select id="admin-match-player-two">
               ${players.map((p) => `<option value="${p}">${p}</option>`).join("")}
+            </select>
+            <label for="admin-match-points-two">Puntos (0–3):</label>
+            <select id="admin-match-points-two">
+              ${[0, 1, 2, 3].map((points) => `<option value="${points}" ${points === 1 ? "selected" : ""}>${points}</option>`).join("")}
             </select>
           </div>
           <button id="btn-submit-match" class="btn btn-secondary">Registrar resultado</button>
@@ -977,7 +983,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
   const shopOpen = [4, 8, 12, 13].includes(Number(data.stage || 0));
   const shopCatalogByYear = {
     1: [
-      { name: "Caja Misteriosa I", price: 100000, isBox: true, description: "Oran Berry 75%, MT Earthquake 5%, MT Flamethrower 5%, MT Shadow Ball 5%, Cápsula Hab. 5%, Porygon + Objeto Mejora 3%, Pokémon Shiny 1%, $500,000 1%" },
+      { name: "Caja Misteriosa I", price: 100000, isBox: true, description: "Oran Berry 75%, MT Earthquake 5%, MT Flamethrower 5%, MT Shadow Ball 5%, Cápsula Hab. 5%, Porygon + Objeto Mejora 3%, Pokémon Shiny 1%, $500K 1%" },
       { name: "Regalo del Primo jeque", price: 250000, isBox: true, description: "Galvantula 25%, Scolipede 25%, Sawk 25%, Gardevoir 25% (con Naturaleza y Habilidad aleatorias)" },
       { name: "Eviolite", price: 100000 },
       { name: "Sitrus Berry", price: 50000 },
@@ -1365,7 +1371,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
 export const BOX_ODDS_DATA = {
   "Ruleta Mentas": {
     title: "Ruleta Mentas",
-    price: "$30,000",
+    price: "$30K",
     note: "Al comprarla, obtienes una Menta aleatoria. Las 25 Mentas tienen la misma probabilidad:",
     items: [
       "Adamant Mint", "Bashful Mint", "Bold Mint", "Brave Mint", "Calm Mint",
@@ -1377,14 +1383,14 @@ export const BOX_ODDS_DATA = {
   },
   "Ruleta Choice": {
     title: "Ruleta Choice",
-    price: "$150,000",
+    price: "$150K",
     note: "Al comprarla, obtienes uno de estos tres objetos Choice con la misma probabilidad:",
     items: ["Choice Scarf", "Choice Band", "Choice Specs"]
       .map((name) => ({ name, rate: "1/3", tier: "rare", image: buildItemSpriteUrl(name) }))
   },
   "Ruleta MT OP": {
     title: "Ruleta MT OP",
-    price: "$100,000",
+    price: "$100K",
     note: "Al comprarla, obtienes una MT competitiva aleatoria. Todas tienen la misma probabilidad:",
     items: [
       "MT Earthquake", "MT Ice Beam", "MT Flamethrower", "MT Thunderbolt",
@@ -1394,7 +1400,7 @@ export const BOX_ODDS_DATA = {
   },
   "Ruleta Plates": {
     title: "Ruleta Plates",
-    price: "$20,000",
+    price: "$20K",
     note: "Al comprarla, obtienes una Plate aleatoria. Todas tienen la misma probabilidad:",
     items: [
       "Fist Plate", "Sky Plate", "Flame Plate", "Splash Plate", "Zap Plate",
@@ -1405,7 +1411,7 @@ export const BOX_ODDS_DATA = {
   },
   "Ruleta Piedras": {
     title: "Ruleta Piedras",
-    price: "$20,000",
+    price: "$20K",
     note: "Al comprarla, obtienes una piedra evolutiva aleatoria. Todas tienen la misma probabilidad:",
     items: [
       "Fire Stone", "Water Stone", "Thunder Stone", "Leaf Stone", "Moon Stone",
@@ -1414,7 +1420,7 @@ export const BOX_ODDS_DATA = {
   },
   "Caja Misteriosa I": {
     title: "Caja Misteriosa I",
-    price: "$100,000",
+    price: "$100K",
     note: "Al comprarla, la ruleta girará y obtendrás exactamente una de las siguientes recompensas según sus probabilidades:",
     items: [
       { name: "Oran Berry (x1)", rate: "75%", tier: "common", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png" },
@@ -1423,13 +1429,13 @@ export const BOX_ODDS_DATA = {
       { name: "MT Shadow Ball", rate: "5%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png" },
       { name: "Cápsula Habilidad", rate: "5%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ability-capsule.png" },
       { name: "Porygon (aleatorio) + Objeto Mejora (Up-Grade)", rate: "3%", tier: "epic", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/137.png" },
-      { name: "$500,000 en efectivo", rate: "1%", tier: "legendary", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png" },
+      { name: "$500K en efectivo", rate: "1%", tier: "legendary", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png" },
       { name: "Pokémon Shiny aleatorio (Pool normal)", rate: "1%", tier: "legendary", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-stone.png" },
     ]
   },
   "Regalo del Primo jeque": {
     title: "Regalo del Primo jeque",
-    price: "$250,000",
+    price: "$250K",
     note: "Al comprarla, la ruleta girará entre los 4 Pokémon del jeque (todos Nv. 20, con naturaleza y habilidad aleatorias):",
     items: [
       { name: "Galvantula", rate: "25%", tier: "rare", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/596.png" },

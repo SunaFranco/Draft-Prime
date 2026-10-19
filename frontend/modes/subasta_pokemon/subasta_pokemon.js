@@ -12,6 +12,7 @@ import {
   renderExportView,
   renderAdminAndStandingsView,
   renderMyPokemonInventory,
+  formatMoneyCompact,
   NATURE_EFFECTS,
   formatNature,
   getTmMoveName,
@@ -189,7 +190,7 @@ async function playTrafficAnimation(finalAmount, onComplete) {
       <div class="event-roulette-kicker">🕶️ TRÁFICO POKÉMON</div>
       <h2>💰 Vendiendo Pokémon...</h2>
       <div class="traffic-counter" style="font-size: 2.5rem; font-weight: bold; color: #f59e0b; margin: 1.5rem 0; text-align: center;">
-        $0
+        $0K
       </div>
       <p class="event-roulette-status">Negociando el precio...</p>
     </div>
@@ -209,20 +210,47 @@ async function playTrafficAnimation(finalAmount, onComplete) {
   } else {
     // Animación notablemente más lenta para generar suspenso
     for (let current = step; current <= finalAmount; current += step) {
-      counter.textContent = `$${current.toLocaleString()}`;
+      counter.textContent = `$${formatMoneyCompact(current)}`;
       const progress = current / maxAmount;
       // Empieza en 350ms y se va ralentizando hasta ~950ms conforme sube el valor
       const delay = 350 + progress * 600;
       await wait(delay);
     }
-    counter.textContent = `$${finalAmount.toLocaleString()}`;
+    counter.textContent = `$${formatMoneyCompact(finalAmount)}`;
     counter.style.color = "#22c55e";
-    status.innerHTML = `<span style="color: #22c55e; font-size: 1.1rem; font-weight: bold;">¡Vendido por $${finalAmount.toLocaleString()}!</span>`;
+    status.innerHTML = `<span style="color: #22c55e; font-size: 1.1rem; font-weight: bold;">¡Vendido por $${formatMoneyCompact(finalAmount)}!</span>`;
   }
 
   await wait(3000);
   overlay.remove();
   onComplete();
+}
+
+async function playCoinflipAnimation(event) {
+  const won = event.coinflip_won === true;
+  const amount = formatMoneyCompact(event.coinflip_amount || 0);
+  const overlay = document.createElement("div");
+  overlay.className = "event-roulette-overlay coinflip-overlay";
+  overlay.innerHTML = `
+    <div class="event-roulette-modal coinflip-modal">
+      <div class="event-roulette-kicker">🪙 COINFLIP</div>
+      <h2>¡La moneda está en el aire!</h2>
+      <div class="coinflip-coin" aria-live="polite">🪙</div>
+      <p class="event-roulette-status">Apostaste $${amount}</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  await wait(1900);
+
+  const modal = overlay.querySelector(".coinflip-modal");
+  modal.classList.add(won ? "coinflip-modal--won" : "coinflip-modal--lost");
+  modal.querySelector("h2").textContent = won ? "¡Ganaste!" : "No hubo suerte";
+  modal.querySelector(".coinflip-coin").textContent = won ? "🎉" : "💸";
+  modal.querySelector(".event-roulette-status").textContent = won
+    ? `Ganaste $${amount}`
+    : `Perdiste $${amount}`;
+  await wait(1800);
+  overlay.remove();
 }
 
 export class SubastaPokemonModeUI extends BaseGameModeUI {
@@ -231,6 +259,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     this.latestState = null;
     this._lockedShowdownText = null;
     this._isRouletteSpinning = false;
+    this._lastCoinflipAnimationKey = null;
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -323,6 +352,19 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
   attachEventListeners(state, sessionClient, isHost) {
     this.startRevealCountdown(state);
+
+    const turnEvent = state.current_turn_event || {};
+    if (
+      turnEvent.type === "coinflip"
+      && state.my_data?.resolved_turn
+      && typeof turnEvent.coinflip_won === "boolean"
+    ) {
+      const animationKey = `${state.current_year}:${state.current_turn}:${sessionClient.currentUsername}`;
+      if (animationKey !== this._lastCoinflipAnimationKey) {
+        this._lastCoinflipAnimationKey = animationKey;
+        playCoinflipAnimation(turnEvent);
+      }
+    }
 
     const startTradeButton = document.getElementById("btn-start-trade");
     if (startTradeButton) {
@@ -504,7 +546,8 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const btnCoinflip = document.getElementById("btn-coinflip-accept");
     if (btnCoinflip) {
       btnCoinflip.addEventListener("click", () => {
-        const amount = parseInt(document.getElementById("coinflip-amount")?.value, 10);
+        const amountInThousands = Number(document.getElementById("coinflip-amount")?.value);
+        const amount = Math.round(amountInThousands * 1000);
         if (!Number.isInteger(amount) || amount < 1 || amount > 100000) return;
         btnCoinflip.disabled = true;
         document.getElementById("btn-coinflip-decline").disabled = true;
@@ -639,10 +682,18 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const btnSubmitMatch = document.getElementById("btn-submit-match");
     if (btnSubmitMatch) {
       btnSubmitMatch.addEventListener("click", () => {
-        const winner = document.getElementById("admin-match-winner").value;
-        const loser = document.getElementById("admin-match-loser").value;
-        if (winner && loser && winner !== loser) {
-          sessionClient.send({ action: "subasta_admin_submit_match", winner, loser });
+        const playerOne = document.getElementById("admin-match-player-one").value;
+        const playerTwo = document.getElementById("admin-match-player-two").value;
+        const pointsOne = Number(document.getElementById("admin-match-points-one").value);
+        const pointsTwo = Number(document.getElementById("admin-match-points-two").value);
+        if (playerOne && playerTwo && playerOne !== playerTwo) {
+          sessionClient.send({
+            action: "subasta_admin_submit_match",
+            player_one: playerOne,
+            points_one: pointsOne,
+            player_two: playerTwo,
+            points_two: pointsTwo,
+          });
         } else {
           alert("Selecciona dos jugadores diferentes.");
         }

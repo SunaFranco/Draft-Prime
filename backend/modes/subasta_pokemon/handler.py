@@ -78,6 +78,12 @@ MIN_BID_INCREMENT = 5000
 NO_SE_CONTAR_BID_INCREMENT = 50000
 
 
+def format_money_k(amount: int) -> str:
+    value = amount / 1000
+    formatted = f"{value:.3f}".rstrip("0").rstrip(".")
+    return f"${formatted}K"
+
+
 def calculate_buyout_price(starting_money: int, phase_quota: int) -> int:
     price = max(5000, int((starting_money * 2) / max(1, phase_quota)))
     return ((price + MIN_BID_INCREMENT - 1) // MIN_BID_INCREMENT) * MIN_BID_INCREMENT
@@ -1106,7 +1112,7 @@ class SubastaPokemonMode(BaseGameMode):
                 return True
 
             if bid_amount % MIN_BID_INCREMENT != 0:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe ser múltiplo de ${MIN_BID_INCREMENT}."}})
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe ser múltiplo de {format_money_k(MIN_BID_INCREMENT)}."}})
                 return True
 
             bid_increment = (
@@ -1119,20 +1125,11 @@ class SubastaPokemonMode(BaseGameMode):
                 player.get("no_se_contar_active")
                 and (bid_amount - auction["current_bid"]) % bid_increment != 0
             ):
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No Sé Contar: tus pujas deben aumentar de $50,000 en $50,000 hasta ganar una subasta."}})
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No Sé Contar: tus pujas deben aumentar de $50K en $50K hasta ganar una subasta."}})
                 return True
             if bid_amount < minimum_valid_bid:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe superar los ${auction['current_bid']} en incrementos de ${bid_increment}."}})
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe superar los {format_money_k(auction['current_bid'])} en incrementos de {format_money_k(bid_increment)}."}})
                 return True
-            effective_bid = calculate_auction_cost(
-                bid_amount,
-                radar_active and radar_matches,
-                bool(player.get("a_deuda_active")),
-            )
-            if player.get("money", 0) < effective_bid:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes fondos suficientes para cubrir el coste de esta puja."}})
-                return True
-
             auction["current_bid"] = bid_amount
             auction["high_bidder"] = username
 
@@ -1190,15 +1187,6 @@ class SubastaPokemonMode(BaseGameMode):
             if radar_active and not radar_matches:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "El Pokeradar solo te permite comprar Pokémon de los dos tipos elegidos."}})
                 return True
-            effective_buyout = calculate_auction_cost(
-                buyout_price,
-                radar_active and radar_matches,
-                bool(player.get("a_deuda_active")),
-            )
-            if player["money"] < effective_buyout:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Fondos insuficientes para compra directa."}})
-                return True
-
             auction["current_bid"] = buyout_price
             auction["high_bidder"] = username
             auction["winner"] = username
@@ -1420,6 +1408,12 @@ class SubastaPokemonMode(BaseGameMode):
             if held_item:
                 add_item_to_inventory(player, held_item)
             player["pokemon"][poke_idx] = replacement
+            event["result_pokemon"] = {
+                "name": replacement.get("name", "Pokémon"),
+                "image_url": replacement.get("image_url", ""),
+                "is_shiny": bool(replacement.get("is_shiny")),
+            }
+            event["result_message"] = f"Intercambio realizado: recibiste a {event['result_pokemon']['name']}."
             clear_pokeradar_if_matching_pokemon(
                 player,
                 replacement,
@@ -1445,7 +1439,7 @@ class SubastaPokemonMode(BaseGameMode):
 
             amount = message.get("amount")
             if type(amount) is not int or not 1 <= amount <= 100000:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "La apuesta debe ser entre $1 y $100,000."}})
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "La apuesta debe ser entre $0.001K y $100K."}})
                 return True
             if player.get("money", 0) < amount:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes suficiente dinero para esa apuesta."}})
@@ -1453,10 +1447,13 @@ class SubastaPokemonMode(BaseGameMode):
 
             if random.random() < 0.5:
                 player["money"] += amount
-                event["result_message"] = f"¡Ganaste el Coinflip! Recibiste ${amount:,} y duplicaste tu apuesta."
+                event["coinflip_won"] = True
+                event["result_message"] = f"¡Ganaste el Coinflip! Recibiste {format_money_k(amount)} y duplicaste tu apuesta."
             else:
                 player["money"] -= amount
-                event["result_message"] = f"Perdiste el Coinflip y los ${amount:,} apostados."
+                event["coinflip_won"] = False
+                event["result_message"] = f"Perdiste el Coinflip y los {format_money_k(amount)} apostados."
+            event["coinflip_amount"] = amount
             player["resolved_turn"] = True
             self._advance_after_event_resolution(subasta_state)
             save_game_session(session_id, self.key, subasta_state)
@@ -1478,7 +1475,7 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Maestro Disco solo puede ofrecerse antes de otro año de subastas."}})
                 return True
             if player.get("money", 0) < 100000:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas $100,000 para aceptar la oferta."}})
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas $100K para aceptar la oferta."}})
                 return True
 
             player["money"] -= 100000
@@ -1514,7 +1511,7 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Elige dos rivales distintos."}})
                 return True
             if player.get("money", 0) < 1000000:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas $1,000,000 para aceptar la oferta."}})
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas $1000K para aceptar la oferta."}})
                 return True
 
             target_players = [subasta_state["players"][target] for target in targets]
@@ -1534,7 +1531,7 @@ class SubastaPokemonMode(BaseGameMode):
                     int(subasta_state.get("current_year", 1)),
                 )
             player["money"] -= 1000000
-            event["result_message"] = f"Pagaste $1,000,000 y robaste a tus rivales: {', '.join(stolen_names)}."
+            event["result_message"] = f"Pagaste $1000K y robaste a tus rivales: {', '.join(stolen_names)}."
             player["resolved_turn"] = True
             self._advance_after_event_resolution(subasta_state)
             save_game_session(session_id, self.key, subasta_state)
@@ -1638,18 +1635,32 @@ class SubastaPokemonMode(BaseGameMode):
             if subasta_state["current_stage"] not in (4, 8, 12):
                 return True
 
-            winner = message.get("winner")
-            loser = message.get("loser")
+            player_one = message.get("player_one")
+            player_two = message.get("player_two")
+            points_one = message.get("points_one")
+            points_two = message.get("points_two")
+            players = subasta_state["players"]
+            if (
+                player_one not in players
+                or player_two not in players
+                or player_one == player_two
+                or type(points_one) is not int
+                or type(points_two) is not int
+                or not 0 <= points_one <= 3
+                or not 0 <= points_two <= 3
+            ):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona dos jugadores distintos y asigna a cada uno entre 0 y 3 puntos."}})
+                return True
 
-            if winner in subasta_state["players"]:
-                subasta_state["players"][winner]["points"] += 3
-            if loser in subasta_state["players"]:
-                subasta_state["players"][loser]["points"] += 1
+            players[player_one]["points"] += points_one
+            players[player_two]["points"] += points_two
 
             subasta_state.setdefault("match_history", []).append({
                 "year": subasta_state["current_year"],
-                "winner": winner,
-                "loser": loser
+                "player_one": player_one,
+                "points_one": points_one,
+                "player_two": player_two,
+                "points_two": points_two,
             })
 
             # Recalcular tabla de posiciones
@@ -2004,7 +2015,7 @@ class SubastaPokemonMode(BaseGameMode):
                     {"name": "MT Shadow Ball", "display": "MT Shadow Ball", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png"},
                     {"name": "Capsula Habilidad", "display": "Cápsula Habilidad", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/ability-capsule.png"},
                     {"name": "Porygon + Mejora", "display": "Porygon + Objeto Mejora", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/137.png"},
-                    {"name": "$500,000", "display": "$500,000 en efectivo", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png"},
+                    {"name": "$500K", "display": "$500K en efectivo", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png"},
                     {"name": "Pokémon Shiny ✨", "display": "Pokémon Shiny Random ✨", "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-stone.png"},
                 ]
 
@@ -2066,8 +2077,8 @@ class SubastaPokemonMode(BaseGameMode):
                     player["money"] = player.get("money", 0) + 500000
                     reward_info = {
                         "type": "money",
-                        "name": "$500,000",
-                        "display": "¡$500,000 en efectivo!",
+                        "name": "$500K",
+                        "display": "¡$500K en efectivo!",
                         "image": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/big-nugget.png",
                     }
                 else:

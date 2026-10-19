@@ -1318,6 +1318,33 @@ button.btn-danger:hover {
   box-shadow: 8px 8px 0 #00ff66;
 }
 
+.coinflip-modal .coinflip-coin {
+  margin: 1.5rem 0;
+  font-size: 5rem;
+  animation: coinflip-spin 0.35s linear infinite;
+}
+
+.coinflip-modal--won {
+  border-color: #22c55e;
+  box-shadow: 8px 8px 0 #22c55e;
+}
+
+.coinflip-modal--lost {
+  border-color: #ef4444;
+  box-shadow: 8px 8px 0 #ef4444;
+}
+
+@keyframes coinflip-spin {
+  from { transform: rotateY(0deg) scale(1); }
+  to { transform: rotateY(360deg) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coinflip-modal .coinflip-coin {
+    animation: none;
+  }
+}
+
 /* ── Modal de Probabilidades de Cajas ────────────────────────────────────────── */
 .box-odds-modal-overlay {
   position: fixed !important;
