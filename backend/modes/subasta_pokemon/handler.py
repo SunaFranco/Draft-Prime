@@ -1457,6 +1457,34 @@ class SubastaPokemonMode(BaseGameMode):
             await self._broadcast_subasta_state(session, manager)
             return True
 
+        elif action == "subasta_use_mint":
+            player = subasta_state["players"].get(username)
+            poke_idx = message.get("poke_index")
+            item_name = message.get("item_name")
+            mint_nature = item_name[:-5] if isinstance(item_name, str) and item_name.endswith(" Mint") else None
+            inventory = normalize_item_inventory(player.get("items", {})) if player else {}
+
+            if not player or not mint_nature or item_name not in MINT_ITEMS or inventory.get(item_name, 0) <= 0:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes esa Menta."}})
+                return True
+            if mint_nature not in poke_api.POKEMON_NATURES:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Esa Menta no corresponde a una naturaleza válida."}})
+                return True
+            if not isinstance(poke_idx, int) or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido."}})
+                return True
+
+            poke = player["pokemon"][poke_idx]
+            if poke.get("nature") == mint_nature:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Esa Menta no cambiaría la naturaleza actual del Pokémon."}})
+                return True
+
+            poke["nature"] = mint_nature
+            remove_item_from_inventory(player, item_name)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
         elif action == "subasta_use_tm":
             player = subasta_state["players"].get(username)
             poke_idx = message.get("poke_index")

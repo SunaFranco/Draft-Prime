@@ -1022,7 +1022,16 @@ export function renderMyPokemonInventory(data, sessionClient) {
                 <select class="ability-capsule-select" data-poke-idx="0">
                   ${(pokemonList[0]?.abilities || []).filter((ability) => ability !== pokemonList[0]?.ability).map((ability) => `<option value="${ability}">${ability}</option>`).join("")}
                 </select>
-                <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName === "Cambia Formas" ? (() => {
+                <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName.endsWith(" Mint") ? (() => {
+                  const mintNature = itemName.slice(0, -5);
+                  const canUseMint = pokemonList.some((poke) => poke.nature !== mintNature);
+                  return `
+                    <select class="mint-pokemon-select" data-item-name="${itemName}">
+                      ${pokemonList.map((poke, idx) => `<option value="${idx}" ${poke.nature === mintNature ? "disabled" : ""}>${poke.name || `Pokémon ${idx + 1}`} — ${formatNature(poke.nature)}${poke.nature === mintNature ? " (ya tiene esta naturaleza)" : ""}</option>`).join("")}
+                    </select>
+                    <button class="btn btn-small btn-secondary btn-use-mint" data-item-name="${itemName}" ${canUseMint ? "" : "disabled"}>Usar</button>
+                  `;
+                })() : pokemonList.length && itemName === "Cambia Formas" ? (() => {
                   const selectedPoke = pokemonList[0];
                   const formOptions = Array.isArray(selectedPoke?.regional_form_options) ? selectedPoke.regional_form_options : [];
                   return `

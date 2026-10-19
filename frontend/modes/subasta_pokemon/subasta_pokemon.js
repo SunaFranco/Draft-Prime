@@ -701,6 +701,20 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
+    document.querySelectorAll(".btn-use-mint").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const row = btn.closest(".bag-item-row");
+        const pokemonSelect = row?.querySelector(".mint-pokemon-select");
+        const itemName = btn.getAttribute("data-item-name");
+        if (!pokemonSelect || !itemName || pokemonSelect.value === "") return;
+        sessionClient.send({
+          action: "subasta_use_mint",
+          poke_index: parseInt(pokemonSelect.value, 10),
+          item_name: itemName,
+        });
+      });
+    });
+
     document.querySelectorAll(".tm-pokemon-select").forEach((pokemonSelect) => {
       const row = pokemonSelect.closest(".bag-item-row");
       const useBtn = row?.querySelector(".btn-use-tm");
