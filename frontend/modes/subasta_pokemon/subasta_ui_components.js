@@ -2,6 +2,12 @@
  * frontend/modes/subasta_pokemon/subasta_ui_components.js - Componentes de renderizado UI para Subasta Pokémon
  */
 
+const POKEMON_TYPES = [
+  "Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison",
+  "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark",
+  "Steel", "Fairy",
+];
+
 function buildWikidexUrl(name) {
   if (!name) return "";
   const raw = String(name).trim();
@@ -508,6 +514,11 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const isFolded = (auction.folded_players || []).includes(sessionClient.currentUsername);
   const isHighBidder = auction.high_bidder === sessionClient.currentUsername;
   const canFold = !isFolded && !isHighBidder && !isWinnerPendingSecret;
+  const pokeradarDiscount = auction.pokeradar_discount === true;
+  const effectiveWinningBid = pokeradarDiscount
+    ? Math.floor((auction.current_bid || 0) / 2)
+    : (auction.current_bid || 0);
+  const secretCost = Math.ceil(effectiveWinningBid * 0.1);
   const revealHoldUntil = Number(auction.reveal_hold_until || 0) * 1000;
   const revealCountdownMs = revealHoldUntil > 0 ? Math.max(0, revealHoldUntil - Date.now()) : 0;
   const revealPercent = revealHoldUntil > 0 ? Math.max(0, Math.min(100, (revealCountdownMs / 5000) * 100)) : 0;
@@ -578,6 +589,11 @@ export function renderAuctionView(data, sessionClient, isHost) {
         <h3>🔥 Estado de la Puja</h3>
         <p class="current-bid-display ${auction.high_bidder === sessionClient.currentUsername ? 'current-bid-display--win' : 'current-bid-display--lose'}">Puja Actual: <span>$${formatMoneyCompact(auction.current_bid || 0)}</span></p>
         <p class="high-bidder-display">Mayor Pujador: <strong class="${auction.high_bidder === sessionClient.currentUsername ? 'high-bidder-display--win' : 'high-bidder-display--lose'}">${auction.high_bidder || "Ninguno"}</strong></p>
+        ${auction.pokeradar_blocked ? `
+          <p class="text-warning">📡 Tu Pokeradar no permite pujar por este Pokémon: no es de ninguno de los dos tipos elegidos.</p>
+        ` : pokeradarDiscount ? `
+          <p class="text-success">📡 Pokeradar: si ganas, pagarás la mitad de tu puja ($${formatMoneyCompact(effectiveWinningBid)} al precio actual).</p>
+        ` : ""}
 
         ${isAuctionFinished && !isWinnerPendingSecret ? `
           <div class="secret-choice-modal">
@@ -588,9 +604,9 @@ export function renderAuctionView(data, sessionClient, isHost) {
         ` : isWinnerPendingSecret ? `
           <div class="secret-choice-modal">
             <h4>🎉 ¡Ganaste la subasta de ${poke.name || 'este Pokémon'}!</h4>
-            <p>¿Deseas pagar <strong>$${formatMoneyCompact(Math.ceil((auction.current_bid || 0) * 0.1))}</strong> (10% de tu puja) para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
+            <p>¿Deseas pagar <strong>$${formatMoneyCompact(secretCost)}</strong> (10% del coste de adquisición${pokeradarDiscount ? " con Pokeradar" : ""}) para ocultar a <strong>${poke.name}</strong> a tus rivales?</p>
             <div class="btn-group">
-              <button id="btn-secret-yes" class="btn btn-primary">🔒 Pagar $${formatMoneyCompact(Math.ceil((auction.current_bid || 0) * 0.1))} y Ocultar</button>
+              <button id="btn-secret-yes" class="btn btn-primary">🔒 Pagar $${formatMoneyCompact(secretCost)} y Ocultar</button>
               <button id="btn-secret-no" class="btn btn-secondary">👁️ Mostrar a todos ($0)</button>
             </div>
           </div>
@@ -607,13 +623,13 @@ export function renderAuctionView(data, sessionClient, isHost) {
             ` : `
               <div class="bid-input-group">
                 <input type="number" id="custom-bid-amount" value="${getNextBidValue(auction.current_bid || 0)}" step="5000" min="${getNextBidValue(auction.current_bid || 0)}" />
-                <button id="btn-bid-custom" class="btn btn-success" ${isFolded ? "disabled" : ""}>Pujar</button>
+                <button id="btn-bid-custom" class="btn btn-success" ${isFolded || auction.pokeradar_blocked ? "disabled" : ""}>Pujar</button>
               </div>
             `}
 
             <div class="btn-group">
               ${!isHighBidder ? `
-                <button id="btn-buyout" class="btn btn-warning" ${isFolded ? "disabled" : ""}>⚡ Compra Directa ($${formatMoneyCompact(auction.buyout_price || 5000)})</button>
+                <button id="btn-buyout" class="btn btn-warning" ${isFolded || auction.pokeradar_blocked ? "disabled" : ""}>⚡ Compra Directa ($${formatMoneyCompact(pokeradarDiscount ? Math.floor((auction.buyout_price || 5000) / 2) : (auction.buyout_price || 5000))}${pokeradarDiscount ? " con Pokeradar" : ""})</button>
               ` : ""}
               <button id="btn-fold" class="btn btn-danger" ${!canFold ? "disabled" : ""}>${isFolded ? "Retirado" : isHighBidder ? "🔒 Mayor Pujador" : "🚪 Retirarse"}</button>
             </div>
@@ -638,6 +654,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const isCoinflip = turnEvent.type === "coinflip";
   const isMasterDisk = turnEvent.type === "master_disk";
   const isGholdengo = turnEvent.type === "gholdengo_usurer";
+  const isPokeradar = turnEvent.type === "pokeradar";
   const availableGholdengoTargets = Object.entries(data.all_players || {})
     .filter(([username, player]) => username !== sessionClient.currentUsername && (player.pokemon_count || 0) > 0)
     .map(([username]) => username);
@@ -740,6 +757,21 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
               <p>No hay dos rivales con Pokémon disponibles para elegir.</p>
               <button id="btn-gholdengo-decline" class="btn btn-secondary btn-large">Rechazar oferta</button>
             `}
+          </div>
+        ` : isPokeradar ? `
+          <div class="pokemon-traffic-form">
+            <p>Elige dos tipos. Durante todo el próximo año solo podrás pujar por Pokémon de esos tipos y pagarás la mitad al conseguirlos.</p>
+            <label for="pokeradar-type-one">Primer tipo:</label>
+            <select id="pokeradar-type-one">
+              ${POKEMON_TYPES.map((pokemonType) => `<option value="${pokemonType}">${pokemonType}</option>`).join("")}
+            </select>
+            <label for="pokeradar-type-two">Segundo tipo:</label>
+            <select id="pokeradar-type-two">
+              ${POKEMON_TYPES.map((pokemonType, index) => `<option value="${pokemonType}" ${index === 1 ? "selected" : ""}>${pokemonType}</option>`).join("")}
+            </select>
+            <div style="display:flex;gap:0.75rem;margin-top:0.75rem;flex-wrap:wrap;">
+              <button id="btn-pokeradar-accept" class="btn btn-primary btn-large">📡 Activar Pokeradar</button>
+            </div>
           </div>
         ` : isItemReward ? `
           <button id="btn-resolve-event" class="btn btn-primary btn-large">🎰 Girar la ruleta</button>

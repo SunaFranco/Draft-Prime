@@ -14,6 +14,11 @@ from typing import Dict, List, Any, Optional
 POKEAPI_BASE_URL = "https://pokeapi.co/api/v2/pokemon"
 MAX_POKE_CACHE = 32
 POKE_CACHE: OrderedDict[str, dict] = OrderedDict()
+POKEMON_TYPES = [
+    "Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison",
+    "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark",
+    "Steel", "Fairy",
+]
 
 POKEMON_NATURES = [
     "Hardy", "Lonely", "Brave", "Adamant", "Naughty",

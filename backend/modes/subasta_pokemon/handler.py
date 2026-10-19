@@ -82,6 +82,24 @@ def calculate_buyout_price(starting_money: int, phase_quota: int) -> int:
     return ((price + MIN_BID_INCREMENT - 1) // MIN_BID_INCREMENT) * MIN_BID_INCREMENT
 
 
+def clear_pokeradar_if_matching_pokemon(player: dict, pokemon: dict, current_year: int) -> None:
+    if (
+        player.get("pokeradar_year") == current_year
+        and set(player.get("pokeradar_types") or []).intersection(pokemon.get("types") or [])
+    ):
+        player.pop("pokeradar_types", None)
+        player.pop("pokeradar_year", None)
+
+
+def activate_pokeradar_for_year(player: dict, year: int) -> None:
+    if player.get("pokeradar_year") != year:
+        player.pop("pokeradar_types", None)
+        player.pop("pokeradar_year", None)
+    if player.get("pokeradar_next_year") == year:
+        player["pokeradar_types"] = player.pop("pokeradar_next_types")
+        player["pokeradar_year"] = player.pop("pokeradar_next_year")
+
+
 DEFAULT_YEAR_EVENT_COUNTS = {
     1: {"positive": 3, "neutral": 0, "negative": 0},
     2: {"positive": 3, "neutral": 0, "negative": 0},
@@ -724,6 +742,12 @@ class SubastaPokemonMode(BaseGameMode):
         current_year = subasta_state.get("current_year", 1)
         current_turn = subasta_state.get("current_turn", 1)
         current_auction = copy.deepcopy(subasta_state.get("current_auction", {}))
+        radar_types = player_data.get("pokeradar_types") or []
+        radar_active = player_data.get("pokeradar_year") == current_year and bool(radar_types)
+        pokemon_types = (current_auction.get("pokemon") or {}).get("types") or []
+        radar_matches = bool(set(radar_types).intersection(pokemon_types))
+        current_auction["pokeradar_blocked"] = radar_active and not radar_matches
+        current_auction["pokeradar_discount"] = radar_active and radar_matches
         if username in current_auction.get("blind_players", []):
             current_auction["hints"] = {
                 hint: "🔒 Oculta por El Pokémon Ciego"
@@ -1015,18 +1039,31 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Ya eres el mayor pujador de esta subasta."}})
                 return True
 
-            if bid_amount % MIN_BID_INCREMENT != 0:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe ser múltiplo de ${MIN_BID_INCREMENT}."}})
-                return True
-
             player = subasta_state["players"].get(username)
             if not player:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Fondos insuficientes."}})
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Jugador no encontrado."}})
+                return True
+            radar_active = (
+                player.get("pokeradar_year") == subasta_state.get("current_year")
+                and bool(player.get("pokeradar_types"))
+            )
+            pokemon_types = (auction.get("pokemon") or {}).get("types") or []
+            radar_matches = bool(set(player.get("pokeradar_types") or []).intersection(pokemon_types))
+            if radar_active and not radar_matches:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "El Pokeradar solo te permite pujar por Pokémon de los dos tipos elegidos."}})
+                return True
+
+            if bid_amount % MIN_BID_INCREMENT != 0:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe ser múltiplo de ${MIN_BID_INCREMENT}."}})
                 return True
 
             minimum_valid_bid = auction["current_bid"] + MIN_BID_INCREMENT
             if bid_amount < minimum_valid_bid:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": f"La puja debe superar los ${auction['current_bid']} en múltiplos de ${MIN_BID_INCREMENT}."}})
+                return True
+            effective_bid = bid_amount // 2 if radar_active and radar_matches else bid_amount
+            if player.get("money", 0) < effective_bid:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes fondos suficientes para cubrir el coste de esta puja."}})
                 return True
 
             auction["current_bid"] = bid_amount
@@ -1070,7 +1107,20 @@ class SubastaPokemonMode(BaseGameMode):
 
             buyout_price = auction["buyout_price"]
             player = subasta_state["players"].get(username)
-            if not player or player["money"] < buyout_price:
+            if not player:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Fondos insuficientes para compra directa."}})
+                return True
+            radar_active = (
+                player.get("pokeradar_year") == subasta_state.get("current_year")
+                and bool(player.get("pokeradar_types"))
+            )
+            pokemon_types = (auction.get("pokemon") or {}).get("types") or []
+            radar_matches = bool(set(player.get("pokeradar_types") or []).intersection(pokemon_types))
+            if radar_active and not radar_matches:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "El Pokeradar solo te permite comprar Pokémon de los dos tipos elegidos."}})
+                return True
+            effective_buyout = buyout_price // 2 if radar_active and radar_matches else buyout_price
+            if player["money"] < effective_buyout:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Fondos insuficientes para compra directa."}})
                 return True
 
@@ -1098,10 +1148,17 @@ class SubastaPokemonMode(BaseGameMode):
 
             keep_secret = bool(message.get("keep_secret", False))
             player = subasta_state["players"][username]
-            cost = auction["current_bid"]
+            current_year = int(subasta_state.get("current_year", 1))
+            radar_active = (
+                player.get("pokeradar_year") == current_year
+                and bool(player.get("pokeradar_types"))
+            )
+            winning_types = (auction.get("pokemon") or {}).get("types") or []
+            radar_matches = bool(set(player.get("pokeradar_types") or []).intersection(winning_types))
+            cost = auction["current_bid"] // 2 if radar_active and radar_matches else auction["current_bid"]
 
             if keep_secret:
-                secret_cost = math.ceil(auction["current_bid"] * 0.1)
+                secret_cost = math.ceil(cost * 0.1)
                 if player["money"] >= cost + secret_cost:
                     cost += secret_cost
                     won_pokemon = auction["pokemon"].copy()
@@ -1120,10 +1177,16 @@ class SubastaPokemonMode(BaseGameMode):
                 auction["publicly_revealed"] = True
 
             player["money"] -= cost
-            won_pokemon["instant_purchase_price"] = int(auction.get("buyout_price", cost))
-            won_pokemon["acquisition_year"] = int(subasta_state.get("current_year", 1))
+            instant_purchase_price = int(auction.get("buyout_price", cost))
+            won_pokemon["instant_purchase_price"] = (
+                instant_purchase_price // 2 if radar_active and radar_matches else instant_purchase_price
+            )
+            won_pokemon["acquisition_year"] = current_year
             won_pokemon["acquisition_tier"] = auction.get("phase_tier", "normal")
             player["pokemon"].append(won_pokemon)
+            if radar_active and radar_matches:
+                player.pop("pokeradar_types", None)
+                player.pop("pokeradar_year", None)
             auction["finished"] = True
             auction["reveal_hold_until"] = None
             subasta_state["auction_turn_index"] += 1
@@ -1267,6 +1330,11 @@ class SubastaPokemonMode(BaseGameMode):
             if held_item:
                 add_item_to_inventory(player, held_item)
             player["pokemon"][poke_idx] = replacement
+            clear_pokeradar_if_matching_pokemon(
+                player,
+                replacement,
+                int(subasta_state.get("current_year", acquisition_year)),
+            )
             player["resolved_turn"] = True
             self._advance_after_event_resolution(subasta_state)
             save_game_session(session_id, self.key, subasta_state)
@@ -1370,8 +1438,55 @@ class SubastaPokemonMode(BaseGameMode):
                 stolen_pokemon = target_player["pokemon"].pop(stolen_index)
                 stolen_names.append(stolen_pokemon.get("name", "Pokémon"))
                 player.setdefault("pokemon", []).append(stolen_pokemon)
+                clear_pokeradar_if_matching_pokemon(
+                    player,
+                    stolen_pokemon,
+                    int(subasta_state.get("current_year", 1)),
+                )
             player["money"] -= 1000000
             event["result_message"] = f"Pagaste $1,000,000 y robaste a tus rivales: {', '.join(stolen_names)}."
+            player["resolved_turn"] = True
+            self._advance_after_event_resolution(subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_event_pokeradar":
+            player = subasta_state["players"].get(username)
+            event = subasta_state["current_turn_events"].get(username)
+            current_year = int(subasta_state.get("current_year", 1))
+            if (
+                subasta_state["current_stage"] not in (3, 7)
+                or not player
+                or not event
+                or player.get("resolved_turn")
+                or event.get("type") != "pokeradar"
+                or current_year not in (1, 2)
+            ):
+                return True
+
+            selected_types = message.get("types")
+            if (
+                not isinstance(selected_types, list)
+                or len(selected_types) != 2
+                or selected_types[0] == selected_types[1]
+                or any(pokemon_type not in poke_api.POKEMON_TYPES for pokemon_type in selected_types)
+            ):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona dos tipos Pokémon distintos."}})
+                return True
+
+            next_year = current_year + 1
+            if player.get("pokeradar_year") == current_year:
+                player["pokeradar_next_types"] = selected_types
+                player["pokeradar_next_year"] = next_year
+            else:
+                player["pokeradar_types"] = selected_types
+                player["pokeradar_year"] = next_year
+            event["result_message"] = (
+                f"Pokeradar activado para el Año {current_year + 1}: "
+                f"solo podrás pujar por Pokémon de tipo {selected_types[0]} o {selected_types[1]}, "
+                "con un coste reducido a la mitad. El efecto terminará al conseguir uno."
+            )
             player["resolved_turn"] = True
             self._advance_after_event_resolution(subasta_state)
             save_game_session(session_id, self.key, subasta_state)
@@ -1410,6 +1525,7 @@ class SubastaPokemonMode(BaseGameMode):
                     for p_info in subasta_state["players"].values():
                         p_info["money"] += year_money
                         evolve_player_pokemon(p_info, 100)
+                        activate_pokeradar_for_year(p_info, 3)
                     has_phases = setup_year_auction_phases(subasta_state, 3)
                     if has_phases:
                         subasta_state["current_stage"] = 10  # Salta a Subasta Año 3
@@ -1493,6 +1609,7 @@ class SubastaPokemonMode(BaseGameMode):
                     for p_info in subasta_state["players"].values():
                         p_info["money"] += year_money
                         evolve_player_pokemon(p_info, 100)
+                        activate_pokeradar_for_year(p_info, 3)
                     has_phases = setup_year_auction_phases(subasta_state, 3)
                     if has_phases:
                         subasta_state["current_stage"] = 10
@@ -1844,6 +1961,7 @@ class SubastaPokemonMode(BaseGameMode):
                 elif roll < 0.98:
                     porygon_data = poke_api.fetch_pokemon_data("Porygon", level_cap=20)
                     player.setdefault("pokemon", []).append(porygon_data)
+                    clear_pokeradar_if_matching_pokemon(player, porygon_data, current_year)
                     add_item_to_inventory(player, "Up-Grade")
                     nature_str = porygon_data.get("nature", "Hardy")
                     ability_str = porygon_data.get("ability", "Trace")
@@ -1872,6 +1990,7 @@ class SubastaPokemonMode(BaseGameMode):
                     if shiny_data.get("shiny_image_url"):
                         shiny_data["image_url"] = shiny_data["shiny_image_url"]
                     player.setdefault("pokemon", []).append(shiny_data)
+                    clear_pokeradar_if_matching_pokemon(player, shiny_data, current_year)
                     nature_str = shiny_data.get("nature", "Hardy")
                     ability_str = shiny_data.get("ability", "Static")
                     reward_info = {
@@ -1917,6 +2036,7 @@ class SubastaPokemonMode(BaseGameMode):
                 chosen_species = random.choice(["Galvantula", "Scolipede", "Sawk", "Gardevoir"])
                 poke_data = poke_api.fetch_pokemon_data(chosen_species, level_cap=20)
                 player.setdefault("pokemon", []).append(poke_data)
+                clear_pokeradar_if_matching_pokemon(player, poke_data, current_year)
                 nature_str = poke_data.get("nature", "Hardy")
                 ability_str = poke_data.get("ability", "")
                 reward_info = {

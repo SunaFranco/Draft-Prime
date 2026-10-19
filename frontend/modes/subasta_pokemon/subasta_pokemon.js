@@ -552,6 +552,36 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     }
 
+    const pokeradarTypeOne = document.getElementById("pokeradar-type-one");
+    const pokeradarTypeTwo = document.getElementById("pokeradar-type-two");
+    if (pokeradarTypeOne && pokeradarTypeTwo) {
+      const updatePokeradarTypes = () => {
+        Array.from(pokeradarTypeTwo.options).forEach((option) => {
+          option.disabled = option.value === pokeradarTypeOne.value;
+        });
+        if (pokeradarTypeTwo.value === pokeradarTypeOne.value) {
+          pokeradarTypeTwo.value = Array.from(pokeradarTypeTwo.options)
+            .find((option) => !option.disabled)?.value || "";
+        }
+      };
+      pokeradarTypeOne.addEventListener("change", updatePokeradarTypes);
+      updatePokeradarTypes();
+    }
+
+    const btnPokeradar = document.getElementById("btn-pokeradar-accept");
+    if (btnPokeradar) {
+      btnPokeradar.addEventListener("click", () => {
+        const typeOne = pokeradarTypeOne?.value;
+        const typeTwo = pokeradarTypeTwo?.value;
+        if (!typeOne || !typeTwo || typeOne === typeTwo) return;
+        btnPokeradar.disabled = true;
+        sessionClient.send({
+          action: "subasta_event_pokeradar",
+          types: [typeOne, typeTwo],
+        });
+      });
+    }
+
     // Avanzar Etapa (Host)
     const btnForceNext = document.getElementById("btn-force-next-stage");
     [btnForceNext].forEach((btn) => {

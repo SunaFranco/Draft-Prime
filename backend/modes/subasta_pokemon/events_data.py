@@ -99,6 +99,13 @@ EVENTS_YEAR_1 = [
         "type": "master_disk",
     },
     {
+        "id": "e1_pokeradar",
+        "category": "neutral",
+        "title": "📡 Pokeradar Descompuesto",
+        "description": "Elige dos tipos. Durante el próximo año solo podrás pujar por Pokémon de esos tipos y pagarás la mitad por ellos. El efecto termina al conseguir uno.",
+        "type": "pokeradar",
+    },
+    {
         "id": "e1_pokemon_ciego",
         "category": "negative",
         "title": "🙈 El Pokémon Ciego",
@@ -171,6 +178,13 @@ EVENTS_YEAR_2 = [
         "title": "🪙 Gholdengo el Usurero",
         "description": "Paga $1,000,000 para robar un Pokémon aleatorio a cada uno de dos rivales que elijas.",
         "type": "gholdengo_usurer",
+    },
+    {
+        "id": "e2_pokeradar",
+        "category": "neutral",
+        "title": "📡 Pokeradar Descompuesto",
+        "description": "Elige dos tipos. Durante el próximo año solo podrás pujar por Pokémon de esos tipos y pagarás la mitad por ellos. El efecto termina al conseguir uno.",
+        "type": "pokeradar",
     },
 ]
 
