@@ -1290,6 +1290,8 @@ class SubastaPokemonMode(BaseGameMode):
             event = subasta_state["current_turn_events"].get(username)
 
             if player and event and not player.get("resolved_turn"):
+                if event.get("awaiting_confirmation"):
+                    return True
                 summary = events_data.apply_event_to_player(player, event)
                 if event.get("type") == "pokemon_blind":
                     player["blind_auction_year"] = int(subasta_state.get("current_year", 1)) + 1
@@ -1305,6 +1307,28 @@ class SubastaPokemonMode(BaseGameMode):
                 self._advance_after_event_resolution(subasta_state)
 
             save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_confirm_event_result":
+            if subasta_state["current_stage"] not in (3, 7, 11):
+                return True
+
+            player = subasta_state["players"].get(username)
+            event = subasta_state["current_turn_events"].get(username)
+            if (
+                not player
+                or not event
+                or player.get("resolved_turn")
+                or not event.get("awaiting_confirmation")
+                or event.get("type") not in ("coinflip", "wonder_trade")
+            ):
+                return True
+
+            event["awaiting_confirmation"] = False
+            player["resolved_turn"] = True
+            self._advance_after_event_resolution(subasta_state)
+            await asyncio.to_thread(save_game_session, session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True
 
@@ -1414,13 +1438,13 @@ class SubastaPokemonMode(BaseGameMode):
                 "is_shiny": bool(replacement.get("is_shiny")),
             }
             event["result_message"] = f"Intercambio realizado: recibiste a {event['result_pokemon']['name']}."
+            event["awaiting_confirmation"] = True
             clear_pokeradar_if_matching_pokemon(
                 player,
                 replacement,
                 int(subasta_state.get("current_year", acquisition_year)),
             )
-            player["resolved_turn"] = True
-            self._advance_after_event_resolution(subasta_state)
+            player["resolved_turn"] = False
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True
@@ -1454,8 +1478,8 @@ class SubastaPokemonMode(BaseGameMode):
                 event["coinflip_won"] = False
                 event["result_message"] = f"Perdiste el Coinflip y los {format_money_k(amount)} apostados."
             event["coinflip_amount"] = amount
-            player["resolved_turn"] = True
-            self._advance_after_event_resolution(subasta_state)
+            event["awaiting_confirmation"] = True
+            player["resolved_turn"] = False
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True

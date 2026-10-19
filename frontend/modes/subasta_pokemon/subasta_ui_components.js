@@ -672,6 +672,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const turnEvent = data.current_turn_event || {};
   const myData = data.my_data || {};
   const isResolved = myData.resolved_turn;
+  const isAwaitingResultConfirmation = turnEvent.awaiting_confirmation === true;
   const pokemonList = myData.pokemon || [];
   const natureNames = Object.keys(NATURE_EFFECTS);
   const isNatureChange = turnEvent.type === "nature_change";
@@ -714,6 +715,18 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
               ${turnEvent.result_pokemon.image_url ? `<img src="${turnEvent.result_pokemon.image_url}" alt="${turnEvent.result_pokemon.name}" style="width: 160px; height: 160px; object-fit: contain;" />` : ""}
             </div>
           ` : ""}
+        ` : isAwaitingResultConfirmation && turnEvent.type === "wonder_trade" ? `
+          <p class="text-success">${turnEvent.result_message || "Intercambio realizado."}</p>
+          ${turnEvent.result_pokemon ? `
+            <div class="wonder-trade-result">
+              <h3>🎁 Pokémon obtenido: ${turnEvent.result_pokemon.name}</h3>
+              ${turnEvent.result_pokemon.image_url ? `<img src="${turnEvent.result_pokemon.image_url}" alt="${turnEvent.result_pokemon.name}" style="width: 160px; height: 160px; object-fit: contain;" />` : ""}
+            </div>
+          ` : ""}
+          <button id="btn-confirm-event-result" class="btn btn-primary btn-large">Aceptar y continuar</button>
+        ` : isAwaitingResultConfirmation && turnEvent.type === "coinflip" ? `
+          <p class="text-success">${turnEvent.result_message || "Mira el resultado de la animación para continuar."}</p>
+          <p>Confirma el resultado desde la animación de Coinflip para avanzar.</p>
         ` : isNatureChange ? `
           <div class="nature-change-form">
             <label for="nature-change-pokemon">Pokémon:</label>

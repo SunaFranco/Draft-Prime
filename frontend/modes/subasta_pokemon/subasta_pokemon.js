@@ -226,7 +226,7 @@ async function playTrafficAnimation(finalAmount, onComplete) {
   onComplete();
 }
 
-async function playCoinflipAnimation(event) {
+async function playCoinflipAnimation(event, onAccept) {
   const won = event.coinflip_won === true;
   const amount = formatMoneyCompact(event.coinflip_amount || 0);
   const overlay = document.createElement("div");
@@ -249,8 +249,15 @@ async function playCoinflipAnimation(event) {
   modal.querySelector(".event-roulette-status").textContent = won
     ? `Ganaste $${amount}`
     : `Perdiste $${amount}`;
-  await wait(1800);
-  overlay.remove();
+  const acceptButton = document.createElement("button");
+  acceptButton.className = "btn btn-primary btn-large";
+  acceptButton.textContent = "Aceptar y continuar";
+  acceptButton.addEventListener("click", () => {
+    acceptButton.disabled = true;
+    overlay.remove();
+    onAccept();
+  });
+  modal.appendChild(acceptButton);
 }
 
 export class SubastaPokemonModeUI extends BaseGameModeUI {
@@ -356,13 +363,15 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const turnEvent = state.current_turn_event || {};
     if (
       turnEvent.type === "coinflip"
-      && state.my_data?.resolved_turn
+      && turnEvent.awaiting_confirmation === true
       && typeof turnEvent.coinflip_won === "boolean"
     ) {
       const animationKey = `${state.current_year}:${state.current_turn}:${sessionClient.currentUsername}`;
       if (animationKey !== this._lastCoinflipAnimationKey) {
         this._lastCoinflipAnimationKey = animationKey;
-        playCoinflipAnimation(turnEvent);
+        playCoinflipAnimation(turnEvent, () => {
+          sessionClient.send({ action: "subasta_confirm_event_result" });
+        });
       }
     }
 
@@ -462,6 +471,14 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           return;
         }
         sessionClient.send({ action: "subasta_resolve_event" });
+      });
+    }
+
+    const btnConfirmEventResult = document.getElementById("btn-confirm-event-result");
+    if (btnConfirmEventResult) {
+      btnConfirmEventResult.addEventListener("click", () => {
+        btnConfirmEventResult.disabled = true;
+        sessionClient.send({ action: "subasta_confirm_event_result" });
       });
     }
 
