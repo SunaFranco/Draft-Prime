@@ -117,6 +117,106 @@ ITEM_SHOP_PRICES = {
     "Dawn Stone": 100000,
     "Shiny Stone": 100000,
     "Cambia Formas": 75000,
+    "Ruleta Plates": 20000,
+    "Ruleta Piedras": 20000,
+    "Flame Orb": 50000,
+    "MT Toxic": 100000,
+    "MT Protect": 20000,
+    "Life Orb": 100000,
+    "Leftovers": 200000,
+    "Ruleta Mentas": 30000,
+    "Ruleta Choice": 150000,
+    "Ruleta MT OP": 100000,
+}
+
+PLATE_ITEMS = [
+    "Fist Plate",
+    "Sky Plate",
+    "Flame Plate",
+    "Splash Plate",
+    "Zap Plate",
+    "Meadow Plate",
+    "Icicle Plate",
+    "Toxic Plate",
+    "Earth Plate",
+    "Mind Plate",
+    "Insect Plate",
+    "Stone Plate",
+    "Spooky Plate",
+    "Draco Plate",
+    "Dread Plate",
+    "Iron Plate",
+    "Pixie Plate",
+]
+
+EVOLUTION_STONE_ITEMS = [
+    "Fire Stone",
+    "Water Stone",
+    "Thunder Stone",
+    "Leaf Stone",
+    "Moon Stone",
+    "Sun Stone",
+    "Shiny Stone",
+    "Dusk Stone",
+    "Dawn Stone",
+    "Ice Stone",
+]
+
+MINT_ITEMS = [
+    "Adamant Mint",
+    "Bashful Mint",
+    "Bold Mint",
+    "Brave Mint",
+    "Calm Mint",
+    "Careful Mint",
+    "Docile Mint",
+    "Gentle Mint",
+    "Hardy Mint",
+    "Hasty Mint",
+    "Impish Mint",
+    "Jolly Mint",
+    "Lax Mint",
+    "Lonely Mint",
+    "Mild Mint",
+    "Modest Mint",
+    "Naive Mint",
+    "Naughty Mint",
+    "Quiet Mint",
+    "Quirky Mint",
+    "Rash Mint",
+    "Relaxed Mint",
+    "Sassy Mint",
+    "Serious Mint",
+    "Timid Mint",
+]
+
+CHOICE_ITEM_REWARDS = [
+    "Choice Scarf",
+    "Choice Band",
+    "Choice Specs",
+]
+
+OVERPOWERED_TM_ITEMS = [
+    "MT Earthquake",
+    "MT Ice Beam",
+    "MT Flamethrower",
+    "MT Thunderbolt",
+    "MT Shadow Ball",
+    "MT Stone Edge",
+    "MT U-turn",
+    "MT Close Combat",
+    "MT Energy Ball",
+    "MT Dark Pulse",
+    "MT Sludge Bomb",
+    "MT Knock Off",
+]
+
+YEAR_SHOP_ROULETTES = {
+    "Ruleta Plates": PLATE_ITEMS,
+    "Ruleta Piedras": EVOLUTION_STONE_ITEMS,
+    "Ruleta Mentas": MINT_ITEMS,
+    "Ruleta Choice": CHOICE_ITEM_REWARDS,
+    "Ruleta MT OP": OVERPOWERED_TM_ITEMS,
 }
 
 YEAR_SHOP_ITEMS = {
@@ -137,17 +237,22 @@ YEAR_SHOP_ITEMS = {
         
     ],
     2: [
-        "Ice Stone",
-        "Thunder Stone",
-        "Moon Stone",
-        "Sun Stone",
-        "Dusk Stone",
-        "Dawn Stone",
-        "Shiny Stone",
+        "Ruleta Plates",
         "Capsula Habilidad",
+        "Cambia Formas",
+        "Flame Orb",
+        "Sitrus Berry",
+        "MT Toxic",
+        "MT Protect",
+        "Ruleta Piedras",
     ],
     3: [
+        "Life Orb",
         "Capsula Habilidad",
+        "Ruleta Mentas",
+        "Leftovers",
+        "Ruleta Choice",
+        "Ruleta MT OP",
     ],
 }
 
@@ -1561,6 +1666,23 @@ class SubastaPokemonMode(BaseGameMode):
                         "box_name": "Caja Misteriosa I",
                         "reward": reward_info,
                         "pool": box_pool_preview,
+                    },
+                })
+            elif item_name in YEAR_SHOP_ROULETTES:
+                rewards = YEAR_SHOP_ROULETTES[item_name]
+                chosen_reward = random.choice(rewards)
+                add_item_to_inventory(player, chosen_reward)
+                await manager.send_personal(websocket, {
+                    "event": "subasta_mystery_box_result",
+                    "data": {
+                        "box_name": item_name,
+                        "store_title": f"TIENDA AÑO {current_year}",
+                        "reward": {
+                            "type": "item",
+                            "name": chosen_reward,
+                            "display": chosen_reward,
+                        },
+                        "pool": rewards,
                     },
                 })
             elif item_name == "Regalo del Primo jeque":

@@ -59,7 +59,7 @@ async function playMysteryBoxRoulette(boxData, onComplete) {
   overlay.className = "event-roulette-overlay";
   overlay.innerHTML = `
     <div class="event-roulette-modal">
-      <div class="event-roulette-kicker">🎁 TIENDA DEL PRIMER AÑO</div>
+      <div class="event-roulette-kicker">🎁 ${boxData.store_title || "TIENDA DEL PRIMER AÑO"}</div>
       <h2>${boxData.box_name || "Caja Misteriosa"}</h2>
       <div class="event-roulette-stage">
         <div class="event-roulette-pointer">▼</div>
@@ -818,7 +818,15 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         if (this._isRouletteSpinning) return;
         const itemName = btn.getAttribute("data-item-name");
         if (!itemName) return;
-        if (itemName.startsWith("Caja Misteriosa") || itemName.startsWith("Regalo del Primo")) {
+        if (
+          itemName.startsWith("Caja Misteriosa")
+          || itemName.startsWith("Regalo del Primo")
+          || itemName === "Ruleta Plates"
+          || itemName === "Ruleta Piedras"
+          || itemName === "Ruleta Mentas"
+          || itemName === "Ruleta Choice"
+          || itemName === "Ruleta MT OP"
+        ) {
           this._isRouletteSpinning = true;
         }
         sessionClient.send({ action: "subasta_shop_buy", item_name: itemName });
@@ -883,4 +891,3 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     this.latestState = null;
   }
 }
-

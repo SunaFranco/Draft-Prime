@@ -782,65 +782,27 @@ export function renderMyPokemonInventory(data, sessionClient) {
       { name: "Leaf Stone", price: 100000 },
     ],
     2: [
-      { name: "Leftovers", price: 1200 },
-      { name: "Life Orb", price: 1800 },
-      { name: "Choice Band", price: 2000 },
-      { name: "Choice Specs", price: 2000 },
-      { name: "Choice Scarf", price: 2000 },
-      { name: "Rocky Helmet", price: 1400 },
-      { name: "Heavy-Duty Boots", price: 1600 },
-      { name: "Focus Sash", price: 1700 },
-      { name: "Assault Vest", price: 1800 },
-      { name: "Capsula Habilidad", price: 2500 },
-      { name: "MT Earthquake", price: 2000 },
-      { name: "MT Ice Beam", price: 2000 },
-      { name: "MT Flamethrower", price: 2000 },
-      { name: "MT Thunderbolt", price: 2000 },
-      { name: "MT Psychic", price: 2000 },
-      { name: "MT Shadow Ball", price: 2000 },
-      { name: "MT Protect", price: 1500 },
-      { name: "MT Substitute", price: 2000 },
-      { name: "MT Swords Dance", price: 2000 },
-      { name: "MT Calm Mind", price: 2000 },
+      { name: "Ruleta Plates", price: 20000, isRoulette: true, description: "Gana una Plate aleatoria entre las 17 Plates de tipo." },
+      { name: "Capsula Habilidad", price: 150000 },
+      { name: "Cambia Formas", price: 75000 },
+      { name: "Flame Orb", price: 50000 },
+      { name: "Sitrus Berry", price: 50000 },
+      { name: "MT Toxic", price: 100000 },
+      { name: "MT Protect", price: 20000 },
+      { name: "Ruleta Piedras", price: 20000, isRoulette: true, description: "Gana una piedra evolutiva aleatoria entre las 10 disponibles." },
     ],
     3: [
-      { name: "Leftovers", price: 1200 },
-      { name: "Life Orb", price: 1800 },
-      { name: "Choice Band", price: 2000 },
-      { name: "Choice Specs", price: 2000 },
-      { name: "Choice Scarf", price: 2000 },
-      { name: "Rocky Helmet", price: 1400 },
-      { name: "Heavy-Duty Boots", price: 1600 },
-      { name: "Focus Sash", price: 1700 },
-      { name: "Assault Vest", price: 1800 },
-      { name: "Eviolite", price: 100000 },
-      { name: "Sitrus Berry", price: 50000 },
+      { name: "Life Orb", price: 100000 },
       { name: "Capsula Habilidad", price: 150000 },
-      { name: "Water Stone", price: 100000 },
-      { name: "Fire Stone", price: 100000 },
-      { name: "Leaf Stone", price: 100000 },
-      { name: "Thunder Stone", price: 2000 },
-      { name: "Moon Stone", price: 2000 },
-      { name: "Sun Stone", price: 2000 },
-      { name: "Shiny Stone", price: 2000 },
-      { name: "Dusk Stone", price: 2000 },
-      { name: "Dawn Stone", price: 2000 },
-      { name: "Ice Stone", price: 2000 },
-      { name: "MT Earthquake", price: 2000 },
-      { name: "MT Ice Beam", price: 2000 },
-      { name: "MT Flamethrower", price: 2000 },
-      { name: "MT Thunderbolt", price: 2000 },
-      { name: "MT Psychic", price: 2000 },
-      { name: "MT Shadow Ball", price: 2000 },
-      { name: "MT Protect", price: 1500 },
-      { name: "MT Substitute", price: 2000 },
-      { name: "MT Swords Dance", price: 2000 },
-      { name: "MT Calm Mind", price: 2000 },
+      { name: "Ruleta Mentas", price: 30000, isRoulette: true, description: "Gana una de las 25 Mentas de naturaleza, todas con la misma probabilidad." },
+      { name: "Leftovers", price: 200000 },
+      { name: "Ruleta Choice", price: 150000, isRoulette: true, description: "Gana una Choice Scarf, Choice Band o Choice Specs, todas con la misma probabilidad." },
+      { name: "Ruleta MT OP", price: 100000, isRoulette: true, description: "Gana una MT competitiva aleatoria, todas con la misma probabilidad." },
     ],
   };
   const currentYear = Number(data.current_year || 1);
   const currentShopItems = shopCatalogByYear[currentYear] || shopCatalogByYear[1];
-  const shopTitle = currentYear === 1 ? "Tienda Año 1" : currentYear === 2 ? "Tienda Año 2" : "Tienda Final";
+  const shopTitle = currentYear === 1 ? "Tienda Año 1" : currentYear === 2 ? "Tienda Año 2" : "Tienda Año 3";
 
   return `
     <div class="card inventory-card">
@@ -1153,7 +1115,7 @@ export function renderMyPokemonInventory(data, sessionClient) {
             <p class="shop-balance">Dinero actual: <strong>$${formatMoneyCompact(myData.money || 0)}</strong></p>
             <div class="backpack-menu-body shop-items">
               ${currentShopItems.map((shopItem) => {
-                const isBox = Boolean(shopItem.isBox || shopItem.name.startsWith("Caja Misteriosa") || shopItem.name.startsWith("Regalo del Primo"));
+                const isBox = Boolean(shopItem.isBox || shopItem.isRoulette || shopItem.name.startsWith("Caja Misteriosa") || shopItem.name.startsWith("Regalo del Primo"));
                 const tooltipAttr = shopItem.description ? `title="${shopItem.description}"` : '';
                 return `
                 <div class="shop-item-row ${isBox ? 'shop-item-row--box' : ''}">
@@ -1182,6 +1144,55 @@ export function renderMyPokemonInventory(data, sessionClient) {
 }
 
 export const BOX_ODDS_DATA = {
+  "Ruleta Mentas": {
+    title: "Ruleta Mentas",
+    price: "$30,000",
+    note: "Al comprarla, obtienes una Menta aleatoria. Las 25 Mentas tienen la misma probabilidad:",
+    items: [
+      "Adamant Mint", "Bashful Mint", "Bold Mint", "Brave Mint", "Calm Mint",
+      "Careful Mint", "Docile Mint", "Gentle Mint", "Hardy Mint", "Hasty Mint",
+      "Impish Mint", "Jolly Mint", "Lax Mint", "Lonely Mint", "Mild Mint",
+      "Modest Mint", "Naive Mint", "Naughty Mint", "Quiet Mint", "Quirky Mint",
+      "Rash Mint", "Relaxed Mint", "Sassy Mint", "Serious Mint", "Timid Mint",
+    ].map((name) => ({ name, rate: "1/25", tier: "common", image: buildItemSpriteUrl(name) }))
+  },
+  "Ruleta Choice": {
+    title: "Ruleta Choice",
+    price: "$150,000",
+    note: "Al comprarla, obtienes uno de estos tres objetos Choice con la misma probabilidad:",
+    items: ["Choice Scarf", "Choice Band", "Choice Specs"]
+      .map((name) => ({ name, rate: "1/3", tier: "rare", image: buildItemSpriteUrl(name) }))
+  },
+  "Ruleta MT OP": {
+    title: "Ruleta MT OP",
+    price: "$100,000",
+    note: "Al comprarla, obtienes una MT competitiva aleatoria. Todas tienen la misma probabilidad:",
+    items: [
+      "MT Earthquake", "MT Ice Beam", "MT Flamethrower", "MT Thunderbolt",
+      "MT Shadow Ball", "MT Stone Edge", "MT U-turn", "MT Close Combat",
+      "MT Energy Ball", "MT Dark Pulse", "MT Sludge Bomb", "MT Knock Off",
+    ].map((name) => ({ name, rate: "1/12", tier: "rare", image: buildItemSpriteUrl(name) }))
+  },
+  "Ruleta Plates": {
+    title: "Ruleta Plates",
+    price: "$20,000",
+    note: "Al comprarla, obtienes una Plate aleatoria. Todas tienen la misma probabilidad:",
+    items: [
+      "Fist Plate", "Sky Plate", "Flame Plate", "Splash Plate", "Zap Plate",
+      "Meadow Plate", "Icicle Plate", "Toxic Plate", "Earth Plate", "Mind Plate",
+      "Insect Plate", "Stone Plate", "Spooky Plate", "Draco Plate", "Dread Plate",
+      "Iron Plate", "Pixie Plate",
+    ].map((name) => ({ name, rate: "1/17", tier: "common", image: buildItemSpriteUrl(name) }))
+  },
+  "Ruleta Piedras": {
+    title: "Ruleta Piedras",
+    price: "$20,000",
+    note: "Al comprarla, obtienes una piedra evolutiva aleatoria. Todas tienen la misma probabilidad:",
+    items: [
+      "Fire Stone", "Water Stone", "Thunder Stone", "Leaf Stone", "Moon Stone",
+      "Sun Stone", "Shiny Stone", "Dusk Stone", "Dawn Stone", "Ice Stone",
+    ].map((name) => ({ name, rate: "1/10", tier: "common", image: buildItemSpriteUrl(name) }))
+  },
   "Caja Misteriosa I": {
     title: "Caja Misteriosa I",
     price: "$100,000",
@@ -1255,4 +1266,3 @@ export function showBoxOddsModal(boxName) {
     if (e.target === overlay) closeModal();
   });
 }
-
