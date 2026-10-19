@@ -1234,6 +1234,150 @@ class SubastaPokemonMode(BaseGameMode):
             await self._broadcast_subasta_state(session, manager)
             return True
 
+        elif action == "subasta_wonder_trade":
+            if subasta_state["current_stage"] not in (3, 7, 11):
+                return True
+
+            player = subasta_state["players"].get(username)
+            event = subasta_state["current_turn_events"].get(username)
+            if not player or not event or player.get("resolved_turn") or event.get("type") != "wonder_trade":
+                return True
+
+            poke_idx = message.get("poke_index")
+            if not isinstance(poke_idx, int) or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido para intercambiar."}})
+                return True
+
+            pokemon = player["pokemon"][poke_idx]
+            acquisition_year = int(pokemon.get("acquisition_year", subasta_state.get("current_year", 1)))
+            acquisition_tier = pokemon.get("acquisition_tier")
+            if acquisition_tier not in ("normal", "mega", "legendary"):
+                acquisition_tier = "mega" if poke_api.is_mega_pokemon(pokemon) else "normal"
+
+            replacement = await asyncio.to_thread(
+                poke_api.get_random_pokemon_from_tier,
+                acquisition_tier,
+                acquisition_year,
+                get_year_level_cap(int(subasta_state.get("current_year", acquisition_year))),
+            )
+            replacement["acquisition_year"] = acquisition_year
+            replacement["acquisition_tier"] = acquisition_tier
+
+            held_item = pokemon.get("item") or pokemon.get("held_item")
+            if held_item:
+                add_item_to_inventory(player, held_item)
+            player["pokemon"][poke_idx] = replacement
+            player["resolved_turn"] = True
+            self._advance_after_event_resolution(subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_event_coinflip":
+            player = subasta_state["players"].get(username)
+            event = subasta_state["current_turn_events"].get(username)
+            if (
+                subasta_state["current_stage"] not in (3, 7, 11)
+                or not player
+                or not event
+                or player.get("resolved_turn")
+                or event.get("type") != "coinflip"
+            ):
+                return True
+
+            amount = message.get("amount")
+            if type(amount) is not int or not 1 <= amount <= 100000:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "La apuesta debe ser entre $1 y $100,000."}})
+                return True
+            if player.get("money", 0) < amount:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes suficiente dinero para esa apuesta."}})
+                return True
+
+            if random.random() < 0.5:
+                player["money"] += amount
+                event["result_message"] = f"¡Ganaste el Coinflip! Recibiste ${amount:,} y duplicaste tu apuesta."
+            else:
+                player["money"] -= amount
+                event["result_message"] = f"Perdiste el Coinflip y los ${amount:,} apostados."
+            player["resolved_turn"] = True
+            self._advance_after_event_resolution(subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_event_master_disk":
+            player = subasta_state["players"].get(username)
+            event = subasta_state["current_turn_events"].get(username)
+            if (
+                subasta_state["current_stage"] not in (3, 7, 11)
+                or not player
+                or not event
+                or player.get("resolved_turn")
+                or event.get("type") != "master_disk"
+            ):
+                return True
+            if subasta_state.get("current_year") not in (1, 2):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Maestro Disco solo puede ofrecerse antes de otro año de subastas."}})
+                return True
+            if player.get("money", 0) < 100000:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas $100,000 para aceptar la oferta."}})
+                return True
+
+            player["money"] -= 100000
+            player["tm_preservation_year"] = int(subasta_state["current_year"]) + 1
+            event["result_message"] = "Oferta aceptada: durante todo el próximo año tendrás un 10% de probabilidad de conservar cada MT al usarla."
+            player["resolved_turn"] = True
+            self._advance_after_event_resolution(subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_event_gholdengo":
+            player = subasta_state["players"].get(username)
+            event = subasta_state["current_turn_events"].get(username)
+            if (
+                subasta_state["current_stage"] not in (7, 11)
+                or not player
+                or not event
+                or player.get("resolved_turn")
+                or event.get("type") != "gholdengo_usurer"
+            ):
+                return True
+
+            targets = message.get("targets")
+            if (
+                not isinstance(targets, list)
+                or len(targets) != 2
+                or not all(isinstance(target, str) for target in targets)
+                or targets[0] == targets[1]
+                or username in targets
+                or any(target not in subasta_state["players"] for target in targets)
+            ):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Elige dos rivales distintos."}})
+                return True
+            if player.get("money", 0) < 1000000:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas $1,000,000 para aceptar la oferta."}})
+                return True
+
+            target_players = [subasta_state["players"][target] for target in targets]
+            if any(not target_player.get("pokemon") for target_player in target_players):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Cada rival elegido debe tener al menos un Pokémon."}})
+                return True
+
+            stolen_names = []
+            for target_player in target_players:
+                stolen_index = random.randrange(len(target_player["pokemon"]))
+                stolen_pokemon = target_player["pokemon"].pop(stolen_index)
+                stolen_names.append(stolen_pokemon.get("name", "Pokémon"))
+                player.setdefault("pokemon", []).append(stolen_pokemon)
+            player["money"] -= 1000000
+            event["result_message"] = f"Pagaste $1,000,000 y robaste a tus rivales: {', '.join(stolen_names)}."
+            player["resolved_turn"] = True
+            self._advance_after_event_resolution(subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
         elif action == "subasta_next_stage":
             if username != session["host"]:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede avanzar de etapa."}})
@@ -1552,7 +1696,12 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "Este Pokémon ya conoce ese movimiento."}})
                 return True
 
-            remove_item_from_inventory(player, item_name)
+            preserve_tm = (
+                player.get("tm_preservation_year") == int(subasta_state.get("current_year", 1))
+                and random.random() < 0.10
+            )
+            if not preserve_tm:
+                remove_item_from_inventory(player, item_name)
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True

@@ -78,6 +78,27 @@ EVENTS_YEAR_1 = [
         "type": "pokemon_traffic",
     },
     {
+        "id": "e1_intercambio_prodigioso",
+        "category": "neutral",
+        "title": "🔄 Intercambio Prodigioso",
+        "description": "Intercambia uno de tus Pokémon por otro al azar.",
+        "type": "wonder_trade",
+    },
+    {
+        "id": "e1_coinflip",
+        "category": "neutral",
+        "title": "🪙 Coinflip",
+        "description": "Apuesta hasta $100,000. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
+        "type": "coinflip",
+    },
+    {
+        "id": "e1_maestro_disco",
+        "category": "neutral",
+        "title": "💿 Maestro Disco",
+        "description": "Paga $100,000 para que durante todo el próximo año haya un 10% de probabilidad de conservar cada MT al usarla. También puedes rechazar la oferta.",
+        "type": "master_disk",
+    },
+    {
         "id": "e1_pokemon_ciego",
         "category": "negative",
         "title": "🙈 El Pokémon Ciego",
@@ -123,6 +144,34 @@ EVENTS_YEAR_2 = [
         "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
         "type": "pokemon_traffic",
     },
+    {
+        "id": "e2_intercambio_prodigioso",
+        "category": "neutral",
+        "title": "🔄 Intercambio Prodigioso",
+        "description": "Intercambia uno de tus Pokémon por otro al azar.",
+        "type": "wonder_trade",
+    },
+    {
+        "id": "e2_coinflip",
+        "category": "neutral",
+        "title": "🪙 Coinflip",
+        "description": "Apuesta hasta $100,000. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
+        "type": "coinflip",
+    },
+    {
+        "id": "e2_maestro_disco",
+        "category": "neutral",
+        "title": "💿 Maestro Disco",
+        "description": "Paga $100,000 para que durante todo el próximo año haya un 10% de probabilidad de conservar cada MT al usarla. También puedes rechazar la oferta.",
+        "type": "master_disk",
+    },
+    {
+        "id": "e2_gholdengo_usurero",
+        "category": "neutral",
+        "title": "🪙 Gholdengo el Usurero",
+        "description": "Paga $1,000,000 para robar un Pokémon aleatorio a cada uno de dos rivales que elijas.",
+        "type": "gholdengo_usurer",
+    },
 ]
 
 EVENTS_YEAR_3 = [
@@ -146,6 +195,27 @@ EVENTS_YEAR_3 = [
         "title": "🕶️ Tráfico Pokémon",
         "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
         "type": "pokemon_traffic",
+    },
+    {
+        "id": "e3_intercambio_prodigioso",
+        "category": "neutral",
+        "title": "🔄 Intercambio Prodigioso",
+        "description": "Intercambia uno de tus Pokémon por otro al azar.",
+        "type": "wonder_trade",
+    },
+    {
+        "id": "e3_coinflip",
+        "category": "neutral",
+        "title": "🪙 Coinflip",
+        "description": "Apuesta hasta $100,000. Si ganas, duplicas la apuesta; si pierdes, pierdes lo apostado. También puedes rechazar la oferta.",
+        "type": "coinflip",
+    },
+    {
+        "id": "e3_gholdengo_usurero",
+        "category": "neutral",
+        "title": "🪙 Gholdengo el Usurero",
+        "description": "Paga $1,000,000 para robar un Pokémon aleatorio a cada uno de dos rivales que elijas.",
+        "type": "gholdengo_usurer",
     },
 ]
 

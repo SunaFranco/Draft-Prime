@@ -473,6 +473,85 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     }
 
+    const btnWonderTrade = document.getElementById("btn-wonder-trade");
+    if (btnWonderTrade) {
+      btnWonderTrade.addEventListener("click", () => {
+        const select = document.getElementById("wonder-trade-pokemon-select");
+        if (!select || select.value === "") return;
+        btnWonderTrade.disabled = true;
+        sessionClient.send({
+          action: "subasta_wonder_trade",
+          poke_index: parseInt(select.value, 10),
+        });
+      });
+    }
+
+    const resolveEventButtons = [
+      "btn-coinflip-decline",
+      "btn-master-disk-decline",
+      "btn-gholdengo-decline",
+    ];
+    resolveEventButtons.forEach((buttonId) => {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        button.addEventListener("click", () => {
+          button.disabled = true;
+          sessionClient.send({ action: "subasta_resolve_event" });
+        });
+      }
+    });
+
+    const btnCoinflip = document.getElementById("btn-coinflip-accept");
+    if (btnCoinflip) {
+      btnCoinflip.addEventListener("click", () => {
+        const amount = parseInt(document.getElementById("coinflip-amount")?.value, 10);
+        if (!Number.isInteger(amount) || amount < 1 || amount > 100000) return;
+        btnCoinflip.disabled = true;
+        document.getElementById("btn-coinflip-decline").disabled = true;
+        sessionClient.send({ action: "subasta_event_coinflip", amount });
+      });
+    }
+
+    const btnMasterDisk = document.getElementById("btn-master-disk-accept");
+    if (btnMasterDisk) {
+      btnMasterDisk.addEventListener("click", () => {
+        btnMasterDisk.disabled = true;
+        document.getElementById("btn-master-disk-decline").disabled = true;
+        sessionClient.send({ action: "subasta_event_master_disk", accept: true });
+      });
+    }
+
+    const gholdengoTargetOne = document.getElementById("gholdengo-target-one");
+    const gholdengoTargetTwo = document.getElementById("gholdengo-target-two");
+    if (gholdengoTargetOne && gholdengoTargetTwo) {
+      const updateGholdengoTargets = () => {
+        Array.from(gholdengoTargetTwo.options).forEach((option) => {
+          option.disabled = option.value === gholdengoTargetOne.value;
+        });
+        if (gholdengoTargetTwo.value === gholdengoTargetOne.value) {
+          gholdengoTargetTwo.value = Array.from(gholdengoTargetTwo.options)
+            .find((option) => !option.disabled)?.value || "";
+        }
+      };
+      gholdengoTargetOne.addEventListener("change", updateGholdengoTargets);
+      updateGholdengoTargets();
+    }
+
+    const btnGholdengo = document.getElementById("btn-gholdengo-accept");
+    if (btnGholdengo) {
+      btnGholdengo.addEventListener("click", () => {
+        const targetOne = gholdengoTargetOne?.value;
+        const targetTwo = gholdengoTargetTwo?.value;
+        if (!targetOne || !targetTwo || targetOne === targetTwo) return;
+        btnGholdengo.disabled = true;
+        document.getElementById("btn-gholdengo-decline").disabled = true;
+        sessionClient.send({
+          action: "subasta_event_gholdengo",
+          targets: [targetOne, targetTwo],
+        });
+      });
+    }
+
     // Avanzar Etapa (Host)
     const btnForceNext = document.getElementById("btn-force-next-stage");
     [btnForceNext].forEach((btn) => {

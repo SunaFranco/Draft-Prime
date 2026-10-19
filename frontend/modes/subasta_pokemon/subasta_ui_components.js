@@ -634,6 +634,14 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const natureNames = Object.keys(NATURE_EFFECTS);
   const isNatureChange = turnEvent.type === "nature_change";
   const isPokemonTraffic = turnEvent.type === "pokemon_traffic";
+  const isWonderTrade = turnEvent.type === "wonder_trade";
+  const isCoinflip = turnEvent.type === "coinflip";
+  const isMasterDisk = turnEvent.type === "master_disk";
+  const isGholdengo = turnEvent.type === "gholdengo_usurer";
+  const availableGholdengoTargets = Object.entries(data.all_players || {})
+    .filter(([username, player]) => username !== sessionClient.currentUsername && (player.pokemon_count || 0) > 0)
+    .map(([username]) => username);
+  const playerMoney = Number(myData.money || 0);
   const eventCategory = {
     positive: "✨ Evento positivo",
     neutral: "⚖️ Evento neutral",
@@ -656,6 +664,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
       <div class="turn-action-box">
         ${isResolved ? `
           <p class="text-success">✓ Has resuelto tu evento de este turno. Esperando a los demás jugadores...</p>
+          ${turnEvent.result_message ? `<p>${turnEvent.result_message}</p>` : ""}
         ` : isNatureChange ? `
           <div class="nature-change-form">
             <label for="nature-change-pokemon">Pokémon:</label>
@@ -679,6 +688,58 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
               <button id="btn-pokemon-traffic-skip" class="btn btn-secondary btn-large">❌ Rechazar oferta</button>
             </div>
             <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 0.5rem;">Perderás el Pokémon y ganarás entre $0 y $125,000</p>
+          </div>
+        ` : isWonderTrade ? `
+          <div class="pokemon-traffic-form">
+            ${pokemonList.length ? `
+              <p>Elige el Pokémon que quieres intercambiar:</p>
+              <select id="wonder-trade-pokemon-select">
+                ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
+              </select>
+              <button id="btn-wonder-trade" class="btn btn-primary btn-large">🔄 Intercambiar Pokémon</button>
+            ` : `
+              <p>No tienes Pokémon para intercambiar.</p>
+              <button id="btn-resolve-event" class="btn btn-secondary btn-large">Resolver evento</button>
+            `}
+          </div>
+        ` : isCoinflip ? `
+          <div class="pokemon-traffic-form">
+            <label for="coinflip-amount">Cantidad a apostar (máximo $100,000):</label>
+            <input type="number" id="coinflip-amount" min="1" max="${Math.min(100000, playerMoney)}" step="5000" value="${Math.min(100000, playerMoney)}" ${playerMoney > 0 ? "" : "disabled"} />
+            <div style="display:flex;gap:0.75rem;margin-top:0.75rem;flex-wrap:wrap;">
+              <button id="btn-coinflip-accept" class="btn btn-primary btn-large" ${playerMoney > 0 ? "" : "disabled"}>🪙 Apostar</button>
+              <button id="btn-coinflip-decline" class="btn btn-secondary btn-large">Rechazar oferta</button>
+            </div>
+          </div>
+        ` : isMasterDisk ? `
+          <div class="pokemon-traffic-form">
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+              <button id="btn-master-disk-accept" class="btn btn-primary btn-large" ${playerMoney >= 100000 ? "" : "disabled"}>💿 Pagar $100,000</button>
+              <button id="btn-master-disk-decline" class="btn btn-secondary btn-large">Rechazar oferta</button>
+            </div>
+            ${playerMoney < 100000 ? '<p>No tienes suficiente dinero para aceptar.</p>' : ""}
+          </div>
+        ` : isGholdengo ? `
+          <div class="pokemon-traffic-form">
+            ${availableGholdengoTargets.length >= 2 ? `
+              <p>Elige dos rivales. Gholdengo tomará un Pokémon aleatorio de cada uno.</p>
+              <label for="gholdengo-target-one">Primer rival:</label>
+              <select id="gholdengo-target-one">
+                ${availableGholdengoTargets.map((username) => `<option value="${username}">${username}</option>`).join("")}
+              </select>
+              <label for="gholdengo-target-two">Segundo rival:</label>
+              <select id="gholdengo-target-two">
+                ${availableGholdengoTargets.map((username, index) => `<option value="${username}" ${index === 1 ? "selected" : ""}>${username}</option>`).join("")}
+              </select>
+              <div style="display:flex;gap:0.75rem;margin-top:0.75rem;flex-wrap:wrap;">
+                <button id="btn-gholdengo-accept" class="btn btn-primary btn-large" ${playerMoney >= 1000000 ? "" : "disabled"}>🪙 Pagar $1,000,000 y robar</button>
+                <button id="btn-gholdengo-decline" class="btn btn-secondary btn-large">Rechazar oferta</button>
+              </div>
+              ${playerMoney < 1000000 ? '<p>No tienes suficiente dinero para aceptar.</p>' : ""}
+            ` : `
+              <p>No hay dos rivales con Pokémon disponibles para elegir.</p>
+              <button id="btn-gholdengo-decline" class="btn btn-secondary btn-large">Rechazar oferta</button>
+            `}
           </div>
         ` : isItemReward ? `
           <button id="btn-resolve-event" class="btn btn-primary btn-large">🎰 Girar la ruleta</button>
