@@ -289,6 +289,11 @@ export function renderConfigForm(containerEl, data, isHost) {
   const defaults = {
     turns_per_year: 3,
     yearly_money: 1000000,
+    year_event_counts: {
+      1: { positive: 3, neutral: 0, negative: 0 },
+      2: { positive: 3, neutral: 0, negative: 0 },
+      3: { positive: 3, neutral: 0, negative: 0 },
+    },
     year_pools: {
       1: { normal: 2, mega: 0, legendary: 0 },
       2: { normal: 2, mega: 1, legendary: 0 },
@@ -314,17 +319,23 @@ export function renderConfigForm(containerEl, data, isHost) {
   const y3_mega = config.year3_mega ?? y3.mega ?? 1;
   const y3_leg = config.year3_legendary ?? y3.legendary ?? 2;
 
+  const legacyEventCount = config.turns_per_year ?? defaults.turns_per_year;
+  const legacyEventCounts = {
+    1: { positive: legacyEventCount, neutral: 0, negative: 0 },
+    2: { positive: legacyEventCount, neutral: 0, negative: 0 },
+    3: { positive: legacyEventCount, neutral: 0, negative: 0 },
+  };
+  const eventCounts = config.year_event_counts || legacyEventCounts;
+  const y1_events = eventCounts[1] || eventCounts["1"] || defaults.year_event_counts[1];
+  const y2_events = eventCounts[2] || eventCounts["2"] || defaults.year_event_counts[2];
+  const y3_events = eventCounts[3] || eventCounts["3"] || defaults.year_event_counts[3];
+
   const yearly_money = config.yearly_money ?? config.starting_money ?? config.year_starting_money_1 ?? defaults.yearly_money;
-  const turns = config.turns_per_year ?? defaults.turns_per_year;
 
   containerEl.innerHTML = `
     <div class="subasta-config-container">
       <div class="config-section-title">⚙️ Configuración General</div>
       <div class="subasta-config-panel">
-        <div class="form-group">
-          <label for="subasta-turns">Turnos de Eventos por Año:</label>
-          <input type="number" id="subasta-turns" value="${turns}" min="1" max="10" ${!isHost ? "disabled" : ""} />
-        </div>
         <div class="form-group">
           <label for="subasta-yearly-money">💰 Dinero Inicial / Añadido por Año ($):</label>
           <input type="number" id="subasta-yearly-money" value="${yearly_money}" min="0" step="50000" ${!isHost ? "disabled" : ""} />
@@ -392,6 +403,33 @@ export function renderConfigForm(containerEl, data, isHost) {
           </div>
         </div>
       </div>
+
+      <div class="config-section-title" style="margin-top: 1rem;">🎲 Eventos por Categoría y Año</div>
+      <p class="config-help-text">La suma de las cantidades determina el total de turnos de eventos de cada año. Cada turno recibe un evento de la categoría elegida.</p>
+      <div class="year-pools-config-grid">
+        ${[
+          { year: 1, counts: y1_events, neutral: true, negative: true },
+          { year: 2, counts: y2_events, neutral: true, negative: true },
+          { year: 3, counts: y3_events, neutral: true, negative: false },
+        ].map(({ year, counts, neutral, negative }) => `
+          <div class="year-pool-card">
+            <div class="year-pool-card-header"><h4>Año ${year}</h4></div>
+            <div class="pool-input-row">
+              <label for="subasta-year${year}-events-positive">✨ Positivos:</label>
+              <input type="number" id="subasta-year${year}-events-positive" value="${counts.positive ?? 3}" min="0" max="10" ${!isHost ? "disabled" : ""} />
+            </div>
+            <div class="pool-input-row">
+              <label for="subasta-year${year}-events-neutral">⚖️ Neutrales:</label>
+              <input type="number" id="subasta-year${year}-events-neutral" value="${counts.neutral ?? 0}" min="0" max="10" ${!isHost || !neutral ? "disabled" : ""} />
+            </div>
+            <div class="pool-input-row">
+              <label for="subasta-year${year}-events-negative">⚠️ Negativos:</label>
+              <input type="number" id="subasta-year${year}-events-negative" value="${counts.negative ?? 0}" min="0" max="10" ${!isHost || !negative ? "disabled" : ""} />
+            </div>
+            ${!negative ? `<p class="config-help-text">El Pokémon Ciego no puede aplicarse después del último año de subastas.</p>` : ""}
+          </div>
+        `).join("")}
+      </div>
     </div>
   `;
 }
@@ -414,10 +452,28 @@ export function readConfigForm(containerEl) {
   const y3_mega = getInt("subasta-year3-mega", 1);
   const y3_leg = getInt("subasta-year3-legendary", 2);
 
+  const year_event_counts = {
+    1: {
+      positive: getInt("subasta-year1-events-positive", 3),
+      neutral: getInt("subasta-year1-events-neutral", 0),
+      negative: getInt("subasta-year1-events-negative", 0),
+    },
+    2: {
+      positive: getInt("subasta-year2-events-positive", 3),
+      neutral: getInt("subasta-year2-events-neutral", 0),
+      negative: getInt("subasta-year2-events-negative", 0),
+    },
+    3: {
+      positive: getInt("subasta-year3-events-positive", 3),
+      neutral: getInt("subasta-year3-events-neutral", 0),
+      negative: getInt("subasta-year3-events-negative", 0),
+    },
+  };
+
   const yearly_money = getInt("subasta-yearly-money", 1000000);
 
   return {
-    turns_per_year: getInt("subasta-turns", 3),
+    year_event_counts,
     starting_money: yearly_money,
     yearly_money: yearly_money,
     year_starting_money_1: yearly_money,
@@ -578,6 +634,11 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   const natureNames = Object.keys(NATURE_EFFECTS);
   const isNatureChange = turnEvent.type === "nature_change";
   const isPokemonTraffic = turnEvent.type === "pokemon_traffic";
+  const eventCategory = {
+    positive: "✨ Evento positivo",
+    neutral: "⚖️ Evento neutral",
+    negative: "⚠️ Evento negativo",
+  }[turnEvent.category] || "🎲 Evento";
   const isItemReward = turnEvent.reward_is_random === true
     && (turnEvent.granted_item || turnEvent.granted_items?.length);
 
@@ -587,6 +648,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
       <hr />
 
       <div class="event-details">
+        <span class="badge badge-primary">${eventCategory}</span>
         <h3>${turnEvent.title || "Evento de Turno"}</h3>
         <p>${turnEvent.description || "Un evento ha ocurrido en tu trayectoria."}</p>
       </div>

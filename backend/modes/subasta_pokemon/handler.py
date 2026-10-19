@@ -82,6 +82,22 @@ def calculate_buyout_price(starting_money: int, phase_quota: int) -> int:
     return ((price + MIN_BID_INCREMENT - 1) // MIN_BID_INCREMENT) * MIN_BID_INCREMENT
 
 
+DEFAULT_YEAR_EVENT_COUNTS = {
+    1: {"positive": 3, "neutral": 0, "negative": 0},
+    2: {"positive": 3, "neutral": 0, "negative": 0},
+    3: {"positive": 3, "neutral": 0, "negative": 0},
+}
+
+
+def get_year_event_count(subasta_state: dict, year: Optional[int] = None) -> int:
+    event_counts = subasta_state.get("year_event_counts")
+    if not event_counts:
+        return max(0, int(subasta_state.get("turns_per_year", 3)))
+    year = year or int(subasta_state.get("current_year", 1))
+    counts = event_counts.get(year) or event_counts.get(str(year)) or {}
+    return sum(max(0, int(counts.get(category, 0))) for category in ("positive", "neutral", "negative"))
+
+
 def get_pokemon_sell_value(pokemon: dict, subasta_state: dict) -> int:
     buyout_price = pokemon.get("instant_purchase_price")
     if buyout_price is None:
@@ -229,7 +245,6 @@ YEAR_SHOP_ITEMS = {
         "MT Thunder Punch",
         "MT Ice Punch",
         "Capsula Habilidad",
-        "Cambia Formas",
         "Silk Scarf",
         "Water Stone",
         "Fire Stone",
@@ -419,6 +434,14 @@ async def init_subasta_round(session: dict):
     )
     phase_quota = max(1, subasta_state.get("current_phase_quota", 2))
     buyout_price = calculate_buyout_price(year_starting_money, phase_quota)
+    blind_players = []
+    for username, player in subasta_state["players"].items():
+        blind_year = player.get("blind_auction_year")
+        if blind_year == current_year:
+            blind_players.append(username)
+            player.pop("blind_auction_year", None)
+        elif blind_year is not None and blind_year < current_year:
+            player.pop("blind_auction_year", None)
 
     subasta_state["current_auction"] = {
         "pokemon": poke_data,
@@ -438,6 +461,7 @@ async def init_subasta_round(session: dict):
         "publicly_revealed": False,
         "phase_tier": tier,
         "phase_quota": phase_quota,
+        "blind_players": blind_players,
     }
 
 
@@ -644,11 +668,8 @@ class SubastaPokemonMode(BaseGameMode):
             else:
                 # Todas las sub-fases del año concluyeron: dejar la subasta y entrar a eventos.
                 subasta_state["current_auction"] = {}
-                subasta_state["current_stage"] = max(3, int(subasta_state.get("current_stage", 2)) + 1)
-                subasta_state["current_turn"] = 1
-                for player in subasta_state["players"].values():
-                    player["resolved_turn"] = False
-                self._generate_turn_events(subasta_state)
+                event_stage = 3 + (int(subasta_state.get("current_year", 1)) - 1) * 4
+                self._start_year_events(subasta_state, event_stage)
                 subasta_state["phase_pokemon_won"] = {u: 0 for u in all_players}
         else:
             # Si no llegó a la cuota, sigue con otra subasta de la misma fase.
@@ -682,7 +703,7 @@ class SubastaPokemonMode(BaseGameMode):
     def get_public_config_options(self, session: dict) -> Dict[str, Any]:
         return {
             "default_starting_money": 1000000,
-            "default_turns_per_year": 3,
+            "default_year_event_counts": DEFAULT_YEAR_EVENT_COUNTS,
             "default_secret_fee": 500,
         }
 
@@ -702,7 +723,19 @@ class SubastaPokemonMode(BaseGameMode):
         current_stage = subasta_state.get("current_stage", 2)
         current_year = subasta_state.get("current_year", 1)
         current_turn = subasta_state.get("current_turn", 1)
-        current_auction = subasta_state.get("current_auction", {})
+        current_auction = copy.deepcopy(subasta_state.get("current_auction", {}))
+        if username in current_auction.get("blind_players", []):
+            current_auction["hints"] = {
+                hint: "🔒 Oculta por El Pokémon Ciego"
+                for hint in ("first_letter", "region", "highest_stat", "primary_type", "ability")
+            }
+            can_preview_winning_pokemon = (
+                current_auction.get("awaiting_secret_choice")
+                and current_auction.get("winner") == username
+            )
+            if not current_auction.get("finished") and not can_preview_winning_pokemon:
+                current_auction["pokemon"] = {"is_hidden": True}
+        current_auction.pop("blind_players", None)
 
         for p in player_data.get("pokemon", []):
             if isinstance(p, dict):
@@ -756,7 +789,7 @@ class SubastaPokemonMode(BaseGameMode):
             "stage_name": STAGE_NAMES.get(current_stage, "En Juego"),
             "current_year": current_year,
             "current_turn": current_turn,
-            "max_turns": subasta_state.get("turns_per_year", 3),
+            "max_turns": get_year_event_count(subasta_state, current_year),
             "my_data": player_data,
             "all_players": filtered_players_info,
             "current_auction": current_auction,
@@ -767,6 +800,7 @@ class SubastaPokemonMode(BaseGameMode):
             "event_finished": subasta_state.get("event_finished", False),
             "trade_session": subasta_state.get("trade_session"),
             "year_pools": subasta_state.get("year_pools", {}),
+            "year_event_counts": subasta_state.get("year_event_counts", DEFAULT_YEAR_EVENT_COUNTS),
             "current_phase_tier": current_phase_tier,
             "current_phase_quota": current_phase_quota,
             "current_pool_phase_index": current_pool_phase_index,
@@ -778,7 +812,7 @@ class SubastaPokemonMode(BaseGameMode):
 
     def validate_config(self, message: dict) -> dict:
         starting_money = int(message.get("starting_money", message.get("yearly_money", message.get("year_starting_money_1", 1000000))))
-        turns_per_year = int(message.get("turns_per_year", 3))
+        legacy_turns_per_year = int(message.get("turns_per_year", 3))
         buyout_multiplier = float(message.get("buyout_multiplier", 10.0))
         secret_fee = int(message.get("secret_fee", 500))
 
@@ -803,10 +837,29 @@ class SubastaPokemonMode(BaseGameMode):
                 "legendary": max(0, min(10, leg_cnt)),
             }
 
+        event_counts_raw = message.get("year_event_counts", {})
+        year_event_counts = {}
+        for year in (1, 2, 3):
+            year_raw = event_counts_raw.get(year) or event_counts_raw.get(str(year)) or {}
+            default_counts = DEFAULT_YEAR_EVENT_COUNTS[year]
+            counts = {}
+            for category in ("positive", "neutral", "negative"):
+                default = default_counts[category]
+                if not event_counts_raw and category == "positive":
+                    default = legacy_turns_per_year
+                count = int(year_raw.get(category, default))
+                counts[category] = max(0, min(10, count))
+                if counts[category] and not events_data.get_event_pool_for_year(year, category):
+                    raise ValueError(f"No hay eventos de categoría '{category}' disponibles para el Año {year}.")
+            year_event_counts[year] = counts
+
+        turns_per_year = sum(year_event_counts[1].values())
+
         return {
             "starting_money": starting_money,
             "yearly_money": starting_money,
             "turns_per_year": turns_per_year,
+            "year_event_counts": year_event_counts,
             "buyout_multiplier": buyout_multiplier,
             "secret_fee": secret_fee,
             "year_starting_money": year_starting_money,
@@ -830,6 +883,7 @@ class SubastaPokemonMode(BaseGameMode):
             "starting_money": 1000000,
             "yearly_money": 1000000,
             "turns_per_year": 3,
+            "year_event_counts": DEFAULT_YEAR_EVENT_COUNTS,
             "buyout_multiplier": 10.0,
             "secret_fee": 500,
             "year_pools": {
@@ -848,13 +902,22 @@ class SubastaPokemonMode(BaseGameMode):
         })
         starting_money = config.get("starting_money", 1000000)
         year_starting_money = config.get("year_starting_money", {1: starting_money, 2: starting_money, 3: starting_money})
+        year_event_counts = config.get("year_event_counts")
+        if not year_event_counts:
+            legacy_event_count = int(config.get("turns_per_year", 3))
+            year_event_counts = {
+                year: {"positive": legacy_event_count, "neutral": 0, "negative": 0}
+                for year in (1, 2, 3)
+            }
 
         subasta_state = {
             "current_stage": 2,  # Pasa directo a Año 1: Subasta Inicial
             "current_year": 1,
             "current_turn": 1,
             "starting_money": starting_money,
-            "turns_per_year": config.get("turns_per_year", 3),
+            "turns_per_year": sum(year_event_counts.get(1, year_event_counts.get("1", DEFAULT_YEAR_EVENT_COUNTS[1])).values()),
+            "year_event_counts": year_event_counts,
+            "event_category_schedules": {},
             "buyout_multiplier": config.get("buyout_multiplier", 10.0),
             "secret_fee": config.get("secret_fee", 500),
             "year_starting_money": year_starting_money,
@@ -882,8 +945,7 @@ class SubastaPokemonMode(BaseGameMode):
         session["subasta"] = subasta_state
 
         if not has_phases:
-            subasta_state["current_stage"] = 3
-            self._generate_turn_events(subasta_state)
+            self._start_year_events(subasta_state, 3)
 
     async def handle_action(
         self,
@@ -1095,6 +1157,8 @@ class SubastaPokemonMode(BaseGameMode):
 
             if player and event and not player.get("resolved_turn"):
                 summary = events_data.apply_event_to_player(player, event)
+                if event.get("type") == "pokemon_blind":
+                    player["blind_auction_year"] = int(subasta_state.get("current_year", 1)) + 1
                 player["resolved_turn"] = True
 
                 self._advance_after_event_resolution(subasta_state)
@@ -1194,11 +1258,7 @@ class SubastaPokemonMode(BaseGameMode):
                         subasta_state["current_stage"] = 6  # Salta a Subasta Año 2
                         await init_subasta_round(session)
                     else:
-                        subasta_state["current_stage"] = 7  # Salta a Eventos Año 2
-                        subasta_state["current_turn"] = 1
-                        for p in subasta_state["players"].values():
-                            p["resolved_turn"] = False
-                        self._generate_turn_events(subasta_state)
+                        self._start_year_events(subasta_state, 7)
 
                 elif next_stage == 9:  # Inicio Año 3
                     subasta_state["current_year"] = 3
@@ -1211,17 +1271,10 @@ class SubastaPokemonMode(BaseGameMode):
                         subasta_state["current_stage"] = 10  # Salta a Subasta Año 3
                         await init_subasta_round(session)
                     else:
-                        subasta_state["current_stage"] = 11  # Salta a Eventos Año 3
-                        subasta_state["current_turn"] = 1
-                        for p in subasta_state["players"].values():
-                            p["resolved_turn"] = False
-                        self._generate_turn_events(subasta_state)
+                        self._start_year_events(subasta_state, 11)
 
                 elif next_stage in (3, 7, 11):
-                    subasta_state["current_turn"] = 1
-                    for p in subasta_state["players"].values():
-                        p["resolved_turn"] = False
-                    self._generate_turn_events(subasta_state)
+                    self._start_year_events(subasta_state, next_stage)
 
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
@@ -1289,11 +1342,7 @@ class SubastaPokemonMode(BaseGameMode):
                         subasta_state["current_stage"] = 6
                         await init_subasta_round(session)
                     else:
-                        subasta_state["current_stage"] = 7
-                        subasta_state["current_turn"] = 1
-                        for p in subasta_state["players"].values():
-                            p["resolved_turn"] = False
-                        self._generate_turn_events(subasta_state)
+                        self._start_year_events(subasta_state, 7)
                 elif next_stage == 9:
                     subasta_state["current_year"] = 3
                     year_money = subasta_state.get("year_starting_money", {}).get(3, subasta_state.get("starting_money", 1000000))
@@ -1305,11 +1354,7 @@ class SubastaPokemonMode(BaseGameMode):
                         subasta_state["current_stage"] = 10
                         await init_subasta_round(session)
                     else:
-                        subasta_state["current_stage"] = 11
-                        subasta_state["current_turn"] = 1
-                        for p in subasta_state["players"].values():
-                            p["resolved_turn"] = False
-                        self._generate_turn_events(subasta_state)
+                        self._start_year_events(subasta_state, 11)
 
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
@@ -1888,18 +1933,54 @@ class SubastaPokemonMode(BaseGameMode):
         return False
 
 
+    def _start_year_events(self, subasta_state: dict, event_stage: int) -> None:
+        subasta_state["current_stage"] = event_stage
+        subasta_state["current_turn"] = 1
+        for player in subasta_state["players"].values():
+            player["resolved_turn"] = False
+
+        year = int(subasta_state.get("current_year", 1))
+        if get_year_event_count(subasta_state, year) == 0:
+            subasta_state["current_stage"] = event_stage + 1
+            subasta_state["current_turn_events"] = {}
+            for player in subasta_state["players"].values():
+                if player.get("blind_auction_year", 0) <= year:
+                    player.pop("blind_auction_year", None)
+            return
+
+        self._generate_turn_events(subasta_state)
+
     def _generate_turn_events(self, subasta_state: dict):
-        """Genera un nuevo evento para cada jugador en el turno actual."""
+        """Genera un evento de la categoría programada para cada jugador."""
         year = subasta_state["current_year"]
         turn = subasta_state.get("current_turn", 1)
-        subasta_state["current_turn_events"] = {
-            u: events_data.get_random_event_for_year(year, turn) for u in subasta_state["players"].keys()
+        schedules = subasta_state.setdefault("event_category_schedules", {})
+        year_schedules = schedules.get(year) or schedules.get(str(year))
+        if not isinstance(year_schedules, dict):
+            year_schedules = {}
+            schedules[year] = year_schedules
+
+        counts_by_year = subasta_state.get("year_event_counts", {})
+        counts = counts_by_year.get(year) or counts_by_year.get(str(year)) or {
+            "positive": subasta_state.get("turns_per_year", 3),
+            "neutral": 0,
+            "negative": 0,
         }
+        current_events = {}
+        for username in subasta_state["players"]:
+            schedule = year_schedules.get(username)
+            if schedule is None:
+                schedule = events_data.build_event_category_schedule(year, counts)
+                year_schedules[username] = schedule
+            if not 1 <= turn <= len(schedule):
+                raise ValueError(f"No hay una categoría de evento programada para el turno {turn} del Año {year}.")
+            current_events[username] = events_data.get_random_event_for_year(year, turn, schedule[turn - 1])
+        subasta_state["current_turn_events"] = current_events
 
     def _advance_after_event_resolution(self, subasta_state: dict):
         if not all(p.get("resolved_turn") for p in subasta_state["players"].values()):
             return
-        if subasta_state["current_turn"] < subasta_state["turns_per_year"]:
+        if subasta_state["current_turn"] < get_year_event_count(subasta_state):
             subasta_state["current_turn"] += 1
             for player in subasta_state["players"].values():
                 player["resolved_turn"] = False

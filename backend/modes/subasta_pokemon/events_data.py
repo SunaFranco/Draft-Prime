@@ -28,6 +28,7 @@ TM_BOOSTER_PACK_SIZE = 2
 EVENTS_YEAR_1 = [
     {
         "id": "e1_cable_link",
+        "category": "positive",
         "title": "🔗 Cable Link",
         "description": "Encontraste un Cable Link. Puedes usarlo para intercambiar un Pokémon en la fase de preparación.",
         "type": "item_grant",
@@ -35,18 +36,21 @@ EVENTS_YEAR_1 = [
     },
     {
         "id": "e1_objeto",
+        "category": "positive",
         "title": "🎁 Hallazgo de Objeto",
         "description": "Encontraste un objeto competitivo tirado en la ruta.",
         "type": "item_grant",
     },
     {
         "id": "e1_cambio_naturaleza",
+        "category": "positive",
         "title": "🌿 Cambio de Naturaleza",
         "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
         "type": "nature_change",
     },
     {
         "id": "e2_capsula_habilidad",
+        "category": "positive",
         "title": "💊 Capsula Habilidad",
         "description": "Encontraste una Capsula Habilidad. Puedes usarla para cambiar la habilidad de uno de tus Pokémon.",
         "type": "item_grant",
@@ -54,40 +58,45 @@ EVENTS_YEAR_1 = [
     },
     {
         "id": "e1_mt_booster_pack",
+        "category": "positive",
         "title": "MT BOOSTER PACK",
-        "description": "Encontraste un MT BOOSTER PACK con 4 MTs aleatorias.",
+        "description": "Encontraste un MT BOOSTER PACK con 2 MTs aleatorias.",
         "type": "tm_booster_pack",
     },
     {
         "id": "e1_rebuscar_basura",
+        "category": "positive",
         "title": "🗑️ Rebuscar la Basura",
         "description": "Rebuscas en la basura y consigues 3 tiradas en la ruleta (5% Leftovers, 95% Baya aleatoria).",
         "type": "trash_scavenge",
     },
     {
         "id": "e1_trafico_pokemon",
+        "category": "neutral",
         "title": "🕶️ Tráfico Pokémon",
         "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
         "type": "pokemon_traffic",
+    },
+    {
+        "id": "e1_pokemon_ciego",
+        "category": "negative",
+        "title": "🙈 El Pokémon Ciego",
+        "description": "En la primera ronda de la subasta del próximo año no podrás ver las pistas del Pokémon mientras se revelan.",
+        "type": "pokemon_blind",
     },
 ]
 
 EVENTS_YEAR_2 = [
     {
-        "id": "e2_feria",
-        "title": "🎡 Subasta Relámpago en la Feria",
-        "description": "Recibes una bonificación de $2,000 de presupuesto.",
-        "type": "money_grant",
-        "amount": 50000,
-    },
-    {
         "id": "e2_cambio_naturaleza",
+        "category": "positive",
         "title": "🌿 Cambio de Naturaleza",
         "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
         "type": "nature_change",
     },
     {
         "id": "e2_capsula_habilidad",
+        "category": "positive",
         "title": "💊 Capsula Habilidad",
         "description": "Encontraste una Capsula Habilidad. Puedes usarla para cambiar la habilidad de uno de tus Pokémon.",
         "type": "item_grant",
@@ -95,30 +104,76 @@ EVENTS_YEAR_2 = [
     },
     {
         "id": "e2_mt_booster_pack",
+        "category": "positive",
         "title": "MT BOOSTER PACK",
-        "description": "Encontraste un MT BOOSTER PACK con 4 MTs aleatorias.",
+        "description": "Encontraste un MT BOOSTER PACK con 2 MTs aleatorias.",
         "type": "tm_booster_pack",
+    },
+    {
+        "id": "e2_pokemon_ciego",
+        "category": "negative",
+        "title": "🙈 El Pokémon Ciego",
+        "description": "En la primera ronda de la subasta del próximo año no podrás ver las pistas del Pokémon mientras se revelan.",
+        "type": "pokemon_blind",
+    },
+    {
+        "id": "e2_trafico_pokemon",
+        "category": "neutral",
+        "title": "🕶️ Tráfico Pokémon",
+        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
+        "type": "pokemon_traffic",
     },
 ]
 
 EVENTS_YEAR_3 = [
     {
         "id": "e3_cambio_naturaleza",
+        "category": "positive",
         "title": "🌿 Cambio de Naturaleza",
         "description": "Un cuidador experto puede cambiar la naturaleza de uno de tus Pokémon.",
         "type": "nature_change",
     },
     {
         "id": "e3_mt_booster_pack",
+        "category": "positive",
         "title": "MT BOOSTER PACK",
-        "description": "Encontraste un MT BOOSTER PACK con 4 MTs aleatorias.",
+        "description": "Encontraste un MT BOOSTER PACK con 2 MTs aleatorias.",
         "type": "tm_booster_pack",
+    },
+    {
+        "id": "e3_trafico_pokemon",
+        "category": "neutral",
+        "title": "🕶️ Tráfico Pokémon",
+        "description": "Un tipo sospechoso te ofrece dinero por uno de tus Pokémon. Perderás el Pokémon y ganarás entre $0 y $125,000 — cuanto más suba, más probable es que se detenga.",
+        "type": "pokemon_traffic",
     },
 ]
 
 
-def get_random_event_for_year(year: int, turn: int = 1) -> dict:
-    """Devuelve un evento aleatorio según el año actual."""
+def get_event_pool_for_year(year: int, category: str) -> List[dict]:
+    if year == 1:
+        events = EVENTS_YEAR_1
+    elif year == 2:
+        events = EVENTS_YEAR_2
+    else:
+        events = EVENTS_YEAR_3
+    return [event for event in events if event.get("category") == category]
+
+
+def build_event_category_schedule(year: int, event_counts: dict) -> List[str]:
+    """Construye el orden aleatorio de categorías respetando las cantidades configuradas."""
+    schedule = []
+    for category in ("positive", "neutral", "negative"):
+        count = int(event_counts.get(category, 0))
+        if count and not get_event_pool_for_year(year, category):
+            raise ValueError(f"No hay eventos de categoría '{category}' para el año {year}.")
+        schedule.extend([category] * count)
+    random.shuffle(schedule)
+    return schedule
+
+
+def get_random_event_for_year(year: int, turn: int = 1, category: str = "positive") -> dict:
+    """Devuelve un evento aleatorio de la categoría indicada para el año actual."""
     if year == 1:
         pool = EVENTS_YEAR_1
     elif year == 2:
@@ -126,7 +181,11 @@ def get_random_event_for_year(year: int, turn: int = 1) -> dict:
     else:
         pool = EVENTS_YEAR_3
 
-    event = random.choice(pool).copy()
+    category_pool = [candidate for candidate in pool if candidate.get("category") == category]
+    if not category_pool:
+        raise ValueError(f"No hay eventos de categoría '{category}' para el año {year}.")
+
+    event = random.choice(category_pool).copy()
     if event.get("type") == "pokemon_traffic":
         event["traffic_amount"] = _generate_traffic_amount()
     elif event.get("type") == "trash_scavenge":
