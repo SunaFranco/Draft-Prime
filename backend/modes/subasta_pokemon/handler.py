@@ -518,8 +518,8 @@ async def init_subasta_round(session: dict):
         "secret_fee": subasta_state.get("secret_fee", 500),
         "hints": poke_api.get_hints_for_multiplier(poke_data, 1.0),
         "finished": False,
-        "winner": None,
-        "awaiting_secret_choice": False,
+        "winner": assigned_host_player if len(eligible_players) == 1 else None,
+        "awaiting_secret_choice": len(eligible_players) == 1,
         "reveal_hold_until": None,
         "publicly_revealed": False,
         "phase_tier": tier,
@@ -2344,7 +2344,18 @@ class SubastaPokemonMode(BaseGameMode):
                 year_schedules[username] = schedule
             if not 1 <= turn <= len(schedule):
                 raise ValueError(f"No hay una categoría de evento programada para el turno {turn} del Año {year}.")
-            current_events[username] = events_data.get_random_event_for_year(year, turn, schedule[turn - 1])
+            player = subasta_state["players"][username]
+            pokeradar_active = (
+                player.get("pokeradar_year") == year
+                and bool(player.get("pokeradar_types"))
+            )
+            excluded_event_types = ["pokeradar"] if pokeradar_active else None
+            current_events[username] = events_data.get_random_event_for_year(
+                year,
+                turn,
+                schedule[turn - 1],
+                excluded_event_types,
+            )
         subasta_state["current_turn_events"] = current_events
 
     def _advance_after_event_resolution(self, subasta_state: dict):

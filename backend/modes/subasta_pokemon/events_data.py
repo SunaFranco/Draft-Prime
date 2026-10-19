@@ -3,7 +3,7 @@ backend/modes/subasta_pokemon/events_data.py - Eventos aleatorios por turno para
 """
 
 import random
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from backend.modes.subasta_pokemon.poke_api import TM_MOVES
 
 ITEMS_POOL = [
@@ -319,7 +319,12 @@ def build_event_category_schedule(year: int, event_counts: dict) -> List[str]:
     return schedule
 
 
-def get_random_event_for_year(year: int, turn: int = 1, category: str = "positive") -> dict:
+def get_random_event_for_year(
+    year: int,
+    turn: int = 1,
+    category: str = "positive",
+    excluded_event_types: Optional[List[str]] = None,
+) -> dict:
     """Devuelve un evento aleatorio de la categoría indicada para el año actual."""
     if year == 1:
         pool = EVENTS_YEAR_1
@@ -328,9 +333,15 @@ def get_random_event_for_year(year: int, turn: int = 1, category: str = "positiv
     else:
         pool = EVENTS_YEAR_3
 
-    category_pool = [candidate for candidate in pool if candidate.get("category") == category]
+    excluded_types = set(excluded_event_types or [])
+    category_pool = [
+        candidate
+        for candidate in pool
+        if candidate.get("category") == category
+        and candidate.get("type") not in excluded_types
+    ]
     if not category_pool:
-        raise ValueError(f"No hay eventos de categoría '{category}' para el año {year}.")
+        raise ValueError(f"No hay eventos de categoría '{category}' disponibles para el año {year}.")
 
     event = random.choice(category_pool).copy()
     if event.get("type") == "pokemon_traffic":
