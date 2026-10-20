@@ -1064,9 +1064,10 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
   const connectedPlayers = (data.connected_players || []).filter((username) => username !== currentUsername);
   const tradeSession = data.trade_session;
   const preparationStage = [4, 8, 12, 13].includes(Number(data.stage || 0));
+  const auctionOrEventStage = [2, 3, 6, 7, 10, 11].includes(Number(data.stage || 0));
   const tradeTargets = Object.keys(data.all_players || {}).filter((username) => username !== currentUsername);
   const levelCap = data.current_year === 1 ? 20 : (data.current_year === 2 ? 40 : 100);
-  const shopOpen = [4, 8, 12, 13].includes(Number(data.stage || 0));
+  const shopVisible = preparationStage || auctionOrEventStage;
   const shopCatalogByYear = {
     1: [
       { name: "Caja Misteriosa I", price: 100000, isBox: true, description: "Oran Berry 75%, MT Earthquake 5%, MT Flamethrower 5%, MT Shadow Ball 5%, Cápsula Hab. 5%, Porygon + Objeto Mejora 3%, Pokémon Shiny 1%, $500K 1%" },
@@ -1304,7 +1305,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
             <button type="button" class="btn btn-small btn-secondary inventory-menu-toggle" data-menu-target="host-transfer-menu" aria-expanded="false">👑 Transferir host</button>
           </div>
         ` : ""}
-        ${shopOpen ? `
+        ${shopVisible ? `
           <div class="backpack-panel">
             <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="shop-menu" aria-expanded="false">🛒 Tienda</button>
           </div>
@@ -1441,7 +1442,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
         </div>
       </div>
 
-      ${shopOpen ? `
+      ${shopVisible ? `
         <div class="inventory-modal-overlay" data-modal="shop-menu" aria-hidden="true">
           <div class="backpack-menu shop-menu" data-menu="shop-menu">
             <div class="backpack-menu-header">
@@ -1449,6 +1450,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
               <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
             </div>
             <p class="shop-balance">Dinero actual: <strong>$${formatMoneyCompact(myData.money || 0)}</strong></p>
+            ${auctionOrEventStage ? '<p class="text-muted">Solo consulta durante la subasta y los eventos. Podrás comprar en la fase de confirmación de Showdown.</p>' : ""}
             <div class="backpack-menu-body shop-items">
               ${currentShopItems.map((shopItem) => {
                 const isBox = Boolean(shopItem.isBox || shopItem.isRoulette || shopItem.name.startsWith("Caja Misteriosa") || shopItem.name.startsWith("Regalo del Primo"));
@@ -1467,7 +1469,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
                     <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
                   `}
                   <span>$${formatMoneyCompact(shopItem.price)}</span>
-                  <button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>
+                  ${preparationStage ? `<button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>` : ""}
                 </div>
               `;
               }).join("")}
