@@ -125,12 +125,46 @@ MEGA_DATA = {
     "groudon-primal": ("Groudon", "Red Orb"),
     "rayquaza-mega": ("Rayquaza", "Life Orb"),
     "lopunny-mega": ("Lopunny", "Lopunnite"),
-    "garchomp-mega": ("Garchomp", "Garchompite"),
-    "lucario-mega": ("Lucario", "Lucarionite"),
+    "garchomp-mega-z": ("Garchomp", "Garchompite Z"),
+    "lucario-mega-z": ("Lucario", "Lucarionite Z"),
     "abomasnow-mega": ("Abomasnow", "Abomasite"),
     "gallade-mega": ("Gallade", "Galladite"),
     "audino-mega": ("Audino", "Audinite"),
     "diancie-mega": ("Diancie", "Diancite"),
+    "clefable-mega": ("Clefable", "Clefablite"),
+    "victreebel-mega": ("Victreebel", "Victreebelite"),
+    "starmie-mega": ("Starmie", "Starmite"),
+    "dragonite-mega": ("Dragonite", "Dragoninite"),
+    "meganium-mega": ("Meganium", "Meganiumite"),
+    "feraligatr-mega": ("Feraligatr", "Feraligatite"),
+    "skarmory-mega": ("Skarmory", "Skarmorite"),
+    "froslass-mega": ("Froslass", "Froslassite"),
+    "emboar-mega": ("Emboar", "Emboarite"),
+    "excadrill-mega": ("Excadrill", "Excadrillite"),
+    "scolipede-mega": ("Scolipede", "Scolipite"),
+    "scrafty-mega": ("Scrafty", "Scraftite"),
+    "eelektross-mega": ("Eelektross", "Eelektrossite"),
+    "chandelure-mega": ("Chandelure", "Chandelurite"),
+    "chesnaught-mega": ("Chesnaught", "Chesnaughtite"),
+    "delphox-mega": ("Delphox", "Delphoxite"),
+    "greninja-mega": ("Greninja", "Greninjite"),
+    "pyroar-mega": ("Pyroar", "Pyroarite"),
+    "malamar-mega": ("Malamar", "Malamarite"),
+    "barbaracle-mega": ("Barbaracle", "Barbaracite"),
+    "dragalge-mega": ("Dragalge", "Dragalgite"),
+    "hawlucha-mega": ("Hawlucha", "Hawluchanite"),
+    "drampa-mega": ("Drampa", "Drampanite"),
+    "falinks-mega": ("Falinks", "Falinksite"),
+    "raichu-mega-x": ("Raichu", "Raichunite X"),
+    "raichu-mega-y": ("Raichu", "Raichunite Y"),
+    "chimecho-mega": ("Chimecho", "Chimechonite"),
+    "staraptor-mega": ("Staraptor", "Staraptorite"),
+    "golurk-mega": ("Golurk", "Golurkite"),
+    "meowstic-mega": ("Meowstic", "Meowsticite"),
+    "crabominable-mega": ("Crabominable", "Crabominite"),
+    "golisopod-mega": ("Golisopod", "Golisopodite"),
+    "scovillain-mega": ("Scovillain", "Scovillainite"),
+    "baxcalibur-mega": ("Baxcalibur", "Baxcalibrite"),
 }
 
 
@@ -182,6 +216,24 @@ def get_mega_info(poke_or_name: Any) -> Optional[Dict[str, Any]]:
         }
 
     return None
+
+
+def get_random_mega_form_choice(name: str) -> str:
+    """Resuelve el nombre de la pool a una forma Mega válida de PokeAPI."""
+    mega_slug = normalize_mega_slug(name)
+    if mega_slug in MEGA_DATA:
+        return mega_slug
+
+    base_slug = clean_poke_api_name(name)
+    matching_megas = [
+        slug
+        for slug, (base_name, _) in MEGA_DATA.items()
+        if clean_poke_api_name(base_name) == base_slug
+    ]
+    if matching_megas:
+        return random.choice(matching_megas)
+
+    raise ValueError(f"No se encontró una forma Mega para '{name}' en MEGA_DATA.")
 
 
 def is_mega_pokemon(poke_or_name: Any) -> bool:
@@ -375,7 +427,8 @@ SAMPLE_POKEMON_POOLS = {
     "legendary": [
         "mewtwo", "mew", "lugia", "ho-oh", "kyogre", "groudon", "rayquaza",
         "dialga", "palkia", "giratina", "arceus", "reshiram", "zekrom", "kyurem"
-    ]
+    ],
+    "mega": list(MEGA_DATA),
 }
 
 # Mapeo aproximado de regiones por ID nacional de Pokémon
@@ -787,7 +840,30 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             return res.copy()
     except Exception as e:
         if isinstance(e, urllib.error.HTTPError) and e.code == 404:
-            raise PokemonNotFoundError(str(name_or_id)) from e
+            mega_info = get_mega_info(name_or_id)
+            if not mega_info:
+                raise PokemonNotFoundError(str(name_or_id)) from e
+
+            base_pokemon = fetch_pokemon_data(mega_info["base_name"], level_cap)
+            mega_name = " ".join(
+                part.capitalize() for part in normalize_mega_slug(name_or_id).split("-")
+            )
+            base_pokemon.update({
+                "name": mega_name,
+                "is_mega": True,
+                "base_species": mega_info["base_name"],
+                "mega_stone": mega_info["mega_stone"],
+                "can_evolve": False,
+                "evolution_target": None,
+                "next_evolution_level": None,
+                "evolution_item": None,
+                "evolution_trade": False,
+                "evolution_options": [],
+            })
+            if len(POKE_CACHE) >= MAX_POKE_CACHE:
+                POKE_CACHE.popitem(last=False)
+            POKE_CACHE[cache_key] = base_pokemon
+            return base_pokemon.copy()
         print(f"[WARNING] No se pudo cargar '{name_or_id}' ({api_slug}) desde PokeAPI ({e}). Usando fallback local.")
         # Fallback local
         name_clean = canonical_name
@@ -923,7 +999,11 @@ def get_random_pokemon_from_tier(
                 )
             chosen_base_name = random.choice(available_pool)
 
-        chosen_name = get_random_pokemon_form_choice(chosen_base_name)
+        chosen_name = (
+            get_random_mega_form_choice(chosen_base_name)
+            if tier.lower() == "mega"
+            else get_random_pokemon_form_choice(chosen_base_name)
+        )
         try:
             pokemon = fetch_pokemon_data(chosen_name, level_cap=level_cap)
         except PokemonNotFoundError:
