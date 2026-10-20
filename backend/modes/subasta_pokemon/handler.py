@@ -794,6 +794,7 @@ class SubastaPokemonMode(BaseGameMode):
         radar_matches = bool(set(radar_types).intersection(pokemon_types))
         current_auction["pokeradar_blocked"] = radar_active and not radar_matches
         current_auction["pokeradar_discount"] = radar_active and radar_matches
+        current_auction["pokeradar_types"] = radar_types if radar_active else []
         current_auction["no_se_contar_active"] = bool(player_data.get("no_se_contar_active"))
         current_auction["a_deuda_active"] = bool(player_data.get("a_deuda_active"))
         no_touch_blocked = username in current_auction.get("no_touch_players", [])

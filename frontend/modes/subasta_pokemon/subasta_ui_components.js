@@ -8,6 +8,19 @@ const POKEMON_TYPES = [
   "Steel", "Fairy",
 ];
 
+const POKEMON_COLORS = {
+  black: { label: "Negro", hex: "#303030" },
+  blue: { label: "Azul", hex: "#6890f0" },
+  brown: { label: "Marrón", hex: "#a07850" },
+  gray: { label: "Gris", hex: "#a8a8a8" },
+  green: { label: "Verde", hex: "#78c850" },
+  pink: { label: "Rosa", hex: "#f85888" },
+  purple: { label: "Morado", hex: "#a040a0" },
+  red: { label: "Rojo", hex: "#f05030" },
+  white: { label: "Blanco", hex: "#f8f8f8" },
+  yellow: { label: "Amarillo", hex: "#f8d030" },
+};
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -516,6 +529,10 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const isFolded = (auction.folded_players || []).includes(sessionClient.currentUsername);
   const isHighBidder = auction.high_bidder === sessionClient.currentUsername;
   const canFold = !isFolded && !isHighBidder && !isWinnerPendingSecret;
+  const pokeradarTypes = (auction.pokeradar_types || []).map((pokemonType) => escapeHtml(pokemonType));
+  const pokeradarTypesReminder = pokeradarTypes.length
+    ? ` <span>Tipos elegidos: <strong>${pokeradarTypes.join(" / ")}</strong>.</span>`
+    : "";
   const pokeradarDiscount = auction.pokeradar_discount === true;
   const noSeContarActive = auction.no_se_contar_active === true;
   const aDeudaActive = auction.a_deuda_active === true;
@@ -551,6 +568,15 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const hintAbility = hints.ability && !String(hints.ability).includes("🔒")
     ? `<a href="${buildWikidexUrl(hints.ability)}" target="_blank" rel="noopener noreferrer" class="badge-link">${hints.ability}</a>`
     : hints.ability || "🔒 Incógnito (4.0x)";
+  const colorHint = hints.color;
+  const pokemonColor = colorHint && Object.prototype.hasOwnProperty.call(POKEMON_COLORS, colorHint)
+    ? POKEMON_COLORS[colorHint]
+    : null;
+  const colorHintDisplay = colorHint === undefined
+    ? "🔒 Incógnito (1.5x)"
+    : pokemonColor
+      ? `<span role="img" aria-label="Color principal: ${pokemonColor.label}" title="${pokemonColor.label}" style="display:inline-block;width:1rem;height:1rem;margin-left:0.35rem;vertical-align:middle;border:1px solid currentColor;border-radius:3px;background-color:${pokemonColor.hex};"></span>`
+      : "No disponible";
 
   const tier = data.current_phase_tier || (auction.phase_tier || (isMegaPokemon(poke) ? "mega" : "normal"));
   const tierDisplayName = tier === "mega" ? "🟣 Pool Mega" : (tier === "legendary" ? "🟡 Pool Legendaria" : "🔵 Pool Normal");
@@ -593,6 +619,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
           <h4>💡 Pistas Desbloqueadas:</h4>
           <ul>
             <li><strong>Letra Inicial:</strong> ${hints.first_letter || "?"} (1.0x)</li>
+            <li><strong>Color principal:</strong> ${colorHintDisplay} (1.5x)</li>
             <li><strong>Región:</strong> ${hints.region || "🔒 Incógnito (2.0x)"}</li>
             <li><strong>Mejor Stat Base:</strong> ${hints.highest_stat || "🔒 Incógnito (3.0x)"}</li>
             <li><strong>Tipo Primario:</strong> ${hints.primary_type || "🔒 Incógnito (3.5x)"}</li>
@@ -607,9 +634,9 @@ export function renderAuctionView(data, sessionClient, isHost) {
         <p class="current-bid-display ${auction.high_bidder === sessionClient.currentUsername ? 'current-bid-display--win' : 'current-bid-display--lose'}">Puja Actual: <span>$${formatMoneyCompact(auction.current_bid || 0)}</span></p>
         <p class="high-bidder-display">Mayor Pujador: <strong class="${auction.high_bidder === sessionClient.currentUsername ? 'high-bidder-display--win' : 'high-bidder-display--lose'}">${auction.high_bidder || "Ninguno"}</strong></p>
         ${auction.pokeradar_blocked ? `
-          <p class="text-warning">📡 Tu Pokeradar no permite pujar por este Pokémon: no es de ninguno de los dos tipos elegidos.</p>
+          <p class="text-warning">📡 Tu Pokeradar no permite pujar por este Pokémon: no es de ninguno de los dos tipos elegidos.${pokeradarTypesReminder}</p>
         ` : pokeradarDiscount ? `
-          <p class="text-success">📡 Pokeradar: reduce a la mitad el precio de tu puja ($${formatMoneyCompact(discountedWinningBid)} antes de otros efectos).</p>
+          <p class="text-success">📡 Pokeradar: reduce a la mitad el precio de tu puja ($${formatMoneyCompact(discountedWinningBid)} antes de otros efectos).${pokeradarTypesReminder}</p>
         ` : ""}
         ${noSeContarActive ? `
           <p class="text-warning">🧮 No Sé Contar: tus pujas deben aumentar de $50K en $50K hasta que ganes una subasta.</p>

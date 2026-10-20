@@ -14,6 +14,7 @@ from typing import Callable, Dict, List, Any, Optional
 POKEAPI_BASE_URL = "https://pokeapi.co/api/v2/pokemon"
 MAX_POKE_CACHE = 32
 POKE_CACHE: OrderedDict[str, dict] = OrderedDict()
+POKEMON_COLOR_CACHE: OrderedDict[str, Optional[str]] = OrderedDict()
 
 
 class PokemonNotFoundError(LookupError):
@@ -395,7 +396,57 @@ def get_region_by_id(poke_id: int) -> str:
         return "Alola"
     elif 810 <= poke_id <= 905:
         return "Galar"
-    return "Paldea / Desconocida"
+    elif 906 <= poke_id <= 1025:
+        return "Paldea"
+    return "Desconocida"
+
+
+def get_region_for_pokemon(name: str, pokemon_id: int, species_url: str = "") -> str:
+    """Devuelve la región de la forma regional o, si no aplica, la de su especie."""
+    regional_form_regions = {
+        "alola": "Alola",
+        "alolan": "Alola",
+        "galar": "Galar",
+        "galarian": "Galar",
+        "hisui": "Hisui",
+        "hisuian": "Hisui",
+        "paldea": "Paldea",
+        "paldean": "Paldea",
+    }
+    name_parts = clean_poke_api_name(name).split("-")
+    for form_name, region in regional_form_regions.items():
+        if form_name in name_parts:
+            return region
+
+    species_id = pokemon_id
+    species_id_part = species_url.rstrip("/").rsplit("/", 1)[-1]
+    if species_id_part.isdigit():
+        species_id = int(species_id_part)
+    return get_region_by_id(species_id)
+
+
+def get_pokemon_species_color(species_url: str) -> Optional[str]:
+    """Obtiene la categoría de color de la especie desde la API de PokeAPI."""
+    if not species_url:
+        return None
+    if species_url in POKEMON_COLOR_CACHE:
+        POKEMON_COLOR_CACHE.move_to_end(species_url)
+        return POKEMON_COLOR_CACHE[species_url]
+
+    try:
+        req = urllib.request.Request(species_url, headers={"User-Agent": "DraftPrimeApp/1.0"})
+        with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=5) as resp:
+            species_data = json.loads(resp.read().decode())
+        color_name = (species_data.get("color") or {}).get("name")
+        color = color_name if isinstance(color_name, str) and color_name else None
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+        print(f"[WARNING] No se pudo cargar el color de la especie desde PokeAPI ({error}).")
+        return None
+
+    if len(POKEMON_COLOR_CACHE) >= MAX_POKE_CACHE:
+        POKEMON_COLOR_CACHE.popitem(last=False)
+    POKEMON_COLOR_CACHE[species_url] = color
+    return color
 
 
 def extract_level_up_moves(moves_data: List[dict]) -> List[dict]:
@@ -697,7 +748,12 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             res = {
                 "id": poke_id,
                 "name": name,
-                "region": get_region_by_id(poke_id),
+                "region": get_region_for_pokemon(
+                    api_slug,
+                    poke_id,
+                    (data.get("species") or {}).get("url", ""),
+                ),
+                "color": get_pokemon_species_color((data.get("species") or {}).get("url", "")),
                 "types": types,
                 "primary_type": types[0] if types else "Normal",
                 "abilities": abilities,
@@ -767,6 +823,7 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "id": random.randint(1, 151),
             "name": name_clean,
             "region": "Kanto",
+            "color": None,
             "types": ["Normal"],
             "primary_type": "Normal",
             "abilities": fallback_abilities,
@@ -908,6 +965,9 @@ def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:
 
     if multiplier >= 1.0:
         hints["first_letter"] = name[0].upper() if name else "?"
+
+    if multiplier >= 1.5:
+        hints["color"] = poke_data.get("color") or "unknown"
 
     if multiplier >= 2.0:
         hints["region"] = poke_data.get("region", "Desconocida")
