@@ -575,7 +575,7 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const colorHintDisplay = colorHint === undefined
     ? "🔒 Incógnito (1.5x)"
     : pokemonColor
-      ? `<span role="img" aria-label="Color principal: ${pokemonColor.label}" title="${pokemonColor.label}" style="display:inline-block;width:1rem;height:1rem;margin-left:0.35rem;vertical-align:middle;border:1px solid currentColor;border-radius:3px;background-color:${pokemonColor.hex};"></span>`
+      ? `<span role="img" aria-label="Color principal: ${pokemonColor.label}" title="${pokemonColor.label}" style="display:inline-block;width:1rem;height:1rem;margin:0 0.35rem;vertical-align:middle;border:1px solid currentColor;border-radius:3px;background-color:${pokemonColor.hex};"></span>${pokemonColor.label}`
       : "No disponible";
 
   const tier = data.current_phase_tier || (auction.phase_tier || (isMegaPokemon(poke) ? "mega" : "normal"));
