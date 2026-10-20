@@ -899,7 +899,7 @@ export function renderTurnEventsView(data, sessionClient, isHost) {
   `;
 }
 
-export function renderExportView(data, sessionClient, isHost, lockedText = null) {
+export function renderExportView(data, sessionClient, isHost, lockedText = null, teamLocked = false) {
   const showdownText = lockedText !== null ? lockedText : (data.showdown_text || "");
   const isLocked = lockedText !== null;
   const standings = data.standings || [];
@@ -912,12 +912,19 @@ export function renderExportView(data, sessionClient, isHost, lockedText = null)
   return `
     <div class="card export-card">
       <h2>📋 ${data.stage_name}</h2>
-      <p>${isLocked
-        ? "Tu equipo ha sido fijado. Copia el texto para importarlo en <strong>Pokémon Showdown</strong>:"
-        : "Edita si lo necesitas y luego fija tu equipo para poder copiarlo a <strong>Pokémon Showdown</strong>:"
-      }</p>
+      ${teamLocked ? `
+        <div role="status" style="min-height: 45vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+          <span aria-hidden="true" style="font-size: clamp(7rem, 25vw, 14rem); line-height: 1;">🔒</span>
+          <h2 style="font-size: clamp(1.5rem, 5vw, 2.5rem);">Esperando a que el host avance de fase</h2>
+        </div>
+      ` : `
+        <p>${isLocked
+          ? "Tu equipo ha sido fijado. Copia el texto para importarlo en <strong>Pokémon Showdown</strong>:"
+          : "Edita si lo necesitas y luego fija tu equipo para poder copiarlo a <strong>Pokémon Showdown</strong>:"
+        }</p>
+      `}
 
-      ${isInDebt ? `
+      ${teamLocked ? "" : isInDebt ? `
         <div class="debt-warning" role="alert">
           <strong>Saldo negativo: no puedes fijar tu equipo todavía.</strong>
           <p>Vende Pokémon a la máquina por el 25% de su precio de compra inmediata para recuperar saldo.</p>
@@ -934,12 +941,12 @@ export function renderExportView(data, sessionClient, isHost, lockedText = null)
         </div>
       ` : `<textarea id="showdown-text-area" rows="12" class="code-area" ${isLocked ? "readonly" : ""}>${showdownText}</textarea>`}
 
-      <div class="btn-group">
+      ${teamLocked ? "" : `<div class="btn-group">
         ${isLocked
           ? `<button id="btn-copy-showdown" class="btn btn-success">📋 Copiar al Portapapeles</button>`
           : `<button id="btn-lock-team" class="btn btn-primary" ${isInDebt ? "disabled" : ""}>🔒 Fijar Equipo</button>`
         }
-      </div>
+      </div>`}
 
       ${isHost ? `
         <div class="admin-match-box">

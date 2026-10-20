@@ -265,6 +265,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     super("subasta_pokemon", "Subasta (Pokemon)");
     this.latestState = null;
     this._lockedShowdownText = null;
+    this._lockedShowdownStage = null;
     this._isRouletteSpinning = false;
     this._lastCoinflipAnimationKey = null;
   }
@@ -337,6 +338,11 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
 
     const stage = state.stage || 2;
+    if (this._lockedShowdownStage !== null && this._lockedShowdownStage !== stage) {
+      this._lockedShowdownText = null;
+      this._lockedShowdownStage = null;
+    }
+    const isTeamLocked = this._lockedShowdownStage === stage;
 
     let html = "";
     if ([2, 6, 10].includes(stage)) {
@@ -347,17 +353,17 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       html = renderTurnEventsView(state, sessionClient, isHost);
     } else if ([4, 8, 12].includes(stage)) {
       // Exportación a Showdown (Año 1, 2, 3)
-      html = renderExportView(state, sessionClient, isHost, this._lockedShowdownText);
+      html = renderExportView(state, sessionClient, isHost, this._lockedShowdownText, isTeamLocked);
     } else {
       // Resultados y Administración (Etapa 13 o intermedia)
       html = renderAdminAndStandingsView(state, sessionClient, isHost);
     }
 
-    const openModal = document.querySelector(".inventory-modal-overlay.is-open");
+    const openModal = isTeamLocked ? null : document.querySelector(".inventory-modal-overlay.is-open");
     const currentlyOpenTarget = openModal ? openModal.dataset.modal : null;
     document.querySelectorAll("body > .inventory-modal-overlay").forEach((el) => el.remove());
 
-    const inventoryHtml = renderMyPokemonInventory(state, sessionClient, isHost);
+    const inventoryHtml = isTeamLocked ? "" : renderMyPokemonInventory(state, sessionClient, isHost);
     draftContainer.innerHTML = html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
 
@@ -691,6 +697,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         if (area) {
           this._lockedShowdownText = area.value;
         }
+        this._lockedShowdownStage = Number(state.stage || 2);
         // Re-renderizar para que se refleje el estado fijado
         this.renderCurrentStageView(state, sessionClient, isHost);
       });
