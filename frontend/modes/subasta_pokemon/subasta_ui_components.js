@@ -33,7 +33,11 @@ function escapeHtml(value) {
 
 function buildWikidexUrl(name) {
   if (!name) return "";
-  const raw = String(name).trim();
+  const megaInfo = getMegaInfo(name);
+  const raw = String(
+    megaInfo?.baseName || (typeof name === "object" ? name.name : name) || ""
+  ).trim();
+  if (!raw) return "";
 
   // Detectar variantes regionales (ej: "Rattata-alola", "Rattata Alola", "Meowth Galar", "Growlithe Hisui", "Wooper Paldea")
   const regionalMatch = raw.match(/^(.*?)(?:[-_\s]+|\s*\()(alola|galar|hisui|paldea|paldean)\)?$/i);
@@ -1217,7 +1221,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
             <div class="poke-inventory-item" data-poke-idx="${pokeIdx}">
               <div class="poke-inv-header">
                 ${poke.image_url && poke.name
-                  ? `<a href="${buildWikidexUrl(poke.name)}" target="_blank" rel="noopener noreferrer"><img src="${poke.image_url}" class="poke-thumb" alt="${poke.name}" /></a>`
+                  ? `<a href="${buildWikidexUrl(poke)}" target="_blank" rel="noopener noreferrer"><img src="${poke.image_url}" class="poke-thumb" alt="${poke.name}" /></a>`
                   : (poke.image_url ? `<img src="${poke.image_url}" class="poke-thumb" />` : '')}
                 <div>
                   <span class="badge">Nv. ${poke.level || levelCap}</span>

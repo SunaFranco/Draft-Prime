@@ -797,6 +797,11 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             is_mega = bool(mega_info)
             base_species = mega_info["base_name"] if mega_info else name
             mega_stone = mega_info["mega_stone"] if mega_info else None
+            if mega_info:
+                base_pokemon = fetch_pokemon_data(base_species, level_cap)
+                level_up_moves = base_pokemon["level_up_moves"]
+                tm_moves = base_pokemon["tm_moves"]
+                selected_moves = base_pokemon["selected_moves"]
 
             res = {
                 "id": poke_id,
@@ -821,7 +826,9 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
                 "level": level_cap,
                 "level_up_moves": level_up_moves,
                 "tm_moves": tm_moves,
-                "selected_moves": [m["name"] for m in level_up_moves if m["level"] <= level_cap][-4:],
+                "selected_moves": selected_moves if is_mega else [
+                    m["name"] for m in level_up_moves if m["level"] <= level_cap
+                ][-4:],
                 "can_evolve": bool(next_evolution) if not is_mega else False,
                 "evolution_target": next_evolution if not is_mega else None,
                 "next_evolution_level": next_evolution_level if not is_mega else None,
@@ -871,14 +878,20 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
         is_mega = bool(mega_info)
         base_species = mega_info["base_name"] if mega_info else name_clean
         mega_stone = mega_info["mega_stone"] if mega_info else None
+        if mega_info:
+            base_pokemon = fetch_pokemon_data(base_species, level_cap)
+            default_moves = base_pokemon["level_up_moves"]
+            tm_moves = base_pokemon["tm_moves"]
+            selected_moves = base_pokemon["selected_moves"]
 
-        default_moves = [
-            {"name": "Tackle", "level": 1},
-            {"name": "Quick Attack", "level": 5},
-            {"name": "Bite", "level": 12},
-            {"name": "Body Slam", "level": 20},
-            {"name": "Hyper Beam", "level": 40}
-        ]
+        else:
+            default_moves = [
+                {"name": "Tackle", "level": 1},
+                {"name": "Quick Attack", "level": 5},
+                {"name": "Bite", "level": 12},
+                {"name": "Body Slam", "level": 20},
+                {"name": "Hyper Beam", "level": 40}
+            ]
         evolution_options = get_pokemon_all_evolution_options(name_clean, max_level=100)
         evolution_details = evolution_options[0] if evolution_options else None
         next_evolution = evolution_details.get("target") if evolution_details else None
@@ -913,8 +926,10 @@ def fetch_pokemon_data(name_or_id: str, level_cap: int = 20) -> dict:
             "shiny_image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/25.png",
             "level": level_cap,
             "level_up_moves": default_moves,
-            "tm_moves": [],
-            "selected_moves": [m["name"] for m in default_moves if m["level"] <= level_cap][-4:],
+            "tm_moves": tm_moves if is_mega else [],
+            "selected_moves": selected_moves if is_mega else [
+                m["name"] for m in default_moves if m["level"] <= level_cap
+            ][-4:],
             "can_evolve": bool(next_evolution) if not is_mega else False,
             "evolution_target": next_evolution if not is_mega else None,
             "next_evolution_level": next_evolution_level if not is_mega else None,
