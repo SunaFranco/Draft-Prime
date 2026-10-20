@@ -300,11 +300,29 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     }
     if (event === "error") {
       this._isRouletteSpinning = false;
+      const btnTransferHost = document.getElementById("btn-transfer-host");
+      if (btnTransferHost) btnTransferHost.disabled = false;
+    }
+    if (event === "player_joined" || event === "player_left" || event === "host_changed") {
+      if (this.latestState && Array.isArray(data.players)) {
+        this.latestState.connected_players = (data.players || [])
+          .filter((player) => player.connected)
+          .map((player) => player.username);
+      }
+      if (this.latestState) {
+        this.renderCurrentStageView(this.latestState, context.sessionClient, context.isHost);
+      }
+      return false;
     }
     if (event === "subasta_state_update" || (event === "session_state" && data.draft_state)) {
       const state = event === "subasta_state_update" ? data : data.draft_state;
       if (!state || Object.keys(state).length === 0) return false;
 
+      if (event === "session_state") {
+        state.connected_players = (data.players || [])
+          .filter((player) => player.connected)
+          .map((player) => player.username);
+      }
       this.latestState = state;
       this.renderCurrentStageView(state, context.sessionClient, context.isHost);
       return true;
@@ -339,7 +357,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const currentlyOpenTarget = openModal ? openModal.dataset.modal : null;
     document.querySelectorAll("body > .inventory-modal-overlay").forEach((el) => el.remove());
 
-    const inventoryHtml = renderMyPokemonInventory(state, sessionClient);
+    const inventoryHtml = renderMyPokemonInventory(state, sessionClient, isHost);
     draftContainer.innerHTML = html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
 
@@ -359,6 +377,19 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
   attachEventListeners(state, sessionClient, isHost) {
     this.startRevealCountdown(state);
+
+    const btnTransferHost = document.getElementById("btn-transfer-host");
+    if (btnTransferHost) {
+      btnTransferHost.addEventListener("click", () => {
+        const targetUsername = document.getElementById("host-transfer-target")?.value;
+        if (!targetUsername) return;
+        btnTransferHost.disabled = true;
+        sessionClient.send({
+          action: "transfer_host",
+          target_username: targetUsername,
+        });
+      });
+    }
 
     const turnEvent = state.current_turn_event || {};
     if (

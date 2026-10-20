@@ -174,6 +174,8 @@ function handleWebSocketMessage(msg) {
       currentModeKey = data.mode;
       currentModeUI = modeUIRegistry[data.mode] || null;
     }
+  } else if (event === "host_changed") {
+    isHost = data.new_host === sessionClient.currentUsername;
   }
 
   // Intentar delegar primero al controlador de UI del modo de juego activo

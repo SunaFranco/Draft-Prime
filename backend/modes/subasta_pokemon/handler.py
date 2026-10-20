@@ -865,6 +865,11 @@ class SubastaPokemonMode(BaseGameMode):
             "stage_name": STAGE_NAMES.get(current_stage, "En Juego"),
             "current_year": current_year,
             "current_turn": current_turn,
+            "connected_players": [
+                player["username"]
+                for player in session.get("players", [])
+                if player.get("connected", False)
+            ],
             "max_turns": get_year_event_count(subasta_state, current_year),
             "my_data": player_data,
             "all_players": filtered_players_info,

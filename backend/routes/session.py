@@ -273,6 +273,41 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
                     },
                 })
 
+            elif action == "transfer_host":
+                if username != session["host"]:
+                    await manager.send_personal(websocket, {
+                        "event": "error",
+                        "data": {"message": "Solo el host actual puede transferir el rol."},
+                    })
+                    continue
+
+                target_username = message.get("target_username")
+                connected_usernames = {
+                    player["username"]
+                    for player in session["players"]
+                    if player.get("connected", False)
+                }
+                if (
+                    not isinstance(target_username, str)
+                    or target_username == username
+                    or target_username not in connected_usernames
+                ):
+                    await manager.send_personal(websocket, {
+                        "event": "error",
+                        "data": {"message": "Selecciona a otro jugador conectado para transferir el host."},
+                    })
+                    continue
+
+                session["host"] = target_username
+                save_full_session(session)
+                await manager.broadcast(session_id, {
+                    "event": "host_changed",
+                    "data": {
+                        "new_host": target_username,
+                        "players": session["players"],
+                    },
+                })
+
             elif action == "choose_mode":
                 if username != session["host"]:
                     await manager.send_personal(websocket, {

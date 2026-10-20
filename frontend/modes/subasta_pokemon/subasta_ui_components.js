@@ -983,12 +983,13 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
   `;
 }
 
-export function renderMyPokemonInventory(data, sessionClient) {
+export function renderMyPokemonInventory(data, sessionClient, isHost) {
   const myData = data.my_data || {};
   const pokemonList = myData.pokemon || [];
   const bagItems = normalizeItemMap(myData.items || {});
   const bagEntries = Object.entries(bagItems);
   const currentUsername = sessionClient.currentUsername;
+  const connectedPlayers = (data.connected_players || []).filter((username) => username !== currentUsername);
   const tradeSession = data.trade_session;
   const preparationStage = [4, 8, 12, 13].includes(Number(data.stage || 0));
   const tradeTargets = Object.keys(data.all_players || {}).filter((username) => username !== currentUsername);
@@ -1226,12 +1227,37 @@ export function renderMyPokemonInventory(data, sessionClient) {
         <div class="backpack-panel">
           <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="backpack-menu" aria-expanded="false">🎒 Mochila</button>
         </div>
+        ${isHost ? `
+          <div class="backpack-panel">
+            <button type="button" class="btn btn-small btn-secondary inventory-menu-toggle" data-menu-target="host-transfer-menu" aria-expanded="false">👑 Transferir host</button>
+          </div>
+        ` : ""}
         ${shopOpen ? `
           <div class="backpack-panel">
             <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="shop-menu" aria-expanded="false">🛒 Tienda</button>
           </div>
         ` : ""}
       </div>
+
+      ${isHost ? `
+        <div class="inventory-modal-overlay" data-modal="host-transfer-menu" aria-hidden="true">
+          <div class="backpack-menu" data-menu="host-transfer-menu">
+            <div class="backpack-menu-header">
+              <h4>👑 Transferir host</h4>
+              <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
+            </div>
+            <div class="backpack-menu-body">
+              ${connectedPlayers.length ? `
+                <label for="host-transfer-target">Nuevo host:</label>
+                <select id="host-transfer-target">
+                  ${connectedPlayers.map((username) => `<option value="${escapeHtml(username)}">${escapeHtml(username)}</option>`).join("")}
+                </select>
+                <button type="button" class="btn btn-small btn-primary" id="btn-transfer-host">Transferir host</button>
+              ` : '<p class="text-muted">No hay otros jugadores conectados.</p>'}
+            </div>
+          </div>
+        </div>
+      ` : ""}
 
       <div class="inventory-modal-overlay" data-modal="backpack-menu" aria-hidden="true">
         <div class="backpack-menu" data-menu="backpack-menu">
