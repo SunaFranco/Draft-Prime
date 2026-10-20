@@ -167,9 +167,13 @@ function handleWebSocketMessage(msg) {
   const event = msg.event;
   const data = msg.data || {};
 
-  if (event === "session_state" && data.mode) {
-    currentModeKey = data.mode;
-    currentModeUI = modeUIRegistry[data.mode] || null;
+  if (event === "session_state") {
+    isHost = data.host === sessionClient.currentUsername;
+
+    if (data.mode) {
+      currentModeKey = data.mode;
+      currentModeUI = modeUIRegistry[data.mode] || null;
+    }
   }
 
   // Intentar delegar primero al controlador de UI del modo de juego activo
