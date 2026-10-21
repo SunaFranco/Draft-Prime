@@ -112,6 +112,19 @@ def activate_pokeradar_for_year(player: dict, year: int) -> None:
         player["pokeradar_year"] = player.pop("pokeradar_next_year")
 
 
+def ensure_player_pokemon_boxes(player: dict) -> List[dict]:
+    boxes = player.setdefault("pokemon_boxes", [])
+    if not boxes:
+        boxes.append({"id": "box-1", "name": "Caja 1"})
+
+    valid_box_ids = {box["id"] for box in boxes}
+    default_box_id = boxes[0]["id"]
+    for pokemon in player.get("pokemon", []):
+        if pokemon.get("box_id") not in valid_box_ids:
+            pokemon["box_id"] = default_box_id
+    return boxes
+
+
 DEFAULT_YEAR_EVENT_COUNTS = {
     1: {"positive": 3, "neutral": 0, "negative": 0},
     2: {"positive": 3, "neutral": 0, "negative": 0},
@@ -779,10 +792,12 @@ class SubastaPokemonMode(BaseGameMode):
         default_player_data = {
             "money": subasta_state.get("starting_money", 0),
             "pokemon": [],
+            "pokemon_boxes": [{"id": "box-1", "name": "Caja 1"}],
             "items": [],
             "points": 0
         }
         player_data = subasta_state["players"].get(username, default_player_data)
+        ensure_player_pokemon_boxes(player_data)
 
         current_stage = subasta_state.get("current_stage", 2)
         current_year = subasta_state.get("current_year", 1)
@@ -1011,6 +1026,7 @@ class SubastaPokemonMode(BaseGameMode):
                 u: {
                     "money": year_starting_money.get(1, starting_money),
                     "pokemon": [],
+                    "pokemon_boxes": [{"id": "box-1", "name": "Caja 1"}],
                     "items": [],
                     "points": 0,
                     "resolved_turn": False
@@ -1088,7 +1104,41 @@ class SubastaPokemonMode(BaseGameMode):
             return False
 
         # ── Acciones de Subasta ──────────────────────────────────────────────
-        if action == "subasta_bid":
+        if action == "subasta_create_pokemon_box":
+            player = subasta_state["players"].get(username)
+            if not player:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No se encontró tu jugador en esta partida."}})
+                return True
+
+            boxes = ensure_player_pokemon_boxes(player)
+            box_number = len(boxes) + 1
+            boxes.append({"id": f"box-{box_number}", "name": f"Caja {box_number}"})
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_move_pokemon_box":
+            player = subasta_state["players"].get(username)
+            poke_idx = message.get("poke_index")
+            target_box_id = message.get("box_id")
+            if not player:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No se encontró tu jugador en esta partida."}})
+                return True
+            if not isinstance(poke_idx, int) or isinstance(poke_idx, bool) or not 0 <= poke_idx < len(player.get("pokemon", [])):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido."}})
+                return True
+
+            boxes = ensure_player_pokemon_boxes(player)
+            if not isinstance(target_box_id, str) or target_box_id not in {box["id"] for box in boxes}:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona una caja válida."}})
+                return True
+
+            player["pokemon"][poke_idx]["box_id"] = target_box_id
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_bid":
             bid_amount = int(message.get("bid_amount", 0))
             auction = subasta_state.get("current_auction")
             if not auction or auction.get("finished") or auction.get("winner"):

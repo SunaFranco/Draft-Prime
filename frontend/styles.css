@@ -965,11 +965,82 @@ button.btn-danger:hover {
   margin-top: 1rem;
 }
 
+.pokemon-boxes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.pokemon-box-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: #111827;
+  border: 2px solid var(--border-dim);
+  color: var(--text-main);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pokemon-box-tab span {
+  color: var(--border-neon);
+}
+
+.pokemon-box-tab.is-active {
+  border-color: var(--border-neon);
+  box-shadow: 3px 3px 0 #10b981;
+}
+
 .poke-inventory-item {
   background: #000;
   border: 2.5px solid var(--border-bright);
-  padding: 1rem;
   box-shadow: 4px 4px 0px #10b981;
+}
+
+.poke-inventory-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  color: var(--text-bright);
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+
+.poke-inventory-summary::-webkit-details-marker {
+  display: none;
+}
+
+.poke-inventory-chevron {
+  color: var(--border-neon);
+  transition: transform 0.15s ease;
+}
+
+.poke-inventory-item[open] .poke-inventory-chevron {
+  transform: rotate(180deg);
+}
+
+.poke-inventory-details {
+  padding: 0 1rem 1rem;
+}
+
+.pokemon-box-move {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.pokemon-box-select {
+  max-width: 180px;
 }
 
 .poke-inv-header {

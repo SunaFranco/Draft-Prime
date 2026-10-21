@@ -268,6 +268,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     this._lockedShowdownStage = null;
     this._isRouletteSpinning = false;
     this._lastCoinflipAnimationKey = null;
+    this._activePokemonBoxId = null;
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -363,7 +364,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const currentlyOpenTarget = openModal ? openModal.dataset.modal : null;
     document.querySelectorAll("body > .inventory-modal-overlay").forEach((el) => el.remove());
 
-    const inventoryHtml = isTeamLocked ? "" : renderMyPokemonInventory(state, sessionClient, isHost);
+    const inventoryHtml = isTeamLocked ? "" : renderMyPokemonInventory(state, sessionClient, isHost, this._activePokemonBoxId);
     draftContainer.innerHTML = html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
 
@@ -872,6 +873,33 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           btn.setAttribute("aria-expanded", "true");
           document.body.style.overflow = "hidden";
         }
+      });
+    });
+
+    document.querySelectorAll(".pokemon-box-tab").forEach((button) => {
+      button.addEventListener("click", () => {
+        this._activePokemonBoxId = button.dataset.pokemonBoxId;
+        this.renderCurrentStageView(state, sessionClient, isHost);
+      });
+    });
+
+    document.querySelectorAll(".btn-create-pokemon-box").forEach((button) => {
+      button.addEventListener("click", () => {
+        const boxCount = state.my_data?.pokemon_boxes?.length || 1;
+        this._activePokemonBoxId = `box-${boxCount + 1}`;
+        sessionClient.send({ action: "subasta_create_pokemon_box" });
+      });
+    });
+
+    document.querySelectorAll(".pokemon-box-select").forEach((select) => {
+      select.addEventListener("change", () => {
+        const pokeIdx = parseInt(select.dataset.pokeIdx, 10);
+        if (Number.isNaN(pokeIdx) || !select.value) return;
+        sessionClient.send({
+          action: "subasta_move_pokemon_box",
+          poke_index: pokeIdx,
+          box_id: select.value,
+        });
       });
     });
 

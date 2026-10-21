@@ -1055,7 +1055,7 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
   `;
 }
 
-export function renderMyPokemonInventory(data, sessionClient, isHost) {
+export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxId = null) {
   const myData = data.my_data || {};
   const pokemonList = myData.pokemon || [];
   const bagItems = normalizeItemMap(myData.items || {});
@@ -1068,6 +1068,14 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
   const tradeTargets = Object.keys(data.all_players || {}).filter((username) => username !== currentUsername);
   const levelCap = data.current_year === 1 ? 20 : (data.current_year === 2 ? 40 : 100);
   const shopVisible = preparationStage || auctionOrEventStage;
+  const pokemonBoxes = Array.isArray(myData.pokemon_boxes) && myData.pokemon_boxes.length
+    ? myData.pokemon_boxes
+    : [{ id: "box-1", name: "Caja 1" }];
+  const activeBox = pokemonBoxes.find((box) => box.id === activeBoxId) || pokemonBoxes[0];
+  const boxCounts = pokemonBoxes.map((box) => ({
+    ...box,
+    count: pokemonList.filter((poke) => (poke.box_id || pokemonBoxes[0].id) === box.id).length,
+  }));
   const shopCatalogByYear = {
     1: [
       { name: "Caja Misteriosa I", price: 100000, isBox: true, description: "Oran Berry 75%, MT Earthquake 5%, MT Flamethrower 5%, MT Shadow Ball 5%, Cápsula Hab. 5%, Porygon + Objeto Mejora 3%, Pokémon Shiny 1%, $500K 1%" },
@@ -1148,8 +1156,17 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
           ${tradeSession.initiator === currentUsername ? '<button class="btn btn-small btn-secondary" id="btn-cancel-trade" style="margin-left: 8px;">Cerrar</button>' : ''}
         </div>
       ` : ""}
+      <div class="pokemon-boxes" role="tablist" aria-label="Cajas de Pokémon">
+        ${boxCounts.map((box) => `
+          <button type="button" class="pokemon-box-tab ${box.id === activeBox.id ? 'is-active' : ''}" data-pokemon-box-id="${box.id}" role="tab" aria-selected="${box.id === activeBox.id}">
+            ${box.name} <span>${box.count}</span>
+          </button>
+        `).join("")}
+        <button type="button" class="btn btn-small btn-secondary btn-create-pokemon-box">＋ Crear caja</button>
+      </div>
       <div class="inventory-grid">
         ${pokemonList.length ? pokemonList.map((poke, pokeIdx) => {
+          if ((poke.box_id || pokemonBoxes[0].id) !== activeBox.id) return "";
           const isMega = isMegaPokemon(poke);
           const levelUpMoves = (poke.level_up_moves || []).filter((m) => m.level <= levelCap);
           const selectedMoves = poke.selected_moves || [];
@@ -1226,7 +1243,20 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
           }
 
           return `
-            <div class="poke-inventory-item" data-poke-idx="${pokeIdx}">
+            <details class="poke-inventory-item" data-poke-idx="${pokeIdx}">
+              <summary class="poke-inventory-summary">
+                <span class="poke-inventory-name">${poke.name || `Pokémon ${pokeIdx + 1}`}</span>
+                <span class="poke-inventory-chevron" aria-hidden="true">▾</span>
+              </summary>
+              <div class="poke-inventory-details">
+                ${pokemonBoxes.length > 1 ? `
+                  <label class="pokemon-box-move">
+                    Caja:
+                    <select class="pokemon-box-select" data-poke-idx="${pokeIdx}" aria-label="Mover ${poke.name || 'Pokémon'} a otra caja">
+                      ${pokemonBoxes.map((box) => `<option value="${box.id}" ${(poke.box_id || pokemonBoxes[0].id) === box.id ? "selected" : ""}>${box.name}</option>`).join("")}
+                    </select>
+                  </label>
+                ` : ""}
               <div class="poke-inv-header">
                 ${poke.image_url && poke.name
                   ? `<a href="${buildWikidexUrl(poke)}" target="_blank" rel="noopener noreferrer"><img src="${poke.image_url}" class="poke-thumb" alt="${poke.name}" /></a>`
@@ -1291,9 +1321,13 @@ export function renderMyPokemonInventory(data, sessionClient, isHost) {
                   <button class="btn btn-small btn-primary btn-save-moves" data-poke-idx="${pokeIdx}">💾 Guardar</button>
                 </div>
               </div>
-            </div>
+              </div>
+            </details>
           `;
         }).join("") : '<p class="text-muted">Aún no has conseguido ningún Pokémon en las subastas.</p>'}
+        ${pokemonList.length && !pokemonList.some((poke) => (poke.box_id || pokemonBoxes[0].id) === activeBox.id)
+          ? '<p class="text-muted">Esta caja está vacía. Elige una caja en un Pokémon para moverlo aquí.</p>'
+          : ""}
       </div>
 
       <div class="inventory-actions">
