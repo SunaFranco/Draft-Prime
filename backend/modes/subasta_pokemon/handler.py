@@ -1114,7 +1114,7 @@ class SubastaPokemonMode(BaseGameMode):
             box_number = len(boxes) + 1
             boxes.append({"id": f"box-{box_number}", "name": f"Caja {box_number}"})
             save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_move_pokemon_box":
@@ -1135,7 +1135,7 @@ class SubastaPokemonMode(BaseGameMode):
 
             player["pokemon"][poke_idx]["box_id"] = target_box_id
             save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_bid":
@@ -1910,7 +1910,7 @@ class SubastaPokemonMode(BaseGameMode):
                 return True
 
             save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_use_ability_capsule":
@@ -1941,7 +1941,7 @@ class SubastaPokemonMode(BaseGameMode):
             poke["ability_slot"] = ability_slots[ability_index] if ability_index < len(ability_slots) else ability_index + 1
             remove_item_from_inventory(player, "Capsula Habilidad")
             save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_use_mint":
@@ -1969,7 +1969,7 @@ class SubastaPokemonMode(BaseGameMode):
             poke["nature"] = mint_nature
             remove_item_from_inventory(player, item_name)
             save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_use_tm":
@@ -2001,7 +2001,7 @@ class SubastaPokemonMode(BaseGameMode):
             if not preserve_tm:
                 remove_item_from_inventory(player, item_name)
             save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_use_form_change":
@@ -2038,7 +2038,7 @@ class SubastaPokemonMode(BaseGameMode):
 
             remove_item_from_inventory(player, "Cambia Formas")
             save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_item_remove":
@@ -2050,7 +2050,7 @@ class SubastaPokemonMode(BaseGameMode):
                 return True
 
             save_game_session(session_id, self.key, subasta_state)
-            await self._broadcast_subasta_state(session, manager)
+            await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_shop_buy":
@@ -2285,7 +2285,7 @@ class SubastaPokemonMode(BaseGameMode):
                     poke["selected_moves"] = valid_moves
 
                 save_game_session(session_id, self.key, subasta_state)
-                await self._broadcast_subasta_state(session, manager)
+                await self._send_subasta_state_to_user(session, manager, username)
             return True
 
         elif action == "subasta_evolve_pokemon":
@@ -2453,8 +2453,12 @@ class SubastaPokemonMode(BaseGameMode):
         """Envía a cada jugador conectado su estado formateado."""
         session_id = session["id"]
         for user in session["subasta"]["player_order"]:
-            state_for_user = self.get_player_sync_state(session, user)
-            await manager.send_personal_to_user(session_id, user, {
-                "event": "subasta_state_update",
-                "data": state_for_user
-            })
+            await self._send_subasta_state_to_user(session, manager, user)
+
+    async def _send_subasta_state_to_user(self, session: dict, manager: Any, username: str):
+        """Envía el estado actualizado solo al jugador cuya información privada cambió."""
+        state_for_user = self.get_player_sync_state(session, username)
+        await manager.send_personal_to_user(session["id"], username, {
+            "event": "subasta_state_update",
+            "data": state_for_user
+        })

@@ -337,6 +337,11 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const draftContainer = document.getElementById("screen-draft");
     if (!draftContainer) return;
 
+    const pokemonCardState = Array.from(draftContainer.querySelectorAll(".poke-inventory-item")).map((card) => ({
+      index: card.dataset.pokeIdx,
+      name: card.querySelector(".poke-inventory-name")?.textContent,
+      isOpen: card.open,
+    }));
 
     const stage = state.stage || 2;
     if (this._lockedShowdownStage !== null && this._lockedShowdownStage !== stage) {
@@ -367,6 +372,14 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const inventoryHtml = isTeamLocked ? "" : renderMyPokemonInventory(state, sessionClient, isHost, this._activePokemonBoxId);
     draftContainer.innerHTML = html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
+
+    pokemonCardState.forEach(({ index, name, isOpen }) => {
+      const pokemon = state.my_data?.pokemon?.[Number(index)];
+      if (!pokemon || pokemon.name !== name) return;
+      const card = draftContainer.querySelector(`.poke-inventory-item[data-poke-idx="${index}"]`);
+      if (!card) return;
+      card.open = isOpen;
+    });
 
     if (currentlyOpenTarget) {
       const modalToRestore = document.querySelector(`.inventory-modal-overlay[data-modal="${currentlyOpenTarget}"]`);
