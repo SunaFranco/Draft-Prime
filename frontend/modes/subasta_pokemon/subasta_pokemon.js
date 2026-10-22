@@ -388,6 +388,19 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       html = renderAdminAndStandingsView(state, sessionClient, isHost);
     }
 
+    const auctionStages = [2, 6, 10];
+    const playerMoney = Number(state.my_data?.money);
+    const balanceHtml = !auctionStages.includes(Number(stage))
+      && state.my_data?.money !== null
+      && state.my_data?.money !== undefined
+      && Number.isFinite(playerMoney)
+      ? `
+        <div class="subasta-header subasta-player-balance">
+          <span class="badge badge-success">💰 Mi Saldo: $${formatMoneyCompact(playerMoney)}</span>
+        </div>
+      `
+      : "";
+
     const openModal = isTeamLocked ? null : document.querySelector(".inventory-modal-overlay.is-open");
     const currentlyOpenTarget = openModal ? openModal.dataset.modal : null;
     document.querySelectorAll("body > .inventory-modal-overlay").forEach((el) => el.remove());
@@ -399,7 +412,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       this._activePokemonBoxId,
       this._pokemonCardColors
     );
-    draftContainer.innerHTML = html + "<br/>" + inventoryHtml;
+    draftContainer.innerHTML = balanceHtml + html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
 
     pokemonCardState.forEach(({ index, name, isOpen }) => {

@@ -1015,6 +1015,11 @@ button.btn-danger:hover {
   color: #06110c;
 }
 
+.poke-inventory-item .poke-inv-header .badge:not(.badge-green):not(.badge-shiny) {
+  border-color: var(--pokemon-accent);
+  box-shadow: 2px 2px 0 rgba(var(--pokemon-accent-rgb), 0.45);
+}
+
 .poke-inventory-item .badge-item {
   background: rgba(var(--pokemon-accent-rgb), 0.12);
   border-color: var(--pokemon-accent);
@@ -1060,6 +1065,10 @@ button.btn-danger:hover {
 
 .poke-inventory-item .btn:not(.pokemon-color-toggle):not(.pokemon-color-option) {
   box-shadow: 3px 3px 0 var(--pokemon-accent);
+}
+
+.poke-inventory-item .btn-secondary:not(.pokemon-color-toggle):not(.pokemon-color-option) {
+  border-color: var(--pokemon-accent);
 }
 
 .poke-inventory-item .btn:not(.btn-secondary):not(.pokemon-color-toggle):not(.pokemon-color-option) {
