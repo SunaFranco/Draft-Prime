@@ -961,6 +961,7 @@ button.btn-danger:hover {
 .inventory-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  align-items: start;
   gap: 1.25rem;
   margin-top: 1rem;
 }
@@ -1312,6 +1313,161 @@ button.btn-danger:hover {
   .tm-pokemon-select {
     max-width: 100%;
     flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 1.25rem 0.85rem;
+  }
+
+  .screen {
+    width: 100%;
+  }
+
+  header {
+    margin-bottom: 1.5rem;
+  }
+
+  h1 {
+    font-size: clamp(1.7rem, 7vw, 2.3rem);
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
+
+  .home-cards,
+  .mode-grid,
+  .auction-grid,
+  .inventory-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .draft-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+    gap: 0.85rem;
+  }
+
+  .poke-inventory-item {
+    min-width: 0;
+  }
+
+  .poke-inventory-details {
+    min-width: 0;
+  }
+
+  .poke-inv-header {
+    align-items: flex-start;
+  }
+
+  .poke-inv-header > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .pokemon-sale-row,
+  .lobby-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  body {
+    padding: 0.75rem 0.6rem;
+  }
+
+  .card {
+    padding: 0.9rem;
+    box-shadow: 3px 3px 0 var(--border-neon);
+  }
+
+  .draft-state {
+    padding: 0.9rem;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  button,
+  .btn {
+    min-height: 44px;
+    padding: 0.65rem 0.8rem;
+  }
+
+  .btn-small {
+    padding: 0.55rem 0.7rem;
+  }
+
+  .pokemon-boxes {
+    align-items: stretch;
+  }
+
+  .pokemon-box-tab,
+  .pokemon-boxes > .btn {
+    flex: 1 1 auto;
+  }
+
+  .pokemon-box-move {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .pokemon-box-select,
+  .item-equip-box,
+  .poke-item-select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .item-equip-box {
+    flex-wrap: wrap;
+  }
+
+  .item-equip-box .btn {
+    flex: 1 1 100%;
+  }
+
+  .poke-inv-header {
+    gap: 0.65rem;
+  }
+
+  .poke-thumb {
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+  }
+
+  .moves-checkboxes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inventory-actions .backpack-panel {
+    flex: 1 1 100%;
+  }
+
+  .inventory-actions .backpack-panel .btn {
+    width: 100%;
+  }
+
+  .current-bid-display {
+    font-size: 1.5rem;
+  }
+
+  .poke-inventory-summary {
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+
+  .poke-inventory-details {
+    padding: 0 0.75rem 0.85rem;
   }
 }
 
