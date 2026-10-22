@@ -1109,6 +1109,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
       { name: "Leftovers", price: 200000 },
       { name: "Ruleta Choice", price: 150000, isRoulette: true, description: "Gana una Choice Scarf, Choice Band o Choice Specs, todas con la misma probabilidad." },
       { name: "Ruleta MT OP", price: 100000, isRoulette: true, description: "Gana una MT competitiva aleatoria, todas con la misma probabilidad." },
+      { name: "OmniPiedra", price: 100000 },
     ],
   };
   const currentYear = Number(data.current_year || 1);
@@ -1185,6 +1186,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
           const evolutionOptions = isMega ? [] : (Array.isArray(poke.evolution_options) && poke.evolution_options.length > 0
             ? poke.evolution_options
             : (poke.evolution_target ? [{ target: poke.evolution_target, item: poke.evolution_item, level: poke.next_evolution_level, trade: poke.evolution_trade, friendship: poke.evolution_friendship }] : []));
+          const hasOmniPiedra = (bagItems["OmniPiedra"] || 0) > 0;
 
           const validEvolutionOptions = evolutionOptions.filter((opt) => {
             const optItem = opt.item || '';
@@ -1197,7 +1199,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
             const currentYear = Number(data.current_year || 1);
             const currentLevel = Number(poke.level || (currentYear === 1 ? 20 : (currentYear === 2 ? 40 : 100)));
 
-            if (optItem && !hasOptItem) return false;
+            if (optItem && !hasOptItem && !hasOmniPiedra) return false;
             if (opt.trade && !optItem && !poke.received_by_trade) return false;
             if (opt.friendship && currentYear < 2) return false;
             if (currentYear === 1 && !optItem) return false;
@@ -1222,7 +1224,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                     ${validEvolutionOptions.map((opt) => {
                       const optItem = opt.item || '';
                       const itemSprite = optItem ? `<img src="${buildItemSpriteUrl(optItem)}" alt="${optItem}" style="width:16px;height:16px;margin-right:4px;vertical-align:middle;" />` : '';
-                      const reqText = optItem ? ` (${optItem})` : '';
+                      const reqText = optItem ? ` (${optItem} o OmniPiedra)` : '';
                       return `
                         <button type="button" class="btn btn-small btn-secondary btn-evolve-target-option" data-poke-idx="${pokeIdx}" data-target-name="${opt.target}" style="width:100%; text-align:left; margin-bottom:4px; display:flex; align-items:center; justify-content:flex-start; font-size:0.8rem;">
                           ${itemSprite} <span>${opt.target}${reqText}</span>

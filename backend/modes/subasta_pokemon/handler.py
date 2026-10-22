@@ -186,6 +186,7 @@ ITEM_SHOP_PRICES = {
     "Ruleta Mentas": 30000,
     "Ruleta Choice": 150000,
     "Ruleta MT OP": 100000,
+    "OmniPiedra": 100000,
 }
 
 PLATE_ITEMS = [
@@ -311,8 +312,11 @@ YEAR_SHOP_ITEMS = {
         "Leftovers",
         "Ruleta Choice",
         "Ruleta MT OP",
+        "OmniPiedra",
     ],
 }
+
+OMNIPIEDRA_ITEM = "OmniPiedra"
 
 
 def normalize_item_inventory(items: Any) -> Dict[str, int]:
@@ -352,6 +356,20 @@ def remove_item_from_inventory(player: dict, item_name: str, qty: int = 1):
     else:
         items[item_name] = new_qty
     player["items"] = {k: v for k, v in sorted(items.items()) if v > 0}
+
+
+def get_evolution_item_to_consume(required_item: Optional[str], inventory: Dict[str, int]) -> Optional[str]:
+    if not required_item:
+        return None
+    if inventory.get(required_item, 0) > 0:
+        return required_item
+    if required_item.lower().replace("-", " ") in ("up grade", "upgrade"):
+        for alias in ("Up-Grade", "Up Grade", "Mejora", "Objeto Mejora"):
+            if inventory.get(alias, 0) > 0:
+                return alias
+    if inventory.get(OMNIPIEDRA_ITEM, 0) > 0:
+        return OMNIPIEDRA_ITEM
+    return None
 
 
 def add_tm_to_pokemon(pokemon: dict, move_name: str) -> bool:
@@ -2315,6 +2333,7 @@ class SubastaPokemonMode(BaseGameMode):
 
                 inventory = normalize_item_inventory(player.get("items", {}))
                 satisfied_option = None
+                satisfied_item_to_consume = None
                 first_error = ""
 
                 for opt in candidate_options:
@@ -2325,13 +2344,13 @@ class SubastaPokemonMode(BaseGameMode):
                     t_name = (opt.get("target") or "este Pokémon").capitalize()
 
                     has_req_item = True
+                    item_to_consume = None
                     if opt_item:
-                        has_req_item = inventory.get(opt_item, 0) > 0
-                        if not has_req_item and opt_item.lower().replace("-", " ") in ("up grade", "upgrade"):
-                            has_req_item = any(inventory.get(k, 0) > 0 for k in ("Up-Grade", "Up Grade", "Mejora", "Objeto Mejora"))
+                        item_to_consume = get_evolution_item_to_consume(opt_item, inventory)
+                        has_req_item = item_to_consume is not None
                         if not has_req_item:
                             if not first_error:
-                                first_error = f"Necesitas {opt_item} para evolucionar a {t_name}."
+                                first_error = f"Necesitas {opt_item} o {OMNIPIEDRA_ITEM} para evolucionar a {t_name}."
                             continue
 
                     if opt_trade and not opt_item and not poke.get("received_by_trade"):
@@ -2355,6 +2374,7 @@ class SubastaPokemonMode(BaseGameMode):
                         continue
 
                     satisfied_option = opt
+                    satisfied_item_to_consume = item_to_consume
                     break
 
                 if not satisfied_option:
@@ -2363,17 +2383,10 @@ class SubastaPokemonMode(BaseGameMode):
 
                 selected_option = satisfied_option
                 target_species = selected_option.get("target")
-                evolution_item = selected_option.get("item")
 
                 if evolve_single_pokemon(poke, target_limit, target_name=target_species):
-                    if evolution_item:
-                        item_to_remove = evolution_item
-                        if evolution_item.lower().replace("-", " ") in ("up grade", "upgrade") and inventory.get(evolution_item, 0) <= 0:
-                            for alias in ("Up-Grade", "Up Grade", "Mejora", "Objeto Mejora"):
-                                if inventory.get(alias, 0) > 0:
-                                    item_to_remove = alias
-                                    break
-                        remove_item_from_inventory(player, item_to_remove)
+                    if satisfied_item_to_consume:
+                        remove_item_from_inventory(player, satisfied_item_to_consume)
                     poke["selected_moves"] = (poke.get("selected_moves", []) or [])[:4]
 
                 save_game_session(session_id, self.key, subasta_state)
