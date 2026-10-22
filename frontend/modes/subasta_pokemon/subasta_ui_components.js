@@ -1376,9 +1376,13 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
           </div>
           <div class="backpack-menu-body">
             ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
-              <div class="bag-item-row">
-                <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
-                <a href="${buildWikidexUrl(getItemWikiName(itemName))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(itemName)}</a>
+              <details class="bag-item-row" data-item-name="${itemName}">
+                <summary class="bag-item-summary">
+                  <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
+                  <span class="bag-item-name">${getItemWikiName(itemName)}</span>
+                  <span class="bag-item-chevron" aria-hidden="true">▾</span>
+                </summary>
+                <div class="bag-item-actions">
                 <span class="item-qty">x${qty}</span>
                 ${pokemonList.length && itemName === "Capsula Habilidad" ? `<select class="ability-capsule-pokemon-select" data-item-name="${itemName}">
                   ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
@@ -1473,6 +1477,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                   `;
                 })() : ""}
               </div>
+              </details>
             `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
           </div>
         </div>

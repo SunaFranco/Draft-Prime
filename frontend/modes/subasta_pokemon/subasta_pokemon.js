@@ -342,6 +342,10 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       name: card.querySelector(".poke-inventory-name")?.textContent,
       isOpen: card.open,
     }));
+    const bagItemState = Array.from(document.querySelectorAll(".bag-item-row")).map((item) => ({
+      name: item.dataset.itemName,
+      isOpen: item.open,
+    }));
 
     const stage = state.stage || 2;
     if (this._lockedShowdownStage !== null && this._lockedShowdownStage !== stage) {
@@ -379,6 +383,12 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       const card = draftContainer.querySelector(`.poke-inventory-item[data-poke-idx="${index}"]`);
       if (!card) return;
       card.open = isOpen;
+    });
+
+    bagItemState.forEach(({ name, isOpen }) => {
+      const item = Array.from(draftContainer.querySelectorAll(".bag-item-row"))
+        .find((candidate) => candidate.dataset.itemName === name);
+      if (item) item.open = isOpen;
     });
 
     if (currentlyOpenTarget) {

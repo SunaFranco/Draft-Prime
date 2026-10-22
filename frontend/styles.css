@@ -1204,6 +1204,13 @@ button.btn-danger:hover {
   margin: auto !important;
 }
 
+.inventory-modal-overlay .backpack-menu[data-menu="backpack-menu"] {
+  width: min(540px, 100%) !important;
+  padding: 0.85rem !important;
+  border-width: 1.5px !important;
+  box-shadow: 3px 3px 0 var(--border-neon) !important;
+}
+
 .backpack-menu-header {
   display: flex;
   align-items: center;
@@ -1258,6 +1265,93 @@ button.btn-danger:hover {
   flex-shrink: 0;
 }
 
+.bag-item-row {
+  display: block;
+  padding: 0;
+}
+
+.bag-item-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.35rem 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.bag-item-summary::-webkit-details-marker {
+  display: none;
+}
+
+.bag-item-summary .item-sprite {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
+.bag-item-name {
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.bag-item-chevron {
+  margin-left: auto;
+  color: var(--border-neon);
+  font-size: 0.8rem;
+  transition: transform 0.15s ease;
+}
+
+.bag-item-row[open] .bag-item-chevron {
+  transform: rotate(180deg);
+}
+
+.bag-item-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.25rem 0 0.55rem 2rem;
+}
+
+.bag-item-actions > select {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 180px;
+  padding: 0.4rem 1.8rem 0.4rem 0.55rem;
+  font-size: 0.82rem;
+}
+
+.bag-item-actions > .btn {
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.bag-item-actions .badge-link {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.8rem;
+}
+
+.bag-item-actions .badge {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.72rem;
+}
+
+.bag-item-actions .tm-action-group {
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.bag-item-actions .tm-pokemon-select {
+  min-width: 0;
+  max-width: none;
+  width: auto;
+}
+
 .item-sprite {
   width: 32px;
   height: 32px;
@@ -1294,6 +1388,24 @@ button.btn-danger:hover {
     padding: 1rem 0.75rem !important;
   }
 
+  .inventory-modal-overlay .backpack-menu[data-menu="backpack-menu"] {
+    max-height: 94dvh !important;
+    padding: 0.65rem 0.55rem !important;
+  }
+
+  .inventory-modal-overlay .backpack-menu[data-menu="backpack-menu"] .backpack-menu-header {
+    margin-bottom: 0.45rem;
+    padding-bottom: 0.3rem;
+  }
+
+  .inventory-modal-overlay .backpack-menu[data-menu="backpack-menu"] .backpack-menu-header h4 {
+    font-size: 1rem;
+  }
+
+  .inventory-modal-overlay .backpack-menu[data-menu="backpack-menu"] .backpack-menu-body {
+    padding-right: 0;
+  }
+
   .inventory-actions {
     flex-wrap: wrap;
   }
@@ -1313,6 +1425,29 @@ button.btn-danger:hover {
   .tm-pokemon-select {
     max-width: 100%;
     flex: 1 1 auto;
+  }
+
+  .bag-item-actions {
+    gap: 0.3rem;
+    padding: 0.2rem 0 0.45rem 1.75rem;
+  }
+
+  .bag-item-actions > select {
+    flex-basis: 100%;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+  }
+
+  .bag-item-actions > .btn {
+    min-height: 36px;
+  }
+
+  .bag-item-actions .tm-action-group {
+    gap: 0.3rem;
+  }
+
+  .bag-item-actions .tm-pokemon-select {
+    flex-basis: 100%;
   }
 }
 
