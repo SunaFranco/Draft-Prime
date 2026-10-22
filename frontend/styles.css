@@ -1047,6 +1047,17 @@ button.btn-danger:hover {
   border-color: rgba(var(--pokemon-accent-rgb), 0.7);
 }
 
+.poke-inventory-item .badge-green .badge-link {
+  color: #06110c;
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(6, 17, 12, 0.45);
+}
+
+.poke-inventory-item .badge-green .badge-link:hover {
+  color: #000;
+  background: rgba(0, 0, 0, 0.18);
+}
+
 .poke-inventory-item .btn:not(.pokemon-color-toggle):not(.pokemon-color-option) {
   box-shadow: 3px 3px 0 var(--pokemon-accent);
 }
