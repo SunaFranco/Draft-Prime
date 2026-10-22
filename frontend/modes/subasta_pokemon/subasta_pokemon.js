@@ -272,6 +272,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     this._activePokemonBoxId = null;
     this._pokemonColorStorageKey = null;
     this._pokemonCardColors = {};
+    this._pokemonMoveUiStates = {};
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -341,9 +342,11 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     if (!draftContainer) return;
 
     const colorStorageKey = `draft_prime_subasta_pokemon_colors:${sessionClient.currentSessionId}:${sessionClient.currentUsername}`;
-    if (this._pokemonColorStorageKey !== colorStorageKey) {
+    const sessionChanged = this._pokemonColorStorageKey !== colorStorageKey;
+    if (sessionChanged) {
       this._pokemonColorStorageKey = colorStorageKey;
       this._pokemonCardColors = {};
+      this._pokemonMoveUiStates = {};
       try {
         const savedColors = JSON.parse(localStorage.getItem(colorStorageKey) || "{}");
         if (savedColors && typeof savedColors === "object" && !Array.isArray(savedColors)) {
@@ -361,6 +364,20 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       name: card.querySelector(".poke-inventory-name")?.textContent,
       isOpen: card.open,
     }));
+    if (!sessionChanged) draftContainer.querySelectorAll(".moves-selector-box").forEach((panel) => {
+      const pokeIdx = panel.dataset.pokeIdx;
+      const pokemon = state.my_data?.pokemon?.[Number(pokeIdx)];
+      if (!pokemon || panel.dataset.mode === "closed") {
+        delete this._pokemonMoveUiStates[pokeIdx];
+        return;
+      }
+      this._pokemonMoveUiStates[pokeIdx] = {
+        name: pokemon.name,
+        mode: panel.dataset.mode,
+        selectedMoves: Array.from(panel.querySelectorAll(".move-link.is-selected"))
+          .map((move) => move.dataset.moveName),
+      };
+    });
     const bagItemState = Array.from(document.querySelectorAll(".bag-item-row")).map((item) => ({
       name: item.dataset.itemName,
       isOpen: item.open,
@@ -410,7 +427,8 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       sessionClient,
       isHost,
       this._activePokemonBoxId,
-      this._pokemonCardColors
+      this._pokemonCardColors,
+      this._pokemonMoveUiStates
     );
     draftContainer.innerHTML = balanceHtml + html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
@@ -445,6 +463,82 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
   attachEventListeners(state, sessionClient, isHost) {
     this.startRevealCountdown(state);
+
+    const updateMoveUiState = (panel, mode) => {
+      const pokeIdx = panel.dataset.pokeIdx;
+      const pokemon = state.my_data?.pokemon?.[Number(pokeIdx)];
+      if (!pokemon) return;
+      panel.dataset.mode = mode;
+      this._pokemonMoveUiStates[pokeIdx] = {
+        name: pokemon.name,
+        mode,
+        selectedMoves: Array.from(panel.querySelectorAll(".move-link.is-selected"))
+          .map((move) => move.dataset.moveName),
+      };
+    };
+
+    const refreshSelectedMoves = (panel) => {
+      const selectedMoves = Array.from(panel.querySelectorAll(".move-link.is-selected"))
+        .map((move) => move.dataset.moveName);
+      const selectedMovesList = panel.querySelector(".saved-moves-list");
+      if (selectedMovesList) {
+        const movePills = selectedMoves.map((moveName) => {
+          const pill = document.createElement("span");
+          pill.className = "move-pill";
+          pill.textContent = moveName;
+          return pill;
+        });
+        if (!movePills.length) {
+          const emptyLabel = document.createElement("span");
+          emptyLabel.className = "text-muted";
+          emptyLabel.textContent = "Sin movimientos seleccionados";
+          movePills.push(emptyLabel);
+        }
+        selectedMovesList.replaceChildren(...movePills);
+      }
+      updateMoveUiState(panel, panel.dataset.mode);
+    };
+
+    document.querySelectorAll(".btn-open-moves").forEach((button) => {
+      button.addEventListener("click", () => {
+        const panel = button.closest(".moves-selector-box");
+        if (panel) updateMoveUiState(panel, "view");
+      });
+    });
+
+    document.querySelectorAll(".btn-edit-moves").forEach((button) => {
+      button.addEventListener("click", () => {
+        const panel = button.closest(".moves-selector-box");
+        if (panel) updateMoveUiState(panel, "editing");
+      });
+    });
+
+    document.querySelectorAll(".btn-back-moves").forEach((button) => {
+      button.addEventListener("click", () => {
+        const panel = button.closest(".moves-selector-box");
+        if (!panel) return;
+        if (panel.dataset.mode === "editing") {
+          panel.querySelectorAll(".move-link").forEach((move) => {
+            move.classList.toggle("is-selected", move.dataset.initiallySelected === "true");
+          });
+          refreshSelectedMoves(panel);
+          updateMoveUiState(panel, "view");
+        } else {
+          panel.dataset.mode = "closed";
+          delete this._pokemonMoveUiStates[panel.dataset.pokeIdx];
+        }
+      });
+    });
+
+    document.querySelectorAll(".move-link").forEach((move) => {
+      move.addEventListener("click", (event) => {
+        const panel = move.closest(".moves-selector-box");
+        if (panel?.dataset.mode !== "editing") return;
+        event.preventDefault();
+        move.classList.toggle("is-selected");
+        refreshSelectedMoves(panel);
+      });
+    });
 
     document.querySelectorAll(".pokemon-color-toggle").forEach((button) => {
       button.addEventListener("click", (event) => {
@@ -862,14 +956,18 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     document.querySelectorAll(".btn-save-moves").forEach((btn) => {
       btn.addEventListener("click", () => {
         const pokeIdx = parseInt(btn.getAttribute("data-poke-idx"), 10);
-        const checkedInputs = document.querySelectorAll(`.move-chk-${pokeIdx}:checked`);
-        const selectedMoves = Array.from(checkedInputs).map((el) => el.value);
+        const panel = btn.closest(".moves-selector-box");
+        if (!panel) return;
+        const selectedMoves = Array.from(panel.querySelectorAll(".move-link.is-selected"))
+          .map((move) => move.dataset.moveName);
 
         if (selectedMoves.length > 4) {
           alert("Solo puedes seleccionar un máximo de 4 movimientos.");
           return;
         }
 
+        panel.dataset.mode = "closed";
+        delete this._pokemonMoveUiStates[pokeIdx];
         sessionClient.send({
           action: "subasta_select_moves",
           poke_index: pokeIdx,
@@ -1204,14 +1302,6 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
-    document.querySelectorAll(".btn-modify-moves").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const box = btn.closest(".moves-selector-box");
-        if (box) {
-          box.classList.remove("moves-saved");
-        }
-      });
-    });
   }
 
   startRevealCountdown(state) {

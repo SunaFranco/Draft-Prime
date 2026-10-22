@@ -1214,17 +1214,27 @@ button.btn-danger:hover {
   margin-top: 0.5rem;
 }
 
-.moves-summary-panel,
-.moves-editor-panel {
-  display: block;
-}
-
-.moves-selector-box.moves-saved .moves-editor-panel {
+.moves-selector-box[data-mode="closed"] .moves-editor-panel {
   display: none;
 }
 
-.moves-selector-box:not(.moves-saved) .moves-summary-panel {
+.moves-selector-box:not([data-mode="closed"]) .btn-open-moves {
   display: none;
+}
+
+.move-controls {
+  display: none;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.move-controls .btn {
+  min-width: 100px;
+}
+
+.moves-selector-box[data-mode="view"] .move-view-actions,
+.moves-selector-box[data-mode="editing"] .move-edit-actions {
+  display: flex;
 }
 
 .moves-selector-box h5 {
@@ -1234,12 +1244,33 @@ button.btn-danger:hover {
 }
 
 .moves-checkboxes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.35rem;
-  max-height: 140px;
+  max-height: 180px;
   overflow-y: auto;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.moves-selector-box[data-mode="view"] .moves-checkboxes,
+.moves-selector-box[data-mode="editing"] .moves-checkboxes {
+  display: grid;
+}
+
+.moves-selector-box[data-mode="editing"] .move-link {
+  cursor: pointer;
+  user-select: none;
+}
+
+.moves-selector-box[data-mode="editing"] .move-link.is-selected {
+  background: var(--pokemon-accent);
+  border-color: var(--pokemon-accent);
+  color: #07110c;
+  box-shadow: 2px 2px 0 rgba(var(--pokemon-accent-rgb), 0.45);
+}
+
+.moves-selector-box[data-mode="editing"] .move-link:not(.is-selected):hover {
+  background: rgba(var(--pokemon-accent-rgb), 0.2);
 }
 
 .saved-moves-list {
@@ -1247,17 +1278,23 @@ button.btn-danger:hover {
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-bottom: 0.75rem;
+  min-height: 1.8rem;
 }
 
 .move-pill {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
+  display: flex;
+  flex: 1 1 calc(50% - 0.35rem);
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.5rem;
   background: rgba(34, 197, 94, 0.15);
   border: 1px solid rgba(34, 197, 94, 0.8);
   color: #d1fae5;
   font-size: 0.72rem;
   font-weight: 700;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .poke-item-line {
@@ -1951,15 +1988,6 @@ button.btn-danger:hover {
   white-space: nowrap;
 }
 
-.move-label {
-  font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  color: var(--text-muted);
-}
-
 .event-roulette-overlay {
   position: fixed !important;
   inset: 0 !important;
@@ -2246,10 +2274,6 @@ button.btn-danger:hover {
 @keyframes event-roulette-spin {
   0% { transform: translateX(0); }
   100% { transform: translateX(-72%); }
-}
-
-.move-label input[type="checkbox"] {
-  accent-color: var(--border-neon);
 }
 
 /* ── Modal Overlay ─────────────────────────────────────────────────────────── */

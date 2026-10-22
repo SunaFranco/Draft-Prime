@@ -1064,7 +1064,7 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
   `;
 }
 
-export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxId = null, pokemonCardColors = {}) {
+export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxId = null, pokemonCardColors = {}, pokemonMoveUiStates = {}) {
   const myData = data.my_data || {};
   const pokemonList = myData.pokemon || [];
   const bagItems = normalizeItemMap(myData.items || {});
@@ -1192,8 +1192,11 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
           const isMega = isMegaPokemon(poke);
           const levelUpMoves = (poke.level_up_moves || []).filter((m) => m.level <= levelCap);
           const selectedMoves = poke.selected_moves || [];
-          const requiredMoves = Math.min(4, levelUpMoves.length);
-          const isSaved = selectedMoves.length >= requiredMoves;
+          const moveUiState = pokemonMoveUiStates[pokeIdx]?.name === poke.name
+            ? pokemonMoveUiStates[pokeIdx]
+            : null;
+          const displayedMoves = moveUiState?.selectedMoves || selectedMoves;
+          const movesPanelMode = moveUiState?.mode || "closed";
           const itemName = poke.item || poke.held_item || 'Sin ítem';
           const abilityName = poke.ability || 'Desconocida';
           const natureName = formatNature(poke.nature);
@@ -1349,35 +1352,33 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
 
               ${evolutionHtml}
 
-              <div class="moves-selector-box ${isSaved ? 'moves-saved' : ''}" data-poke-idx="${pokeIdx}">
-                <div class="moves-summary-panel">
-                  <h5>Movimientos:</h5>
-                  <div class="saved-moves-list">
-                    ${selectedMoves.map((moveName) => {
-                      const wikidexMoveName = encodeURI(String(moveName).trim().replace(/\s+/g, "_").replace(/[()]/g, ""));
-                      return `<a href="https://www.wikidex.net/wiki/${wikidexMoveName}" target="_blank" rel="noopener noreferrer" class="move-pill move-pill--link">${moveName}</a>`;
-                    }).join("")}
-                  </div>
-                  <button class="btn btn-small btn-secondary btn-modify-moves" data-poke-idx="${pokeIdx}">✏️ Modificar movimientos</button>
-                </div>
-
+              <div class="moves-selector-box" data-poke-idx="${pokeIdx}" data-mode="${movesPanelMode}">
+                <button type="button" class="btn btn-small btn-secondary btn-open-moves" data-poke-idx="${pokeIdx}">Movimientos</button>
                 <div class="moves-editor-panel">
-                  <h5>Selecciona hasta 4 Movimientos:</h5>
+                  <div class="move-controls move-view-actions">
+                    <button type="button" class="btn btn-small btn-secondary btn-back-moves" data-poke-idx="${pokeIdx}">Volver</button>
+                    <button type="button" class="btn btn-small btn-primary btn-edit-moves" data-poke-idx="${pokeIdx}">Modificar</button>
+                  </div>
+                  <div class="move-controls move-edit-actions">
+                    <button type="button" class="btn btn-small btn-secondary btn-back-moves" data-poke-idx="${pokeIdx}">Volver</button>
+                    <button type="button" class="btn btn-small btn-primary btn-save-moves" data-poke-idx="${pokeIdx}">Guardar</button>
+                  </div>
+                  <h5>Movimientos elegidos</h5>
+                  <div class="saved-moves-list">
+                    ${displayedMoves.length
+                      ? displayedMoves.map((moveName) => `<span class="move-pill">${escapeHtml(moveName)}</span>`).join("")
+                      : '<span class="text-muted">Sin movimientos seleccionados</span>'}
+                  </div>
                   <div class="moves-checkboxes">
                     ${levelUpMoves.map((m) => {
-                      const isChecked = selectedMoves.includes(m.name) ? 'checked' : '';
+                      const isSelected = displayedMoves.includes(m.name);
+                      const isInitiallySelected = selectedMoves.includes(m.name);
                       const moveUrl = buildWikidexUrl(m.name);
-                      const moveSourceLabel = m.source === "tm" || m.level === 0 ? "(MT)" : `(Nv. ${m.level})`;
                       return `
-                        <label class="move-label">
-                          <input type="checkbox" class="move-chk-${pokeIdx}" value="${m.name}" ${isChecked} />
-                          <a href="${moveUrl}" target="_blank" rel="noopener noreferrer" class="move-link">${m.name}</a>
-                          <small>${moveSourceLabel}</small>
-                        </label>
+                        <a href="${moveUrl}" target="_blank" rel="noopener noreferrer" class="move-link${isSelected ? " is-selected" : ""}" data-poke-idx="${pokeIdx}" data-move-name="${escapeHtml(m.name)}" data-initially-selected="${isInitiallySelected ? "true" : "false"}">${escapeHtml(m.name)}</a>
                       `;
                     }).join("")}
                   </div>
-                  <button class="btn btn-small btn-primary btn-save-moves" data-poke-idx="${pokeIdx}">💾 Guardar</button>
                 </div>
               </div>
               </div>
