@@ -996,9 +996,137 @@ button.btn-danger:hover {
 }
 
 .poke-inventory-item {
+  --pokemon-accent: #10b981;
+  --pokemon-accent-rgb: 16, 185, 129;
   background: #000;
-  border: 2.5px solid var(--border-bright);
-  box-shadow: 4px 4px 0px #10b981;
+  border: 2.5px solid var(--pokemon-accent);
+  box-shadow: 4px 4px 0px var(--pokemon-accent);
+}
+
+.poke-inventory-item .poke-inventory-chevron,
+.poke-inventory-item .moves-selector-box h5 {
+  color: var(--pokemon-accent);
+}
+
+.poke-inventory-item .poke-inv-level,
+.poke-inventory-item .badge-green {
+  background: var(--pokemon-accent);
+  border-color: var(--pokemon-accent);
+  color: #06110c;
+}
+
+.poke-inventory-item .badge-item {
+  background: rgba(var(--pokemon-accent-rgb), 0.12);
+  border-color: var(--pokemon-accent);
+  color: var(--pokemon-accent);
+}
+
+.poke-inventory-item .moves-selector-box {
+  border-color: var(--pokemon-accent);
+}
+
+.poke-inventory-item .poke-thumb,
+.poke-inventory-item select {
+  border-color: var(--pokemon-accent);
+}
+
+.poke-inventory-item input[type="checkbox"] {
+  accent-color: var(--pokemon-accent);
+}
+
+.poke-inventory-item .move-pill {
+  background: rgba(var(--pokemon-accent-rgb), 0.15);
+  border-color: var(--pokemon-accent);
+  color: var(--pokemon-accent);
+}
+
+.poke-inventory-item .badge-link,
+.poke-inventory-item .move-link {
+  color: var(--pokemon-accent);
+  background: rgba(var(--pokemon-accent-rgb), 0.12);
+  border-color: rgba(var(--pokemon-accent-rgb), 0.7);
+}
+
+.poke-inventory-item .btn:not(.pokemon-color-toggle):not(.pokemon-color-option) {
+  box-shadow: 3px 3px 0 var(--pokemon-accent);
+}
+
+.poke-inventory-item .btn:not(.btn-secondary):not(.pokemon-color-toggle):not(.pokemon-color-option) {
+  background: var(--pokemon-accent);
+}
+
+.poke-inventory-item .btn:hover:not(.pokemon-color-toggle):not(.pokemon-color-option) {
+  background: var(--pokemon-accent);
+  box-shadow: 4px 4px 0 var(--pokemon-accent);
+}
+
+.pokemon-level-color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.pokemon-color-picker {
+  position: relative;
+  display: inline-flex;
+}
+
+.pokemon-color-toggle,
+.pokemon-color-option {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  border: 2px solid #f8fafc;
+  background: var(--color-swatch, var(--pokemon-accent));
+  box-shadow: 2px 2px 0 #000;
+  cursor: pointer;
+}
+
+.pokemon-color-toggle {
+  background: var(--pokemon-accent);
+  border-color: var(--pokemon-accent);
+  box-shadow: 2px 2px 0 var(--pokemon-accent);
+}
+
+.pokemon-color-toggle:hover,
+.pokemon-color-option:hover {
+  transform: scale(1.12);
+}
+
+.pokemon-color-toggle:hover {
+  background: var(--pokemon-accent);
+  box-shadow: 2px 2px 0 var(--pokemon-accent);
+}
+
+.pokemon-color-option:hover {
+  background: var(--color-swatch);
+  box-shadow: none;
+}
+
+.pokemon-color-options {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(3, 22px);
+  gap: 0.4rem;
+  padding: 0.5rem;
+  background: #050805;
+  border: 1px solid var(--pokemon-accent);
+  box-shadow: 3px 3px 0 #000;
+}
+
+.pokemon-color-option {
+  background: var(--color-swatch);
+  box-shadow: none;
+}
+
+.pokemon-color-option.is-selected {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 .poke-inventory-summary {
@@ -1019,7 +1147,7 @@ button.btn-danger:hover {
 }
 
 .poke-inventory-chevron {
-  color: var(--border-neon);
+  color: var(--pokemon-accent);
   transition: transform 0.15s ease;
 }
 
@@ -1211,6 +1339,13 @@ button.btn-danger:hover {
   box-shadow: 3px 3px 0 var(--border-neon) !important;
 }
 
+.inventory-modal-overlay .shop-menu {
+  width: min(540px, 100%) !important;
+  padding: 0.85rem !important;
+  border-width: 1.5px !important;
+  box-shadow: 3px 3px 0 var(--border-neon) !important;
+}
+
 .backpack-menu-header {
   display: flex;
   align-items: center;
@@ -1370,11 +1505,56 @@ button.btn-danger:hover {
 }
 
 .shop-item-row {
-  grid-template-columns: auto auto auto 1fr;
+  grid-template-columns: 24px minmax(0, 1fr) auto 96px;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
 }
 
-.shop-item-row button {
+.shop-item-row > .item-sprite {
+  width: 24px;
+  height: 24px;
+}
+
+.shop-item-row .badge-link,
+.shop-item-name {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.82rem;
+}
+
+.shop-item-row .shop-box-link {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem;
+  color: var(--accent-gold);
+}
+
+.shop-item-row .shop-item-price {
   justify-self: end;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.shop-item-row .btn-buy-item {
+  justify-self: end;
+  width: 96px;
+  min-height: 34px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.76rem;
+}
+
+.shop-balance {
+  margin: 0 0 0.5rem;
+  font-size: 0.84rem;
+}
+
+.shop-menu > .text-muted {
+  margin: 0 0 0.5rem;
+  font-size: 0.76rem;
 }
 
 @media (max-width: 560px) {
@@ -1393,12 +1573,26 @@ button.btn-danger:hover {
     padding: 0.65rem 0.55rem !important;
   }
 
+  .inventory-modal-overlay .shop-menu {
+    max-height: 94dvh !important;
+    padding: 0.65rem 0.55rem !important;
+  }
+
   .inventory-modal-overlay .backpack-menu[data-menu="backpack-menu"] .backpack-menu-header {
     margin-bottom: 0.45rem;
     padding-bottom: 0.3rem;
   }
 
+  .inventory-modal-overlay .shop-menu .backpack-menu-header {
+    margin-bottom: 0.45rem;
+    padding-bottom: 0.3rem;
+  }
+
   .inventory-modal-overlay .backpack-menu[data-menu="backpack-menu"] .backpack-menu-header h4 {
+    font-size: 1rem;
+  }
+
+  .inventory-modal-overlay .shop-menu .backpack-menu-header h4 {
     font-size: 1rem;
   }
 
@@ -1420,6 +1614,30 @@ button.btn-danger:hover {
   .tm-action-group {
     grid-column: 2 / -1;
     justify-self: stretch;
+  }
+
+  .shop-item-row {
+    grid-template-columns: 24px minmax(0, 1fr) auto 82px;
+    gap: 0.35rem;
+    padding: 0.35rem 0;
+  }
+
+  .shop-item-row .btn-buy-item {
+    grid-column: 4;
+    width: 82px;
+    min-height: 36px;
+    justify-self: end;
+    padding: 0.35rem 0.25rem;
+    font-size: 0.68rem;
+  }
+
+  .shop-item-row .shop-item-price {
+    font-size: 0.76rem;
+  }
+
+  .shop-item-row .btn-show-box-odds {
+    padding: 0.2rem 0.35rem;
+    font-size: 0.64rem;
   }
 
   .tm-pokemon-select {
@@ -1578,6 +1796,12 @@ button.btn-danger:hover {
     width: 52px;
     height: 52px;
     flex: 0 0 52px;
+  }
+
+  .pokemon-color-toggle,
+  .pokemon-color-option {
+    min-height: 22px;
+    padding: 0;
   }
 
   .moves-checkboxes {

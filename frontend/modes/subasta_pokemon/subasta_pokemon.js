@@ -12,6 +12,7 @@ import {
   renderExportView,
   renderAdminAndStandingsView,
   renderMyPokemonInventory,
+  POKEMON_CARD_COLORS,
   formatMoneyCompact,
   NATURE_EFFECTS,
   formatNature,
@@ -269,6 +270,8 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     this._isRouletteSpinning = false;
     this._lastCoinflipAnimationKey = null;
     this._activePokemonBoxId = null;
+    this._pokemonColorStorageKey = null;
+    this._pokemonCardColors = {};
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -337,6 +340,22 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const draftContainer = document.getElementById("screen-draft");
     if (!draftContainer) return;
 
+    const colorStorageKey = `draft_prime_subasta_pokemon_colors:${sessionClient.currentSessionId}:${sessionClient.currentUsername}`;
+    if (this._pokemonColorStorageKey !== colorStorageKey) {
+      this._pokemonColorStorageKey = colorStorageKey;
+      this._pokemonCardColors = {};
+      try {
+        const savedColors = JSON.parse(localStorage.getItem(colorStorageKey) || "{}");
+        if (savedColors && typeof savedColors === "object" && !Array.isArray(savedColors)) {
+          this._pokemonCardColors = Object.fromEntries(
+            Object.entries(savedColors).filter(([, colorId]) => Object.prototype.hasOwnProperty.call(POKEMON_CARD_COLORS, colorId))
+          );
+        }
+      } catch (error) {
+        console.warn("No se pudieron cargar los colores de Pokémon guardados:", error);
+      }
+    }
+
     const pokemonCardState = Array.from(draftContainer.querySelectorAll(".poke-inventory-item")).map((card) => ({
       index: card.dataset.pokeIdx,
       name: card.querySelector(".poke-inventory-name")?.textContent,
@@ -373,7 +392,13 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const currentlyOpenTarget = openModal ? openModal.dataset.modal : null;
     document.querySelectorAll("body > .inventory-modal-overlay").forEach((el) => el.remove());
 
-    const inventoryHtml = isTeamLocked ? "" : renderMyPokemonInventory(state, sessionClient, isHost, this._activePokemonBoxId);
+    const inventoryHtml = isTeamLocked ? "" : renderMyPokemonInventory(
+      state,
+      sessionClient,
+      isHost,
+      this._activePokemonBoxId,
+      this._pokemonCardColors
+    );
     draftContainer.innerHTML = html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
 
@@ -407,6 +432,48 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
   attachEventListeners(state, sessionClient, isHost) {
     this.startRevealCountdown(state);
+
+    document.querySelectorAll(".pokemon-color-toggle").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const options = button.parentElement?.querySelector(".pokemon-color-options");
+        if (!options) return;
+        const shouldOpen = options.classList.contains("hidden");
+        document.querySelectorAll(".pokemon-color-options").forEach((menu) => {
+          menu.classList.add("hidden");
+          menu.parentElement?.querySelector(".pokemon-color-toggle")?.setAttribute("aria-expanded", "false");
+        });
+        options.classList.toggle("hidden", !shouldOpen);
+        button.setAttribute("aria-expanded", String(shouldOpen));
+      });
+    });
+
+    document.querySelectorAll(".pokemon-color-option").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const colorId = button.dataset.colorId;
+        const color = POKEMON_CARD_COLORS[colorId];
+        const card = button.closest(".poke-inventory-item");
+        if (!color || !card) return;
+
+        card.dataset.colorId = colorId;
+        card.style.setProperty("--pokemon-accent", color.hex);
+        card.style.setProperty("--pokemon-accent-rgb", color.rgb);
+        card.querySelectorAll(".pokemon-color-option").forEach((option) => {
+          option.classList.toggle("is-selected", option.dataset.colorId === colorId);
+        });
+        const options = button.closest(".pokemon-color-options");
+        options?.classList.add("hidden");
+        card.querySelector(".pokemon-color-toggle")?.setAttribute("aria-expanded", "false");
+
+        this._pokemonCardColors[card.dataset.pokemonColorKey] = colorId;
+        try {
+          localStorage.setItem(this._pokemonColorStorageKey, JSON.stringify(this._pokemonCardColors));
+        } catch (error) {
+          console.warn("No se pudo guardar el color del Pokémon:", error);
+        }
+      });
+    });
 
     const btnTransferHost = document.getElementById("btn-transfer-host");
     if (btnTransferHost) {

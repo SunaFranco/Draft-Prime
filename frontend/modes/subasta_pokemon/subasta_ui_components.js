@@ -8,6 +8,15 @@ const POKEMON_TYPES = [
   "Steel", "Fairy",
 ];
 
+export const POKEMON_CARD_COLORS = {
+  green: { label: "Verde", hex: "#10b981", rgb: "16, 185, 129" },
+  blue: { label: "Azul", hex: "#3b82f6", rgb: "59, 130, 246" },
+  purple: { label: "Morado", hex: "#a855f7", rgb: "168, 85, 247" },
+  red: { label: "Rojo", hex: "#ef4444", rgb: "239, 68, 68" },
+  orange: { label: "Naranja", hex: "#f97316", rgb: "249, 115, 22" },
+  yellow: { label: "Amarillo", hex: "#eab308", rgb: "234, 179, 8" },
+};
+
 const POKEMON_COLORS = {
   black: { label: "Negro", hex: "#303030" },
   blue: { label: "Azul", hex: "#6890f0" },
@@ -1055,7 +1064,7 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
   `;
 }
 
-export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxId = null) {
+export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxId = null, pokemonCardColors = {}) {
   const myData = data.my_data || {};
   const pokemonList = myData.pokemon || [];
   const bagItems = normalizeItemMap(myData.items || {});
@@ -1114,6 +1123,16 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
   };
   const currentYear = Number(data.current_year || 1);
   const currentShopItems = shopCatalogByYear[currentYear] || shopCatalogByYear[1];
+  const isPriorityShopItem = (item) => Boolean(
+    item.isBox ||
+    item.isRoulette ||
+    item.name.startsWith("Caja Misteriosa") ||
+    item.name.startsWith("Regalo del Primo")
+  );
+  const orderedShopItems = [
+    ...currentShopItems.filter(isPriorityShopItem),
+    ...currentShopItems.filter((item) => !isPriorityShopItem(item)),
+  ];
   const shopTitle = currentYear === 1 ? "Tienda Año 1" : currentYear === 2 ? "Tienda Año 2" : "Tienda Año 3";
 
   return `
@@ -1176,6 +1195,21 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
           const itemName = poke.item || poke.held_item || 'Sin ítem';
           const abilityName = poke.ability || 'Desconocida';
           const natureName = formatNature(poke.nature);
+          const pokemonCardColorId = POKEMON_CARD_COLORS[pokemonCardColors[pokeIdx]]
+            ? pokemonCardColors[pokeIdx]
+            : "green";
+          const pokemonCardColor = POKEMON_CARD_COLORS[pokemonCardColorId];
+          const pokemonColorOptions = Object.entries(POKEMON_CARD_COLORS).map(([colorId, color]) => `
+            <button
+              type="button"
+              class="pokemon-color-option${pokemonCardColorId === colorId ? " is-selected" : ""}"
+              data-poke-idx="${pokeIdx}"
+              data-color-id="${colorId}"
+              aria-label="Color ${color.label}"
+              title="${color.label}"
+              style="--color-swatch: ${color.hex}"
+            ></button>
+          `).join("");
           const normalizeWikidexName = (name) => encodeURI(String(name).trim().replace(/\s+/g, "_").replace(/[()]/g, ""));
           const abilityHtml = abilityName !== 'Desconocida'
             ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(abilityName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${abilityName}</a>`
@@ -1245,7 +1279,13 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
           }
 
           return `
-            <details class="poke-inventory-item" data-poke-idx="${pokeIdx}">
+            <details
+              class="poke-inventory-item"
+              data-poke-idx="${pokeIdx}"
+              data-pokemon-color-key="${pokeIdx}"
+              data-color-id="${pokemonCardColorId}"
+              style="--pokemon-accent: ${pokemonCardColor.hex}; --pokemon-accent-rgb: ${pokemonCardColor.rgb}"
+            >
               <summary class="poke-inventory-summary">
                 <span class="poke-inventory-name">${poke.name || `Pokémon ${pokeIdx + 1}`}</span>
                 <span class="poke-inventory-chevron" aria-hidden="true">▾</span>
@@ -1264,7 +1304,22 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                   ? `<a href="${buildWikidexUrl(poke)}" target="_blank" rel="noopener noreferrer"><img src="${poke.image_url}" class="poke-thumb" alt="${poke.name}" /></a>`
                   : (poke.image_url ? `<img src="${poke.image_url}" class="poke-thumb" />` : '')}
                 <div>
-                  <span class="badge">Nv. ${poke.level || levelCap}</span>
+                  <div class="pokemon-level-color-row">
+                    <span class="badge poke-inv-level">Nv. ${poke.level || levelCap}</span>
+                    <div class="pokemon-color-picker">
+                      <button
+                        type="button"
+                        class="pokemon-color-toggle"
+                        data-poke-idx="${pokeIdx}"
+                        aria-label="Cambiar color de ${poke.name || `Pokémon ${pokeIdx + 1}`}"
+                        aria-expanded="false"
+                        title="Cambiar color"
+                      ></button>
+                      <div class="pokemon-color-options hidden" role="group" aria-label="Colores para ${poke.name || `Pokémon ${pokeIdx + 1}`}">
+                        ${pokemonColorOptions}
+                      </div>
+                    </div>
+                  </div>
                   ${poke.is_shiny ? '<span class="badge badge-shiny">✨ SHINY</span>' : ''}
                   <span class="badge badge-green">Habilidad: ${abilityHtml}</span>
                   <span class="badge">Naturaleza: ${natureName}</span>
@@ -1493,8 +1548,8 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
             <p class="shop-balance">Dinero actual: <strong>$${formatMoneyCompact(myData.money || 0)}</strong></p>
             ${auctionOrEventStage ? '<p class="text-muted">Solo consulta durante la subasta y los eventos. Podrás comprar en la fase de confirmación de Showdown.</p>' : ""}
             <div class="backpack-menu-body shop-items">
-              ${currentShopItems.map((shopItem) => {
-                const isBox = Boolean(shopItem.isBox || shopItem.isRoulette || shopItem.name.startsWith("Caja Misteriosa") || shopItem.name.startsWith("Regalo del Primo"));
+              ${orderedShopItems.map((shopItem) => {
+                const isBox = isPriorityShopItem(shopItem);
                 const tooltipAttr = shopItem.description ? `title="${shopItem.description}"` : '';
                 return `
                 <div class="shop-item-row ${isBox ? 'shop-item-row--box' : ''}">
@@ -1507,9 +1562,9 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                       </button>
                     </span>
                   ` : `
-                    <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link">${getItemWikiName(shopItem.name)}</a>
+                    <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link shop-item-name">${getItemWikiName(shopItem.name)}</a>
                   `}
-                  <span>$${formatMoneyCompact(shopItem.price)}</span>
+                  <span class="shop-item-price">$${formatMoneyCompact(shopItem.price)}</span>
                   ${preparationStage ? `<button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>` : ""}
                 </div>
               `;
