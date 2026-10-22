@@ -1553,7 +1553,9 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                 const tooltipAttr = shopItem.description ? `title="${shopItem.description}"` : '';
                 return `
                 <div class="shop-item-row ${isBox ? 'shop-item-row--box' : ''}">
-                  <img src="${buildItemSpriteUrl(shopItem.name)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
+                  <span class="shop-item-icon" aria-hidden="true">
+                    <img src="${buildItemSpriteUrl(shopItem.name)}" alt="" onerror="this.parentElement.classList.add('is-fallback'); this.remove()" />
+                  </span>
                   ${isBox ? `
                     <span class="badge-link shop-box-link" ${tooltipAttr} style="display:inline-flex;align-items:center;gap:4px;">
                       <span>${shopItem.name}</span>
