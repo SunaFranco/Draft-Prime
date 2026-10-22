@@ -1222,6 +1222,10 @@ button.btn-danger:hover {
   display: none;
 }
 
+.moves-selector-box:not([data-mode="closed"]) > .saved-moves-list {
+  display: none;
+}
+
 .move-controls {
   display: none;
   gap: 0.5rem;
@@ -1235,12 +1239,6 @@ button.btn-danger:hover {
 .moves-selector-box[data-mode="view"] .move-view-actions,
 .moves-selector-box[data-mode="editing"] .move-edit-actions {
   display: flex;
-}
-
-.moves-selector-box h5 {
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-  color: var(--border-neon);
 }
 
 .moves-checkboxes {
@@ -1262,7 +1260,7 @@ button.btn-danger:hover {
   user-select: none;
 }
 
-.moves-selector-box[data-mode="editing"] .move-link.is-selected {
+.moves-selector-box .move-link.is-selected {
   background: var(--pokemon-accent);
   border-color: var(--pokemon-accent);
   color: #07110c;
@@ -1277,7 +1275,7 @@ button.btn-danger:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   min-height: 1.8rem;
 }
 
@@ -1288,13 +1286,14 @@ button.btn-danger:hover {
   justify-content: center;
   min-height: 2rem;
   padding: 0.35rem 0.5rem;
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.8);
-  color: #d1fae5;
+  background: var(--pokemon-accent);
+  border: 1px solid var(--pokemon-accent);
+  color: #07110c;
   font-size: 0.72rem;
   font-weight: 700;
   text-align: center;
   overflow-wrap: anywhere;
+  box-shadow: 2px 2px 0 rgba(var(--pokemon-accent-rgb), 0.45);
 }
 
 .poke-item-line {

@@ -966,6 +966,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           return;
         }
 
+        refreshSelectedMoves(panel);
         panel.dataset.mode = "closed";
         delete this._pokemonMoveUiStates[pokeIdx];
         sessionClient.send({

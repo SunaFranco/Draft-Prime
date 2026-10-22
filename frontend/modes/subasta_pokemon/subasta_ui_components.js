@@ -1353,6 +1353,11 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
               ${evolutionHtml}
 
               <div class="moves-selector-box" data-poke-idx="${pokeIdx}" data-mode="${movesPanelMode}">
+                <div class="saved-moves-list">
+                  ${displayedMoves.length
+                    ? displayedMoves.map((moveName) => `<span class="move-pill">${escapeHtml(moveName)}</span>`).join("")
+                    : '<span class="text-muted">Sin movimientos seleccionados</span>'}
+                </div>
                 <button type="button" class="btn btn-small btn-secondary btn-open-moves" data-poke-idx="${pokeIdx}">Movimientos</button>
                 <div class="moves-editor-panel">
                   <div class="move-controls move-view-actions">
@@ -1362,12 +1367,6 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                   <div class="move-controls move-edit-actions">
                     <button type="button" class="btn btn-small btn-secondary btn-back-moves" data-poke-idx="${pokeIdx}">Volver</button>
                     <button type="button" class="btn btn-small btn-primary btn-save-moves" data-poke-idx="${pokeIdx}">Guardar</button>
-                  </div>
-                  <h5>Movimientos elegidos</h5>
-                  <div class="saved-moves-list">
-                    ${displayedMoves.length
-                      ? displayedMoves.map((moveName) => `<span class="move-pill">${escapeHtml(moveName)}</span>`).join("")
-                      : '<span class="text-muted">Sin movimientos seleccionados</span>'}
                   </div>
                   <div class="moves-checkboxes">
                     ${levelUpMoves.map((m) => {
