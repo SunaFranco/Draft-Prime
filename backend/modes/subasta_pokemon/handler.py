@@ -183,6 +183,8 @@ ITEM_SHOP_PRICES = {
     "MT Protect": 20000,
     "Life Orb": 100000,
     "Leftovers": 200000,
+    "Assault Vest": 100000,
+    "Focus Sash": 100000,
     "Ruleta Mentas": 30000,
     "Ruleta Choice": 150000,
     "Ruleta MT OP": 100000,
@@ -307,6 +309,8 @@ YEAR_SHOP_ITEMS = {
     ],
     3: [
         "Life Orb",
+        "Assault Vest",
+        "Focus Sash",
         "Capsula Habilidad",
         "Ruleta Mentas",
         "Leftovers",

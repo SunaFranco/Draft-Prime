@@ -1113,6 +1113,8 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
     ],
     3: [
       { name: "Life Orb", price: 100000 },
+      { name: "Assault Vest", price: 100000 },
+      { name: "Focus Sash", price: 100000 },
       { name: "Capsula Habilidad", price: 150000 },
       { name: "Ruleta Mentas", price: 30000, isRoulette: true, description: "Gana una de las 25 Mentas de naturaleza, todas con la misma probabilidad." },
       { name: "Leftovers", price: 200000 },
