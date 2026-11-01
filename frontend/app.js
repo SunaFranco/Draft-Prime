@@ -130,6 +130,7 @@ document.getElementById("auth-change-password-form").addEventListener("submit", 
 
 document.getElementById("admin-create-account-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
   const messageEl = document.getElementById("admin-create-account-message");
   messageEl.textContent = "";
   try {
@@ -141,7 +142,7 @@ document.getElementById("admin-create-account-form").addEventListener("submit", 
       is_admin: document.getElementById("admin-account-role").value === "admin",
       temporary_password: document.getElementById("admin-account-temporary-password").value,
     });
-    event.currentTarget.reset();
+    form.reset();
     messageEl.textContent = `Cuenta de ${created.is_admin ? "admin global" : "usuario común"} creada para @${created.username}. Entrégale el email y la contraseña temporal por un canal privado.`;
   } catch (error) {
     messageEl.textContent = error.message;
