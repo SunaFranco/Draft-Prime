@@ -15,8 +15,87 @@
   <div id="screen-home" class="screen">
     <header>
       <h1> PRIME DRAFT</h1>
-      <p class="subtitle">Armá tu lobby y empezá el draft</p>
+      <p class="subtitle">Iniciá sesión para entrar a tus salas</p>
     </header>
+
+    <section id="auth-login-panel" class="card auth-panel">
+      <h2>Iniciar sesión</h2>
+      <form id="auth-login-form" class="auth-form">
+        <label for="auth-login-email">Email</label>
+        <input id="auth-login-email" type="email" autocomplete="username" required />
+        <label for="auth-login-password">Contraseña</label>
+        <input id="auth-login-password" type="password" autocomplete="current-password" required />
+        <button type="submit">Ingresar</button>
+      </form>
+      <p id="auth-login-error" class="error-msg" role="alert"></p>
+    </section>
+
+    <section id="auth-change-password-panel" class="card auth-panel hidden">
+      <h2>Cambiar contraseña temporal</h2>
+      <p class="subtitle">Antes de continuar, elegí una contraseña nueva de al menos 12 caracteres.</p>
+      <form id="auth-change-password-form" class="auth-form">
+        <label for="auth-new-password">Nueva contraseña</label>
+        <input id="auth-new-password" type="password" autocomplete="new-password" minlength="12" required />
+        <label for="auth-new-password-confirm">Repetir contraseña</label>
+        <input id="auth-new-password-confirm" type="password" autocomplete="new-password" minlength="12" required />
+        <button type="submit">Guardar contraseña</button>
+      </form>
+      <p id="auth-change-password-error" class="error-msg" role="alert"></p>
+      <button id="btn-auth-logout-forced" class="btn-small btn-danger" type="button">Cerrar sesión</button>
+    </section>
+
+    <section id="auth-account-panel" class="card auth-panel hidden">
+      <div class="auth-profile-heading">
+        <div id="auth-profile-avatar" class="auth-avatar">🎴</div>
+        <div>
+          <h2 id="auth-profile-name"></h2>
+          <p id="auth-profile-username" class="subtitle"></p>
+          <span id="auth-profile-role" class="badge"></span>
+        </div>
+        <button id="btn-auth-logout" class="btn-small btn-danger" type="button">Cerrar sesión</button>
+      </div>
+
+      <section id="admin-create-account-panel" class="auth-admin-panel hidden">
+        <h3>Crear cuenta de jugador</h3>
+        <form id="admin-create-account-form" class="auth-form auth-form-grid">
+          <label for="admin-account-email">Email</label>
+          <input id="admin-account-email" type="email" autocomplete="off" required />
+          <label for="admin-account-username">Usuario</label>
+          <input id="admin-account-username" type="text" minlength="3" maxlength="24" pattern="[A-Za-z0-9_]+" required />
+          <label for="admin-account-display-name">Nombre visible</label>
+          <input id="admin-account-display-name" type="text" maxlength="40" required />
+          <label for="admin-account-avatar">Avatar</label>
+          <select id="admin-account-avatar" required>
+            <option value="avatar_01">Avatar 1</option><option value="avatar_02">Avatar 2</option>
+            <option value="avatar_03">Avatar 3</option><option value="avatar_04">Avatar 4</option>
+            <option value="avatar_05">Avatar 5</option><option value="avatar_06">Avatar 6</option>
+            <option value="avatar_07">Avatar 7</option><option value="avatar_08">Avatar 8</option>
+          </select>
+          <label for="admin-account-temporary-password">Contraseña temporal</label>
+          <input id="admin-account-temporary-password" type="password" autocomplete="new-password" minlength="12" required />
+          <button type="submit">Crear cuenta</button>
+        </form>
+        <p id="admin-create-account-message" class="error-msg" role="status"></p>
+      </section>
+
+      <section class="auth-admin-panel room-dashboard">
+        <div class="room-dashboard-heading">
+          <h3>Mis salas</h3>
+          <button id="btn-refresh-rooms" class="btn-small" type="button">Actualizar</button>
+        </div>
+        <div id="room-invitations"></div>
+        <div id="my-rooms-list" class="my-rooms-list"></div>
+        <p id="rooms-error" class="error-msg" role="status"></p>
+        <button id="btn-create-room" type="button" class="hidden">Crear sala</button>
+      </section>
+
+      <section class="auth-admin-panel profile-records">
+        <h3>Mis trofeos</h3>
+        <div id="my-trophies-list" class="profile-record-list"></div>
+        <h3>Historial de salas</h3>
+        <div id="my-history-list" class="profile-record-list"></div>
+      </section>
+    </section>
 
     <!-- Banner de invitación (visible cuando hay ?session= en la URL) -->
     <div id="invite-banner" class="card hidden" style="border-color: var(--accent);">
@@ -28,7 +107,7 @@
       <p id="invite-error" class="error-msg"></p>
     </div>
 
-    <div id="home-cards" class="home-cards">
+    <div id="home-cards" class="home-cards hidden">
 
       <!-- Crear sesión nueva -->
       <div class="card">
@@ -148,6 +227,11 @@
       <button id="btn-back-to-lobby-draft" class="btn-small btn-danger hidden">Volver al lobby</button>
     </div>
   </div>
+
+  <aside id="room-admin-actions" class="room-admin-actions hidden" aria-label="Acciones de administrador de sala">
+    <button id="btn-finish-room" class="hidden" type="button">Finalizar partida</button>
+    <button id="btn-force-close-room" class="btn-danger hidden" type="button">Cerrar sin historial</button>
+  </aside>
 
   <div id="card-detail-modal" class="modal-overlay hidden" aria-hidden="true">
     <div class="modal">

@@ -130,6 +130,18 @@ header h1::after {
   gap: 1.75rem;
 }
 
+.auth-panel { width: min(100%, 680px); margin: 0 auto 1.5rem; }
+.auth-form { display: grid; gap: 0.65rem; }
+.auth-form input, .auth-form select { width: 100%; }
+.auth-profile-heading { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.auth-profile-heading > div:nth-child(2) { flex: 1 1 220px; min-width: 0; }
+.auth-profile-heading h2 { margin: 0; }
+.auth-avatar { display: grid; place-items: center; width: 64px; height: 64px; border: 2px solid var(--border-neon); background: rgba(0,255,102,0.08); font-size: 2rem; }
+.auth-admin-panel { border-top: 1px solid var(--border-dim); padding-top: 1.25rem; }
+.auth-admin-panel h3 { margin-bottom: 0.75rem; }
+.auth-form-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: center; }
+.auth-form-grid button { grid-column: 1 / -1; }
+
 /* ── Card Containers (Brutalist Box Style) ─────────────────────────────────── */
 .card {
   background: var(--bg-surface-card);
@@ -569,6 +581,9 @@ button.btn-danger:hover {
   .picked-card-detail-image { width: clamp(82px, 28vw, 120px); max-height: 185px; }
   .draft-results-simple { padding: 0.9rem; }
   .draft-results-copy-status { display: block; margin: 0.6rem 0 0; }
+  .auth-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .auth-profile-heading { align-items: flex-start; }
+  .auth-profile-heading > button { width: 100%; }
 }
 
 .draft-card-only-img {
@@ -2415,4 +2430,20 @@ button.btn-danger:hover {
 .modal-close:hover {
   background: var(--accent-danger);
   color: #fff;
+}
+.room-dashboard { margin-top: 1rem; }
+.profile-records { margin-top: 1rem; }
+.profile-record-list { display: grid; gap: .4rem; margin: .6rem 0 1rem; }
+.profile-record-item { padding: .6rem .75rem; border-left: 2px solid var(--accent); background: rgba(0, 0, 0, .18); overflow-wrap: anywhere; }
+.room-admin-actions { position: fixed; z-index: 30; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; max-width: calc(100vw - 2rem); padding: .65rem; border: 1px solid var(--accent); background: var(--panel, #08120e); box-shadow: 0 4px 24px rgba(0, 0, 0, .45); }
+.room-dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.my-rooms-list, #room-invitations { display: grid; gap: .7rem; margin: .8rem 0; }
+.room-dashboard-item { display: grid; gap: .6rem; padding: .85rem; border: 1px solid var(--accent); background: rgba(0, 0, 0, .2); min-width: 0; }
+.room-dashboard-item strong { overflow-wrap: anywhere; }
+.room-invite-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.room-invite-controls input { flex: 1 1 12rem; min-width: 0; }
+.room-action-message { flex-basis: 100%; color: var(--muted); font-size: .9rem; }
+@media (max-width: 600px) {
+  .room-dashboard-item { padding: .7rem; }
+  .room-invite-controls button { min-height: 2.75rem; }
 }

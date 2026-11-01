@@ -6,8 +6,8 @@ import json
 from datetime import datetime
 from typing import List, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field
 
 import backend.database as database
 from backend.database import get_all_cubes, get_cube_by_id, save_full_session
@@ -18,10 +18,13 @@ from backend.services.session_manager import (
     get_session_or_404,
     get_or_restore_session,
     all_connected_players_ready,
-    reassign_host,
+    can_control_room,
     session_public_state,
     touch_session,
+    issue_websocket_ticket,
+    consume_websocket_ticket,
 )
+from backend.routes.auth import get_current_auth_user, require_admin
 from backend.modes import registry
 from backend.modes.cube_draft_yugioh import handler as yugioh_handler
 
@@ -44,7 +47,15 @@ def get_cube_card_pool(cube_key: str) -> List[dict]:
 
 
 class CreateSessionRequest(BaseModel):
-    username: str   # Nombre del jugador que crea la sesión (se convierte en host)
+    max_players: int = Field(default=4, ge=2, le=8)
+
+
+class InviteRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=24)
+
+
+class InviteResponseRequest(BaseModel):
+    accept: bool
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -52,15 +63,15 @@ class CreateSessionRequest(BaseModel):
 # ══════════════════════════════════════════════════════════════════════════════
 
 @router.post("/create")
-async def create_session(data: CreateSessionRequest):
+async def create_session(
+    data: CreateSessionRequest,
+    auth: dict = Depends(require_admin),
+):
     """
     Crea una nueva sesión de juego.
     """
-    username = data.username.strip()
-    if not username:
-        raise HTTPException(status_code=400, detail="El username no puede estar vacío")
-    if len(username) > 24:
-        raise HTTPException(status_code=400, detail="Username muy largo (máx. 24 caracteres)")
+    profile = auth["profile"]
+    username = profile["username"]
 
     session_id = make_session_id()
 
@@ -71,14 +82,20 @@ async def create_session(data: CreateSessionRequest):
     new_session = {
         "id":            session_id,
         "host":          username,
+        "created_by":    profile["id"],
+        "status":        "active",
         "players": [
             {
                 "username":  username,
+                "display_name": profile["display_name"],
+                "avatar_key": profile["avatar_key"],
+                "user_id": profile["id"],
+                "is_admin": True,
                 "ready":     False,
                 "connected": True,
             }
         ],
-        "max_players":   4,
+        "max_players":   data.max_players,
         "started":       False,
         "created_at":    datetime.utcnow().isoformat(),
         "created_ts":    now_ts,
@@ -86,6 +103,19 @@ async def create_session(data: CreateSessionRequest):
     }
     sessions[session_id] = new_session
     save_full_session(new_session)
+
+    if database.supabase_client:
+        try:
+            database.supabase_client.table("game_session_members").insert({
+                "session_id": session_id,
+                "user_id": profile["id"],
+            }).execute()
+        except Exception as error:
+            sessions.pop(session_id, None)
+            database.delete_game_session(session_id)
+            raise HTTPException(status_code=503, detail="No se pudo guardar la membresía de la sala.") from error
+    else:
+        raise HTTPException(status_code=503, detail="Las salas autenticadas requieren Supabase configurado.")
 
     return {
         "session_id":  session_id,
@@ -95,12 +125,213 @@ async def create_session(data: CreateSessionRequest):
 
 
 @router.get("/{session_id}")
-def get_session(session_id: str):
+def get_session(session_id: str, auth: dict = Depends(get_current_auth_user)):
     """
     Devuelve el estado actual de una sesión.
     """
     session = get_session_or_404(session_id)
+    if not _is_session_member(session_id, auth["user"].id):
+        raise HTTPException(status_code=403, detail="No perteneces a esta sala.")
     return session_public_state(session)
+
+
+def _is_session_member(session_id: str, user_id: str) -> bool:
+    if not database.supabase_client:
+        return False
+    result = database.supabase_client.table("game_session_members").select("user_id").eq(
+        "session_id", session_id
+    ).eq("user_id", user_id).limit(1).execute()
+    return bool(result.data)
+
+
+@router.post("/{session_id}/websocket-ticket")
+def create_websocket_ticket(session_id: str, auth: dict = Depends(get_current_auth_user)):
+    session = get_session_or_404(session_id)
+    if session.get("status", "active") != "active":
+        raise HTTPException(status_code=410, detail="La sala está cerrada.")
+    if not _is_session_member(session_id, auth["user"].id):
+        raise HTTPException(status_code=403, detail="No perteneces a esta sala.")
+    return {"ticket": issue_websocket_ticket(session_id, auth)}
+
+
+@router.get("/mine/rooms")
+def list_my_rooms(auth: dict = Depends(get_current_auth_user)):
+    if not database.supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase no está configurado.")
+    rows = database.supabase_client.table("game_session_members").select(
+        "session_id, joined_at"
+    ).eq("user_id", auth["user"].id).execute().data or []
+    rooms = []
+    for row in rows:
+        session = get_or_restore_session(row["session_id"])
+        if not session:
+            continue
+        rooms.append({
+            "session_id": session["id"],
+            "status": session.get("status", "active"),
+            "mode": session.get("mode"),
+            "players": session.get("players", []),
+            "created_at": session.get("created_at"),
+        })
+    return {"rooms": rooms}
+
+
+@router.get("/invites/pending")
+def list_pending_invites(auth: dict = Depends(get_current_auth_user)):
+    if not database.supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase no está configurado.")
+    invites = database.supabase_client.table("game_session_invites").select(
+        "id, session_id, invited_by, created_at"
+    ).eq("invited_user_id", auth["user"].id).eq("status", "pending").execute().data or []
+    for invite in invites:
+        inviter = database.supabase_client.table("profiles").select(
+            "username, display_name"
+        ).eq("id", invite["invited_by"]).limit(1).execute().data or [{}]
+        invite["inviter"] = inviter[0]
+        session = get_or_restore_session(invite["session_id"])
+        invite["room_status"] = session.get("status", "active") if session else "missing"
+    return {"invites": invites}
+
+
+@router.post("/{session_id}/invites", status_code=201)
+def invite_to_room(
+    session_id: str,
+    data: InviteRequest,
+    auth: dict = Depends(get_current_auth_user),
+):
+    session = get_session_or_404(session_id)
+    if not auth["profile"]["is_admin"] or not _is_session_member(session_id, auth["user"].id):
+        raise HTTPException(status_code=403, detail="Solo un admin participante puede invitar.")
+    if session.get("status", "active") != "active":
+        raise HTTPException(status_code=410, detail="La sala está cerrada.")
+    if not database.supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase no está configurado.")
+
+    profiles = database.supabase_client.table("profiles").select(
+        "id, username"
+    ).execute().data or []
+    target = next((p for p in profiles if p["username"].casefold() == data.username.strip().casefold()), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="No existe un usuario con ese nombre.")
+    if target["id"] == auth["user"].id:
+        raise HTTPException(status_code=409, detail="Ya participas en esta sala.")
+    if _is_session_member(session_id, target["id"]):
+        raise HTTPException(status_code=409, detail="Ese usuario ya participa en la sala.")
+
+    try:
+        result = database.supabase_client.table("game_session_invites").insert({
+            "session_id": session_id,
+            "invited_user_id": target["id"],
+            "invited_by": auth["user"].id,
+        }).execute()
+    except Exception as error:
+        raise HTTPException(status_code=409, detail="Ya hay una invitación pendiente para ese usuario.") from error
+    return {"invite": result.data[0] if result.data else {}}
+
+
+@router.post("/invites/{invite_id}/respond")
+def respond_to_invite(
+    invite_id: str,
+    data: InviteResponseRequest,
+    auth: dict = Depends(get_current_auth_user),
+):
+    if not database.supabase_client:
+        raise HTTPException(status_code=503, detail="Supabase no está configurado.")
+    rows = database.supabase_client.table("game_session_invites").select("*").eq(
+        "id", invite_id
+    ).eq("invited_user_id", auth["user"].id).eq("status", "pending").limit(1).execute().data or []
+    if not rows:
+        raise HTTPException(status_code=404, detail="Invitación pendiente no encontrada.")
+
+    invite = rows[0]
+    if not data.accept:
+        database.supabase_client.table("game_session_invites").update({
+            "status": "declined",
+            "responded_at": datetime.utcnow().isoformat(),
+        }).eq("id", invite_id).execute()
+        return {"status": "declined"}
+
+    session = get_session_or_404(invite["session_id"])
+    if session.get("status", "active") != "active":
+        raise HTTPException(status_code=410, detail="La sala ya está cerrada.")
+    if len(session.get("players", [])) >= session.get("max_players", 4):
+        raise HTTPException(status_code=409, detail="La sala está llena.")
+
+    database.supabase_client.table("game_session_members").insert({
+        "session_id": invite["session_id"],
+        "user_id": auth["user"].id,
+    }).execute()
+    database.supabase_client.table("game_session_invites").update({
+        "status": "accepted",
+        "responded_at": datetime.utcnow().isoformat(),
+    }).eq("id", invite_id).execute()
+    profile = auth["profile"]
+    session["players"].append({
+        "username": profile["username"],
+        "display_name": profile["display_name"],
+        "avatar_key": profile["avatar_key"],
+        "user_id": profile["id"],
+        "is_admin": profile["is_admin"],
+        "ready": False,
+        "connected": False,
+    })
+    save_full_session(session)
+    return {"status": "accepted", "session_id": invite["session_id"]}
+
+
+@router.post("/{session_id}/finish")
+async def finish_room_naturally(session_id: str, auth: dict = Depends(get_current_auth_user)):
+    return await _close_room(session_id, auth, forced=False)
+
+
+@router.post("/{session_id}/force-close")
+async def force_close_room(session_id: str, auth: dict = Depends(get_current_auth_user)):
+    return await _close_room(session_id, auth, forced=True)
+
+
+async def _close_room(session_id: str, auth: dict, forced: bool) -> dict:
+    session = get_session_or_404(session_id)
+    if not auth["profile"]["is_admin"] or not _is_session_member(session_id, auth["user"].id):
+        raise HTTPException(status_code=403, detail="Solo un admin participante puede cerrar la sala.")
+    if session.get("status", "active") != "active":
+        raise HTTPException(status_code=410, detail="La sala ya está cerrada.")
+    if not forced:
+        naturally_finished = (
+            bool(session.get("draft", {}).get("finished"))
+            or (
+                session.get("mode") == "subasta_pokemon"
+                and session.get("subasta", {}).get("current_stage") == 13
+                and session.get("subasta", {}).get("event_finished")
+            )
+        )
+        if not naturally_finished:
+            raise HTTPException(status_code=409, detail="La partida todavía no figura como finalizada.")
+
+    now = datetime.utcnow().isoformat()
+    session["status"] = "finished_forced" if forced else "finished_natural"
+    session["finish_type"] = "forced" if forced else "natural"
+    session["finished_at"] = now
+
+    if not forced and database.supabase_client:
+        members = database.supabase_client.table("game_session_members").select("user_id").eq(
+            "session_id", session_id
+        ).execute().data or []
+        for member in members:
+            database.supabase_client.table("user_room_history").upsert({
+                "session_id": session_id,
+                "user_id": member["user_id"],
+                "mode": session.get("mode"),
+                "started_at": session.get("created_at"),
+                "finished_at": now,
+                "result_summary": {},
+            }, on_conflict="session_id,user_id").execute()
+
+    save_full_session(session)
+    await manager.broadcast(session_id, {
+        "event": "room_closed",
+        "data": {"status": session["status"], "finish_type": session["finish_type"]},
+    })
+    return {"status": session["status"], "finish_type": session["finish_type"]}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -108,13 +339,19 @@ def get_session(session_id: str):
 # ══════════════════════════════════════════════════════════════════════════════
 
 @router.websocket("/{session_id}/ws")
-async def websocket_endpoint(websocket: WebSocket, session_id: str, username: str):
+async def websocket_endpoint(websocket: WebSocket, session_id: str, ticket: str):
     """
     Conexión WebSocket para una sesión.
     Maneja eventos generales de lobby (join, ready, choose_mode, leave)
     y delega eventos específicos de juego al handler del modo configurado.
     """
-    username = username.strip()
+    ticket_data = consume_websocket_ticket(ticket, session_id)
+    if not ticket_data:
+        await websocket.accept()
+        await websocket.send_json({"event": "error", "data": {"message": "Ticket de conexión inválido o vencido."}})
+        await websocket.close(code=4001)
+        return
+
     session = get_or_restore_session(session_id)
 
     if not session:
@@ -126,18 +363,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
         await websocket.close(code=4004)
         return
 
-    if not username:
+    if session.get("status", "active") != "active":
         await websocket.accept()
-        await websocket.send_json({
-            "event": "error",
-            "data":  {"message": "Username requerido"}
-        })
-        await websocket.close(code=4001)
+        await websocket.send_json({"event": "error", "data": {"message": "La sala está cerrada."}})
+        await websocket.close(code=4003)
         return
 
-    existing_player = next(
-        (p for p in session["players"] if p["username"].lower() == username.lower()), None
-    )
+    user_id = ticket_data["user_id"]
+    profile = ticket_data["profile"]
+    if not _is_session_member(session_id, user_id):
+        await websocket.accept()
+        await websocket.close(code=4003)
+        return
+
+    username = profile["username"]
+
+    existing_player = next((p for p in session["players"] if p.get("user_id") == user_id), None)
 
     if existing_player:
         username = existing_player["username"]
@@ -170,7 +411,20 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
             await websocket.close(code=4003)
             return
 
-        new_player = {"username": username, "ready": False, "connected": True}
+        if len(session["players"]) >= session["max_players"]:
+            await websocket.accept()
+            await websocket.send_json({"event": "error", "data": {"message": "La sala está llena."}})
+            await websocket.close(code=4003)
+            return
+        new_player = {
+            "username": username,
+            "display_name": profile["display_name"],
+            "avatar_key": profile["avatar_key"],
+            "user_id": user_id,
+            "is_admin": profile["is_admin"],
+            "ready": False,
+            "connected": True,
+        }
         session["players"].append(new_player)
 
         await manager.connect(session_id, username, websocket)
@@ -194,6 +448,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
         while True:
             raw = await websocket.receive_text()
             touch_session(session_id)
+            if session.get("status", "active") != "active":
+                await websocket.close(code=4003)
+                break
 
             try:
                 message = json.loads(raw)
@@ -233,20 +490,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
                         })
 
             elif action == "start_game":
-                host_player = next((p for p in session["players"] if p["username"] == session["host"]), None)
-                if host_player and not host_player.get("connected", False):
-                    old_host = session["host"]
-                    reassign_host(session)
-                    new_host = session["host"]
-                    await manager.broadcast(session_id, {
-                        "event": "host_changed",
-                        "data":  {"new_host": new_host},
-                    })
-
-                if username != session["host"]:
+                if not can_control_room(session, username):
                     await manager.send_personal(websocket, {
                         "event": "error",
-                        "data":  {"message": "Solo el host puede iniciar la partida."}
+                        "data":  {"message": "Solo un admin participante puede iniciar la partida."}
                     })
                     continue
 
@@ -273,46 +520,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
                     },
                 })
 
-            elif action == "transfer_host":
-                if username != session["host"]:
-                    await manager.send_personal(websocket, {
-                        "event": "error",
-                        "data": {"message": "Solo el host actual puede transferir el rol."},
-                    })
-                    continue
-
-                target_username = message.get("target_username")
-                connected_usernames = {
-                    player["username"]
-                    for player in session["players"]
-                    if player.get("connected", False)
-                }
-                if (
-                    not isinstance(target_username, str)
-                    or target_username == username
-                    or target_username not in connected_usernames
-                ):
-                    await manager.send_personal(websocket, {
-                        "event": "error",
-                        "data": {"message": "Selecciona a otro jugador conectado para transferir el host."},
-                    })
-                    continue
-
-                session["host"] = target_username
-                save_full_session(session)
-                await manager.broadcast(session_id, {
-                    "event": "host_changed",
-                    "data": {
-                        "new_host": target_username,
-                        "players": session["players"],
-                    },
-                })
-
             elif action == "choose_mode":
-                if username != session["host"]:
+                if not can_control_room(session, username):
                     await manager.send_personal(websocket, {
                         "event": "error",
-                        "data":  {"message": "Solo el host puede elegir el modo."}
+                        "data":  {"message": "Solo un admin participante puede elegir el modo."}
                     })
                     continue
 
@@ -371,10 +583,6 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
             player["connected"] = False
             player["ready"]     = False
 
-        old_host = session["host"]
-        reassign_host(session)
-        new_host = session["host"]
-
         await manager.broadcast(session_id, {
             "event": "player_left",
             "data":  {
@@ -383,9 +591,3 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, username: st
                 "players":  session["players"],
             },
         })
-
-        if old_host != new_host:
-            await manager.broadcast(session_id, {
-                "event": "host_changed",
-                "data":  {"new_host": new_host},
-            })

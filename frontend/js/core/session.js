@@ -9,31 +9,46 @@ export class SessionClient {
     this.currentSessionId = null;
     this.currentUsername = null;
     this.eventListeners = [];
+    this.accessToken = null;
+    this.refreshAuth = null;
   }
 
-  async createSession(username) {
-    const res = await fetch(`${API}/session/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username }),
+  setAccessToken(token, refreshAuth = null) { this.accessToken = token; this.refreshAuth = refreshAuth; }
+
+  async _request(path, { method = "GET", body } = {}) {
+    const headers = { "Content-Type": "application/json" };
+    if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
+    let response = await fetch(`${API}/session${path}`, {
+      method, headers, body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Error al crear sesión");
+    if (response.status === 401 && this.refreshAuth) {
+      const profile = await this.refreshAuth();
+      if (profile && this.accessToken) {
+        headers.Authorization = `Bearer ${this.accessToken}`;
+        response = await fetch(`${API}/session${path}`, {
+          method, headers, body: body === undefined ? undefined : JSON.stringify(body),
+        });
+      }
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "No se pudo completar la operación.");
     return data;
   }
 
-  async getSession(sessionId) {
-    const res = await fetch(`${API}/session/${sessionId}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Error al obtener sesión");
-    return data;
-  }
+  createSession(maxPlayers = 4) { return this._request("/create", { method: "POST", body: { max_players: maxPlayers } }); }
 
-  connectWebSocket(sessionId, username, onMessage, onOpen, onClose, onError) {
+  getSession(sessionId) { return this._request(`/${encodeURIComponent(sessionId)}`); }
+  getMyRooms() { return this._request("/mine/rooms"); }
+  getPendingInvites() { return this._request("/invites/pending"); }
+  invite(sessionId, username) { return this._request(`/${encodeURIComponent(sessionId)}/invites`, { method: "POST", body: { username } }); }
+  respondToInvite(inviteId, accept) { return this._request(`/invites/${encodeURIComponent(inviteId)}/respond`, { method: "POST", body: { accept } }); }
+  closeRoom(sessionId, forced = false) { return this._request(`/${encodeURIComponent(sessionId)}/${forced ? "force-close" : "finish"}`, { method: "POST" }); }
+
+  async connectWebSocket(sessionId, username, onMessage, onOpen, onClose, onError) {
     this.currentSessionId = sessionId;
     this.currentUsername = username;
-
-    const url = `${WS_BASE}/session/${sessionId}/ws?username=${encodeURIComponent(username)}`;
+    const { ticket } = await this._request(`/${encodeURIComponent(sessionId)}/websocket-ticket`, { method: "POST" });
+    const url = `${WS_BASE}/session/${encodeURIComponent(sessionId)}/ws?ticket=${encodeURIComponent(ticket)}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {

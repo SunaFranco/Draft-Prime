@@ -3,6 +3,7 @@
  */
 
 import { SessionClient } from "./js/core/session.js";
+import { AuthClient } from "./js/core/auth.js";
 import { showScreen, setConnectionStatus, logEvent, renderPlayers } from "./js/core/ui.js";
 import { YugiohDraftModeUI } from "./modes/cube_draft_yugioh/yugioh_draft.js";
 import { SubastaPokemonModeUI } from "./modes/subasta_pokemon/subasta_pokemon.js";
@@ -15,6 +16,7 @@ const modeUIRegistry = {
 
 // Cliente de sesión
 const sessionClient = new SessionClient();
+const authClient = new AuthClient();
 
 // Estado local de la aplicación
 let isReady = false;
@@ -26,6 +28,9 @@ let currentModeUI = null;
 const btnStartGame = document.getElementById("btn-start-game");
 const btnReady = document.getElementById("btn-ready");
 const btnLeave = document.getElementById("btn-leave");
+const btnForceCloseRoom = document.getElementById("btn-force-close-room");
+const btnFinishRoom = document.getElementById("btn-finish-room");
+const roomAdminActions = document.getElementById("room-admin-actions");
 const btnCopyLink = document.getElementById("btn-copy-link");
 const modeGrid = document.getElementById("mode-grid");
 const modeConfig = document.getElementById("mode-config");
@@ -39,108 +44,245 @@ const btnTogglePicked = document.getElementById("btn-toggle-picked-cards");
 const pickedList = document.getElementById("draft-picked-list");
 
 // ── Al cargar la página ───────────────────────────────────────────────────
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
-  const sessionFromUrl = params.get("session");
+  if (params.has("session")) document.getElementById("invite-banner").classList.add("hidden");
+  const profile = await authClient.restore();
+  sessionClient.setAccessToken(authClient.accessToken, async () => {
+    const refreshed = await authClient.restore();
+    sessionClient.setAccessToken(authClient.accessToken);
+    return refreshed;
+  });
+  if (profile) {
+    renderAuthProfile(profile);
+    if (!profile.must_change_password) await refreshRoomDashboard();
+  }
+});
 
-  const saved = sessionClient.getSavedSession();
-  if (saved && saved.sessionId === sessionFromUrl) {
-    connect(saved.sessionId, saved.username);
+function renderAuthProfile(profile) {
+  document.getElementById("auth-login-panel").classList.add("hidden");
+  document.getElementById("auth-change-password-panel").classList.add("hidden");
+  document.getElementById("auth-account-panel").classList.add("hidden");
+  document.getElementById("home-cards").classList.add("hidden");
+  document.getElementById("auth-profile-name").textContent = profile.display_name;
+  document.getElementById("auth-profile-username").textContent = `@${profile.username} · ${profile.email}`;
+  document.getElementById("auth-profile-role").textContent = profile.is_admin ? "Admin" : "Jugador";
+  const avatarIndex = Number((profile.avatar_key || "avatar_01").slice(-2)) - 1;
+  document.getElementById("auth-profile-avatar").textContent = ["🎴", "🐉", "⭐", "🛡️", "🔥", "🌙", "⚡", "💎"][avatarIndex] || "🎴";
+
+  if (profile.must_change_password) {
+    document.getElementById("auth-change-password-panel").classList.remove("hidden");
     return;
   }
 
-  if (sessionFromUrl) {
-    document.getElementById("invite-session-id").textContent = sessionFromUrl;
-    document.getElementById("invite-banner").classList.remove("hidden");
-    document.getElementById("home-cards").classList.add("hidden");
-  }
-});
+  document.getElementById("auth-account-panel").classList.remove("hidden");
+  document.getElementById("admin-create-account-panel").classList.toggle("hidden", !profile.is_admin);
+}
 
-// Unirse por link de invitación
-document.getElementById("btn-join-invite").addEventListener("click", () => {
-  const params = new URLSearchParams(window.location.search);
-  const sessionId = params.get("session");
-  const username = document.getElementById("invite-username").value.trim();
-  const errEl = document.getElementById("invite-error");
-  const btnJoinInvite = document.getElementById("btn-join-invite");
-  errEl.textContent = "";
+function showLoginPanel() {
+  document.getElementById("auth-login-panel").classList.remove("hidden");
+  document.getElementById("auth-change-password-panel").classList.add("hidden");
+  document.getElementById("auth-account-panel").classList.add("hidden");
+  document.getElementById("home-cards").classList.add("hidden");
+}
 
-  if (!username) { errEl.textContent = "Ingresá tu nombre."; return; }
-  if (!sessionId) { errEl.textContent = "No se encontró el ID de sesión."; return; }
-
-  const originalText = btnJoinInvite.textContent;
-  btnJoinInvite.disabled = true;
-  btnJoinInvite.textContent = "Uniendo...";
-
+document.getElementById("auth-login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const errorEl = document.getElementById("auth-login-error");
+  errorEl.textContent = "";
   try {
-    connect(sessionId, username);
-  } finally {
-    btnJoinInvite.disabled = false;
-    btnJoinInvite.textContent = originalText;
+    const profile = await authClient.login(
+      document.getElementById("auth-login-email").value,
+      document.getElementById("auth-login-password").value,
+    );
+    sessionClient.setAccessToken(authClient.accessToken, async () => {
+      const refreshed = await authClient.restore();
+      sessionClient.setAccessToken(authClient.accessToken);
+      return refreshed;
+    });
+    renderAuthProfile(profile);
+    await refreshRoomDashboard();
+  } catch (error) {
+    errorEl.textContent = error.message;
   }
 });
 
-// Crear sesión
-document.getElementById("btn-create").addEventListener("click", async () => {
-  const username = document.getElementById("create-username").value.trim();
-  const errEl = document.getElementById("create-error");
-  const btnCreate = document.getElementById("btn-create");
-  errEl.textContent = "";
-
-  if (!username) { errEl.textContent = "Ingresá tu nombre."; return; }
-
-  const originalText = btnCreate.textContent;
-  btnCreate.disabled = true;
-  btnCreate.textContent = "Creando lobby...";
-
+document.getElementById("auth-change-password-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const errorEl = document.getElementById("auth-change-password-error");
+  const password = document.getElementById("auth-new-password").value;
+  const confirmation = document.getElementById("auth-new-password-confirm").value;
+  errorEl.textContent = "";
+  if (password !== confirmation) {
+    errorEl.textContent = "Las contraseñas no coinciden.";
+    return;
+  }
   try {
-    const data = await sessionClient.createSession(username);
-    const sessionId = data.session_id || data.id;
-    window.history.pushState({}, "", `?session=${sessionId}`);
-
-    document.getElementById("session-id-display").textContent = sessionId;
-    showScreen("lobby");
-    renderPlayers(data.players, data.host, username);
-    setConnectionStatus("Conectando...", "");
-
-    connect(sessionId, username);
-  } catch (e) {
-    errEl.textContent = e.message || "No se pudo conectar al servidor.";
-  } finally {
-    btnCreate.disabled = false;
-    btnCreate.textContent = originalText;
+    await authClient.changeTemporaryPassword(password);
+    document.getElementById("auth-change-password-form").reset();
+    renderAuthProfile(authClient.profile);
+    await refreshRoomDashboard();
+  } catch (error) {
+    errorEl.textContent = error.message;
   }
 });
 
-// Unirse con ID manual
-document.getElementById("btn-join").addEventListener("click", () => {
-  const username  = document.getElementById("join-username").value.trim();
-  const sessionId = document.getElementById("join-session-id").value.trim();
-  const errEl     = document.getElementById("join-error");
-  const btnJoin   = document.getElementById("btn-join");
-  errEl.textContent = "";
-
-  if (!username)  { errEl.textContent = "Ingresá tu nombre."; return; }
-  if (!sessionId) { errEl.textContent = "Ingresá el ID de sesión."; return; }
-
-  const originalText = btnJoin.textContent;
-  btnJoin.disabled = true;
-  btnJoin.textContent = "Uniendo...";
-
+document.getElementById("admin-create-account-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const messageEl = document.getElementById("admin-create-account-message");
+  messageEl.textContent = "";
   try {
-    window.history.pushState({}, "", `?session=${sessionId}`);
-    connect(sessionId, username);
-  } finally {
-    btnJoin.disabled = false;
-    btnJoin.textContent = originalText;
+    const created = await authClient.createAccount({
+      email: document.getElementById("admin-account-email").value,
+      username: document.getElementById("admin-account-username").value,
+      display_name: document.getElementById("admin-account-display-name").value,
+      avatar_key: document.getElementById("admin-account-avatar").value,
+      temporary_password: document.getElementById("admin-account-temporary-password").value,
+    });
+    event.currentTarget.reset();
+    messageEl.textContent = `Cuenta creada para @${created.username}. Entrégale el email y la contraseña temporal por un canal privado.`;
+  } catch (error) {
+    messageEl.textContent = error.message;
   }
 });
+
+function logoutToLogin() {
+  sessionClient.disconnect();
+  sessionClient.clearSavedSession();
+  authClient.logout();
+  sessionClient.setAccessToken(null, null);
+  showLoginPanel();
+}
+
+document.getElementById("btn-auth-logout").addEventListener("click", logoutToLogin);
+document.getElementById("btn-auth-logout-forced").addEventListener("click", logoutToLogin);
+
+document.getElementById("btn-create-room").addEventListener("click", async () => {
+  const error = document.getElementById("rooms-error");
+  error.textContent = "";
+  try {
+    const room = await sessionClient.createSession();
+    await openRoom(room.session_id);
+  } catch (e) { error.textContent = e.message; }
+});
+document.getElementById("btn-refresh-rooms").addEventListener("click", refreshRoomDashboard);
+btnForceCloseRoom.addEventListener("click", async () => {
+  if (!sessionClient.currentSessionId) return;
+  try {
+    await sessionClient.closeRoom(sessionClient.currentSessionId, true);
+    sessionClient.disconnect();
+    sessionClient.clearSavedSession();
+    window.history.pushState({}, "", window.location.pathname);
+    showScreen("home");
+    await refreshRoomDashboard();
+  } catch (error) { logEvent(`❌ ${error.message}`); }
+});
+btnFinishRoom.addEventListener("click", async () => {
+  if (!sessionClient.currentSessionId) return;
+  try {
+    await sessionClient.closeRoom(sessionClient.currentSessionId, false);
+  } catch (error) { logEvent(`❌ ${error.message}`); }
+});
+document.getElementById("room-invitations").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-invite-action]");
+  if (!button) return;
+  try {
+    const result = await sessionClient.respondToInvite(button.dataset.inviteId, button.dataset.inviteAction === "accept");
+    if (result.session_id) await openRoom(result.session_id);
+    await refreshRoomDashboard();
+  } catch (e) { document.getElementById("rooms-error").textContent = e.message; }
+});
+document.getElementById("my-rooms-list").addEventListener("click", async (event) => {
+  const openButton = event.target.closest("[data-open-room]");
+  const inviteButton = event.target.closest("[data-send-invite]");
+  try {
+    if (openButton) await openRoom(openButton.dataset.openRoom);
+    if (inviteButton) {
+      const row = inviteButton.closest(".room-dashboard-item");
+      const username = row.querySelector("input").value.trim();
+      await sessionClient.invite(inviteButton.dataset.sendInvite, username);
+      row.querySelector(".room-action-message").textContent = `Invitación enviada a @${username}.`;
+    }
+  } catch (e) { document.getElementById("rooms-error").textContent = e.message; }
+});
+
+async function refreshRoomDashboard() {
+  if (!authClient.profile || authClient.profile.must_change_password) return;
+  const error = document.getElementById("rooms-error");
+  error.textContent = "";
+  try {
+    const [roomsData, invitesData, historyData, trophiesData] = await Promise.all([
+      sessionClient.getMyRooms(), sessionClient.getPendingInvites(), authClient.getHistory(), authClient.getTrophies(),
+    ]);
+    const rooms = document.getElementById("my-rooms-list");
+    rooms.innerHTML = "";
+    for (const room of roomsData.rooms) {
+      const item = document.createElement("article");
+      item.className = "room-dashboard-item";
+      const label = document.createElement("strong");
+      label.textContent = `Sala ${room.session_id} · ${room.mode_name || "Lobby"} · ${room.status}`;
+      item.append(label);
+      if (room.status === "active") {
+        const open = document.createElement("button");
+        open.className = "btn-small"; open.type = "button"; open.dataset.openRoom = room.session_id; open.textContent = "Abrir"; item.append(open);
+        if (authClient.profile.is_admin) {
+          const row = document.createElement("div"); row.className = "room-invite-controls";
+          const input = document.createElement("input"); input.placeholder = "Usuario a invitar"; input.maxLength = 24; input.setAttribute("aria-label", "Usuario a invitar");
+          const invite = document.createElement("button"); invite.className = "btn-small"; invite.type = "button"; invite.dataset.sendInvite = room.session_id; invite.textContent = "Invitar";
+          const message = document.createElement("span"); message.className = "room-action-message";
+          row.append(input, invite, message); item.append(row);
+        }
+      }
+      rooms.append(item);
+    }
+    if (!roomsData.rooms.length) rooms.textContent = "Todavía no participás en ninguna sala.";
+
+    const invites = document.getElementById("room-invitations");
+    invites.innerHTML = "";
+    for (const invite of invitesData.invites) {
+      const item = document.createElement("article"); item.className = "room-dashboard-item";
+      const label = document.createElement("strong"); label.textContent = `Invitación a sala ${invite.session_id} de @${invite.inviter?.username || "admin"}`;
+      const accept = document.createElement("button"); accept.className = "btn-small"; accept.type = "button"; accept.dataset.inviteAction = "accept"; accept.dataset.inviteId = invite.id; accept.textContent = "Aceptar";
+      const decline = document.createElement("button"); decline.className = "btn-small btn-danger"; decline.type = "button"; decline.dataset.inviteAction = "decline"; decline.dataset.inviteId = invite.id; decline.textContent = "Rechazar";
+      item.append(label, accept, decline); invites.append(item);
+    }
+    const trophiesList = document.getElementById("my-trophies-list");
+    trophiesList.innerHTML = "";
+    for (const entry of trophiesData.trophies) {
+      const item = document.createElement("div"); item.className = "profile-record-item";
+      const trophy = entry.trophies || {};
+      item.textContent = `${trophy.icon_key || "🏆"} ${trophy.title || trophy.id || "Trofeo"} · ${new Date(entry.earned_at).toLocaleDateString()}`;
+      item.title = trophy.description || "";
+      trophiesList.append(item);
+    }
+    if (!trophiesData.trophies.length) trophiesList.textContent = "Todavía no obtuviste trofeos.";
+    const historyList = document.getElementById("my-history-list");
+    historyList.innerHTML = "";
+    for (const entry of historyData.history) {
+      const item = document.createElement("div"); item.className = "profile-record-item";
+      item.textContent = `${entry.mode || "Sala"} · ${new Date(entry.finished_at).toLocaleDateString()} · ${entry.session_id}`;
+      historyList.append(item);
+    }
+    if (!historyData.history.length) historyList.textContent = "Todavía no hay salas finalizadas en tu historial.";
+    document.getElementById("btn-create-room").classList.toggle("hidden", !authClient.profile.is_admin);
+  } catch (e) { error.textContent = e.message; }
+}
+
+async function openRoom(sessionId) {
+  const profile = authClient.profile;
+  window.history.pushState({}, "", `?session=${encodeURIComponent(sessionId)}`);
+  document.getElementById("session-id-display").textContent = sessionId;
+  const state = await sessionClient.getSession(sessionId);
+  showScreen(state.started ? "draft" : "lobby");
+  renderPlayers(state.players, state.host, profile.username);
+  await connect(sessionId, profile.username);
+}
 
 // ── Conexión WebSocket ────────────────────────────────────────────────────
-function connect(sessionId, username) {
+async function connect(sessionId, username) {
   setConnectionStatus("Conectando...", "");
-
-  sessionClient.connectWebSocket(
+  try {
+  await sessionClient.connectWebSocket(
     sessionId,
     username,
     handleWebSocketMessage,
@@ -160,6 +302,10 @@ function connect(sessionId, username) {
       setConnectionStatus("⚠ Error de conexión", "offline");
     }
   );
+  } catch (error) {
+    setConnectionStatus("⚠ Error de conexión", "offline");
+    document.getElementById("rooms-error").textContent = error.message;
+  }
 }
 
 // ── Manejador Principal de Eventos WebSocket ──────────────────────────────
@@ -168,14 +314,23 @@ function handleWebSocketMessage(msg) {
   const data = msg.data || {};
 
   if (event === "session_state") {
-    isHost = data.host === sessionClient.currentUsername;
+    isHost = data.can_control === true;
+    roomAdminActions.classList.toggle("hidden", !isHost);
+    btnForceCloseRoom.classList.toggle("hidden", !isHost);
+    const naturallyFinished = Boolean(data.draft_state?.finished || data.event_finished);
+    btnFinishRoom.classList.toggle("hidden", !isHost || !naturallyFinished);
 
     if (data.mode) {
       currentModeKey = data.mode;
       currentModeUI = modeUIRegistry[data.mode] || null;
     }
-  } else if (event === "host_changed") {
-    isHost = data.new_host === sessionClient.currentUsername;
+  }
+
+  if (event === "draft_finished" || event === "draft_complete" || event === "event_finished") {
+    if (isHost) btnFinishRoom.classList.remove("hidden");
+  }
+  if (isHost && (data.finished === true || data.event_finished === true || data.draft_state?.finished === true)) {
+    btnFinishRoom.classList.remove("hidden");
   }
 
   // Intentar delegar primero al controlador de UI del modo de juego activo
@@ -213,12 +368,6 @@ function handleWebSocketMessage(msg) {
       updatePlayersAndHost(data.players, data.host);
       break;
 
-    case "host_changed":
-      logEvent(`👑 El nuevo host es ${data.new_host}`);
-      isHost = data.new_host === sessionClient.currentUsername;
-      updateHostUI();
-      break;
-
     case "mode_selection":
       showScreen("mode");
       renderModeSelection(data.available_modes);
@@ -229,7 +378,7 @@ function handleWebSocketMessage(msg) {
       break;
 
     case "mode_configured":
-      logEvent(`Modo '${data.mode_name}' configurado por el host.`);
+      logEvent(`Modo '${data.mode_name}' configurado por un admin participante.`);
       if (btnStartDraft) {
         btnStartDraft.classList.toggle("hidden", !isHost);
       }
@@ -245,12 +394,21 @@ function handleWebSocketMessage(msg) {
       logEvent(`❌ Error: ${data.message}`);
       alert(data.message);
       break;
+
+    case "room_closed":
+      logEvent(data.finish_type === "forced" ? "La sala fue cerrada sin guardar historial." : "La sala finalizó.");
+      sessionClient.disconnect();
+      sessionClient.clearSavedSession();
+      roomAdminActions.classList.add("hidden");
+      window.history.pushState({}, "", window.location.pathname);
+      showScreen("home");
+      refreshRoomDashboard();
+      break;
   }
 }
 
 // ── Helpers de actualización de Estado de Lobby ───────────────────────────
 function updateLobbyState(data) {
-  isHost = data.host === sessionClient.currentUsername;
   updatePlayersAndHost(data.players, data.host);
 
   if (data.started) {
@@ -261,9 +419,10 @@ function updateLobbyState(data) {
 }
 
 function updatePlayersAndHost(players, host) {
-  isHost = host === sessionClient.currentUsername;
   const playerList = Array.isArray(players) ? players : [];
   const me = playerList.find((p) => p && p.username === sessionClient.currentUsername);
+  isHost = Boolean(me && me.is_admin);
+  btnForceCloseRoom.classList.toggle("hidden", !isHost);
   if (me) {
     isReady = me.ready;
     btnReady.textContent = isReady ? "Cancelar Listo" : "Listo ✓";
@@ -292,7 +451,7 @@ function renderModeSelection(modes) {
     card.innerHTML = `
       <h3>${mode.name}</h3>
       <p class="subtitle">Haz clic para seleccionar este modo de juego</p>
-      ${isHost ? '<button class="btn-small">Seleccionar</button>' : '<span class="badge">Esperando al host</span>'}
+      ${isHost ? '<button class="btn-small">Seleccionar</button>' : '<span class="badge">Esperando a un admin participante</span>'}
     `;
 
     if (isHost) {

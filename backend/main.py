@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from backend.routes import session, cubes
+from backend.routes import auth, session, cubes
 from backend.modes.cube_draft_yugioh.card_api import CARD_CACHE
 from backend.modes.subasta_pokemon.poke_api import POKE_CACHE
 from backend.services.session_manager import cleanup_inactive_sessions, sessions
@@ -74,6 +74,7 @@ app.add_middleware(
 # ── Rutas API ─────────────────────────────────────────────────────────────────
 app.include_router(session.router, prefix="/session", tags=["Session"])
 app.include_router(cubes.router, prefix="/cubes", tags=["Cubes"])
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 
 
 @app.get("/health")

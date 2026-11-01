@@ -306,10 +306,8 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     }
     if (event === "error") {
       this._isRouletteSpinning = false;
-      const btnTransferHost = document.getElementById("btn-transfer-host");
-      if (btnTransferHost) btnTransferHost.disabled = false;
     }
-    if (event === "player_joined" || event === "player_left" || event === "host_changed") {
+    if (event === "player_joined" || event === "player_left") {
       if (this.latestState && Array.isArray(data.players)) {
         this.latestState.connected_players = (data.players || [])
           .filter((player) => player.connected)
@@ -581,19 +579,6 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         }
       });
     });
-
-    const btnTransferHost = document.getElementById("btn-transfer-host");
-    if (btnTransferHost) {
-      btnTransferHost.addEventListener("click", () => {
-        const targetUsername = document.getElementById("host-transfer-target")?.value;
-        if (!targetUsername) return;
-        btnTransferHost.disabled = true;
-        sessionClient.send({
-          action: "transfer_host",
-          target_username: targetUsername,
-        });
-      });
-    }
 
     const turnEvent = state.current_turn_event || {};
     if (

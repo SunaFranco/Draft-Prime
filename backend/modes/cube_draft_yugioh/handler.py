@@ -8,7 +8,7 @@ from typing import Dict, List, Any, Callable, Optional
 from backend.modes.base import BaseGameMode
 from backend.modes.cube_draft_yugioh.card_api import build_card_from_name
 import backend.database as database
-from backend.services.session_manager import get_connected_player_order
+from backend.services.session_manager import can_control_room, get_connected_player_order
 
 
 def get_available_cubes(get_all_cubes_fn: Optional[Callable] = None) -> List[dict]:
@@ -239,10 +239,10 @@ class CubeDraftYugiohMode(BaseGameMode):
         session_id = session["id"]
 
         if action == "configure_mode":
-            if username != session["host"]:
+            if not can_control_room(session, username):
                 await manager.send_personal(websocket, {
                     "event": "error",
-                    "data":  {"message": "Solo el host puede configurar el modo."}
+                    "data":  {"message": "Solo un admin participante puede configurar el modo."}
                 })
                 return True
 
@@ -269,10 +269,10 @@ class CubeDraftYugiohMode(BaseGameMode):
             return True
 
         elif action == "start_draft":
-            if username != session["host"]:
+            if not can_control_room(session, username):
                 await manager.send_personal(websocket, {
                     "event": "error",
-                    "data":  {"message": "Solo el host puede iniciar el draft."}
+                    "data":  {"message": "Solo un admin participante puede iniciar el draft."}
                 })
                 return True
 

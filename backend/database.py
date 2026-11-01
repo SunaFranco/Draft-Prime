@@ -15,7 +15,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+SUPABASE_PUBLIC_KEY: str = (
+    os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+    or os.getenv("SUPABASE_ANON_KEY", "")
+    or os.getenv("SUPABASE_KEY", "")
+)
+SUPABASE_SERVICE_KEY: str = (
+    os.getenv("SUPABASE_SECRET_KEY", "")
+    or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+)
+# Database writes must use a server-only key once RLS is enabled. Keep the
+# legacy key as a development fallback until deployment config is updated.
+SUPABASE_KEY: str = SUPABASE_SERVICE_KEY or SUPABASE_PUBLIC_KEY
 
 supabase_client = None
 
@@ -143,6 +154,10 @@ def save_full_session(session: dict) -> None:
     clean_players = [
         {
             "username": p["username"],
+            "display_name": p.get("display_name", p["username"]),
+            "avatar_key": p.get("avatar_key", "avatar_01"),
+            "user_id": p.get("user_id"),
+            "is_admin": p.get("is_admin", False),
             "ready": p.get("ready", False),
             "connected": False,  # Al persistir, el socket se reconectará después
         }
@@ -152,6 +167,10 @@ def save_full_session(session: dict) -> None:
     session_payload = {
         "id": session_id,
         "host": session.get("host"),
+        "created_by": session.get("created_by"),
+        "status": session.get("status", "active"),
+        "finish_type": session.get("finish_type"),
+        "finished_at": session.get("finished_at"),
         "players": clean_players,
         "max_players": session.get("max_players", 4),
         "started": session.get("started", False),
@@ -179,7 +198,11 @@ def save_full_session(session: dict) -> None:
             supabase_client.table("game_sessions").upsert({
                 "session_id": session_id,
                 "mode": mode,
-                "state_data": session_payload
+                "state_data": session_payload,
+                "created_by": session.get("created_by"),
+                "status": session.get("status", "active"),
+                "finish_type": session.get("finish_type"),
+                "finished_at": session.get("finished_at"),
             }).execute()
         except Exception as e:
             print(f"[WARNING] Error guardando sesión {session_id} en Supabase: {e}")

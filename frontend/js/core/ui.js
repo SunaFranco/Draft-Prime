@@ -37,7 +37,7 @@ export function logEvent(text) {
   list.prepend(item);
 }
 
-export function renderPlayers(players, host, currentUsername) {
+export function renderPlayers(players, _host, currentUsername) {
   const grid = document.getElementById("players-grid");
   if (!grid) return;
 
@@ -49,14 +49,13 @@ export function renderPlayers(players, host, currentUsername) {
     const card = document.createElement("div");
 
     if (p) {
-      const isCurrentHost = p.username === host;
       const isMe = p.username === currentUsername;
       card.className = `player-card ${p.ready ? "ready" : ""} ${p.connected ? "" : "disconnected"}`;
 
       card.innerHTML = `
         <div class="player-name">
           ${p.username}
-          ${isCurrentHost ? '<span class="badge host">Host</span>' : ""}
+          ${p.is_admin ? '<span class="badge host">Admin</span>' : ""}
           ${isMe ? '<span class="badge me">Tú</span>' : ""}
         </div>
         <div class="player-status">

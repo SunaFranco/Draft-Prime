@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional
 from backend.modes.base import BaseGameMode
 from backend.modes.subasta_pokemon import poke_api, events_data, showdown
 from backend.database import save_game_session, save_full_session, get_game_session
-from backend.services.session_manager import get_connected_player_order
+from backend.services.session_manager import can_control_room, get_connected_player_order
 
 _PENDING_BID_SAVES: dict[str, dict] = {}
 _BID_SAVE_TASKS: dict[str, asyncio.Task] = {}
@@ -1081,8 +1081,8 @@ class SubastaPokemonMode(BaseGameMode):
         session_id = session["id"]
 
         if action == "configure_mode":
-            if username != session["host"]:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede configurar."}})
+            if not can_control_room(session, username):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo un admin participante puede configurar."}})
                 return True
 
             try:
@@ -1104,8 +1104,8 @@ class SubastaPokemonMode(BaseGameMode):
             return True
 
         elif action == "start_draft":
-            if username != session["host"]:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede iniciar."}})
+            if not can_control_room(session, username):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo un admin participante puede iniciar."}})
                 return True
 
             self.start_game(session)
@@ -1683,8 +1683,8 @@ class SubastaPokemonMode(BaseGameMode):
             return True
 
         elif action == "subasta_next_stage":
-            if username != session["host"]:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede avanzar de etapa."}})
+            if not can_control_room(session, username):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo un admin participante puede avanzar de etapa."}})
                 return True
 
             cur = subasta_state["current_stage"]
@@ -1730,8 +1730,8 @@ class SubastaPokemonMode(BaseGameMode):
             return True
 
         elif action == "subasta_admin_submit_match":
-            if username != session["host"]:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede cargar resultados."}})
+            if not can_control_room(session, username):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo un admin participante puede cargar resultados."}})
                 return True
 
             if subasta_state["current_stage"] not in (4, 8, 12):
@@ -1778,8 +1778,8 @@ class SubastaPokemonMode(BaseGameMode):
             return True
 
         elif action == "subasta_finalize_event":
-            if username != session["host"]:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el host puede finalizar la fase."}})
+            if not can_control_room(session, username):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo un admin participante puede finalizar la fase."}})
                 return True
 
             current_stage = subasta_state["current_stage"]

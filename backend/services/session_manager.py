@@ -3,6 +3,7 @@ services/session_manager.py - Gestor de estado de sesión y conexiones WebSocket
 """
 
 import secrets
+import time
 from datetime import datetime
 from typing import Dict, List, Optional
 from fastapi import HTTPException, WebSocket
@@ -79,11 +80,30 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+_websocket_tickets: Dict[str, dict] = {}
 
 
 def make_session_id() -> str:
     """Genera un ID de sesión de 12 caracteres hex."""
     return secrets.token_hex(6)
+
+
+def issue_websocket_ticket(session_id: str, auth: dict) -> str:
+    ticket = secrets.token_urlsafe(32)
+    _websocket_tickets[ticket] = {
+        "session_id": session_id,
+        "user_id": auth["user"].id,
+        "profile": auth["profile"],
+        "expires_at": time.time() + 60,
+    }
+    return ticket
+
+
+def consume_websocket_ticket(ticket: str, session_id: str) -> Optional[dict]:
+    payload = _websocket_tickets.pop(ticket, None)
+    if not payload or payload["session_id"] != session_id or payload["expires_at"] < time.time():
+        return None
+    return payload
 
 
 def get_or_restore_session(session_id: str) -> Optional[dict]:
@@ -120,19 +140,15 @@ def all_connected_players_ready(session: dict) -> bool:
     return bool(connected_players) and all(p["ready"] for p in connected_players)
 
 
-def reassign_host(session: dict):
-    """
-    Si el host actual se desconectó, asigna el rol de host al siguiente
-    jugador que siga conectado.
-    """
-    connected_players = [p for p in session["players"] if p["connected"]]
-    if connected_players:
-        session["host"] = connected_players[0]["username"]
-
-
 def get_connected_player_order(session: dict) -> List[str]:
     """Devuelve la lista de usernames de jugadores conectados."""
     return [p["username"] for p in session["players"] if p["connected"]]
+
+
+def can_control_room(session: dict, username: str) -> bool:
+    """Admins globales solo controlan salas en las que figuran como participantes."""
+    player = next((p for p in session.get("players", []) if p.get("username") == username), None)
+    return bool(player and player.get("is_admin"))
 
 
 def session_public_state(session: dict, target_username: Optional[str] = None) -> dict:
@@ -146,6 +162,7 @@ def session_public_state(session: dict, target_username: Optional[str] = None) -
     state = {
         "id":            session["id"],
         "host":          session["host"],
+        "can_control":   can_control_room(session, target_username) if target_username else False,
         "players":       session["players"],
         "max_players":   session["max_players"],
         "started":       session["started"],
@@ -178,8 +195,6 @@ def cleanup_inactive_sessions(max_age_seconds: int = 10800, empty_timeout_second
       - Sesiones sin actividad por más de `max_age_seconds` (default 3 horas).
     - Sesiones sin jugadores conectados por más de `empty_timeout_seconds` (default 15 min).
     """
-    from backend.database import delete_game_session
-
     now = datetime.utcnow().timestamp()
     to_delete = []
 
@@ -198,9 +213,8 @@ def cleanup_inactive_sessions(max_age_seconds: int = 10800, empty_timeout_second
     for s_id in to_delete:
         sessions.pop(s_id, None)
         manager.active.pop(s_id, None)
-        delete_game_session(s_id)
 
     if to_delete:
-        print(f"[CLEANUP] Se descargaron {len(to_delete)} sesiones inactivas de memoria RAM (permanecen guardadas en Supabase).")
+        print(f"[CLEANUP] Se descargaron {len(to_delete)} sesiones inactivas de memoria RAM; Supabase conserva salas e historial.")
 
     return len(to_delete)

@@ -8,9 +8,10 @@ Proporciona rutas para:
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from backend.database import get_all_cubes, get_cube_by_id, create_new_cube
+from backend.routes.auth import require_admin
 
 router = APIRouter()
 
@@ -37,8 +38,8 @@ def get_cube(cube_id: str):
     return cube
 
 
-@router.post("/", status_code=210)    
-def create_cube(req: CreateCubeRequest):
+@router.post("/", status_code=201)
+def create_cube(req: CreateCubeRequest, auth: dict = Depends(require_admin)):
     """NO HACE NADA AUN"""
     """Crea un nuevo Cube con su lista de cartas."""
     if not req.title.strip():
@@ -50,6 +51,6 @@ def create_cube(req: CreateCubeRequest):
         title=req.title,
         description=req.description or "",
         cards=req.cards,
-        author=req.author or "Anon"
+        author=auth["profile"]["username"]
     )
     return {"status": "ok", "cube": new_cube}
