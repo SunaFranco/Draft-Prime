@@ -14,6 +14,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     this.currentDetailCard = null;
     this.lastCompletedCollection = [];
     this.sessionClient = null;
+    this.markedCardKeys = new Set();
   }
 
   resetState() {
@@ -23,6 +24,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     this.currentDetailCard = null;
     this.lastCompletedCollection = [];
     this.sessionClient = null;
+    this.markedCardKeys = new Set();
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -171,6 +173,8 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     cards.forEach((card) => {
       const cardEl = document.createElement("div");
       cardEl.className = "draft-card-only-img";
+      if (this.markedCardKeys.has(card.draft_card_key)) cardEl.classList.add("is-marked");
+      cardEl.dataset.draftCardKey = card.draft_card_key || "";
 
       if (card.image_url) {
         cardEl.innerHTML = `<img src="${card.image_url}" alt="${card.name}" class="card-image-full" loading="lazy" />`;
@@ -356,6 +360,28 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
       actionsEl.innerHTML = `
         <button id="btn-modal-pick-card" class="btn-primary" style="width: 100%;">Elegir esta carta 🎴</button>
       `;
+
+      const markButton = document.createElement("button");
+      markButton.className = "btn-modal-mark-card";
+      markButton.type = "button";
+      const updateMarkButton = () => {
+        const marked = this.markedCardKeys.has(card.draft_card_key);
+        markButton.textContent = marked ? "★ Marcada" : "☆ Marcar carta";
+        markButton.setAttribute("aria-pressed", String(marked));
+      };
+      updateMarkButton();
+      markButton.addEventListener("click", () => {
+        if (this.markedCardKeys.has(card.draft_card_key)) {
+          this.markedCardKeys.delete(card.draft_card_key);
+        } else {
+          this.markedCardKeys.add(card.draft_card_key);
+        }
+        const cardEl = [...document.querySelectorAll(".draft-card-only-img")]
+          .find((element) => element.dataset.draftCardKey === card.draft_card_key);
+        if (cardEl) cardEl.classList.toggle("is-marked", this.markedCardKeys.has(card.draft_card_key));
+        updateMarkButton();
+      });
+      actionsEl.appendChild(markButton);
 
       document.getElementById("btn-modal-pick-card").onclick = () => {
         this.closeCardModal();

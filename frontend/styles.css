@@ -590,6 +590,25 @@ button.btn-danger:hover {
   box-shadow: 6px 6px 0px #00ff66;
 }
 
+.draft-card-only-img.is-marked,
+.draft-card-only-img.is-marked:hover {
+  border-color: #ffd43b;
+  box-shadow: 4px 4px 0 #ffd43b;
+}
+
+.btn-modal-mark-card {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 0.55rem;
+  border: 2px solid #ffd43b;
+  color: #ffd43b;
+  background: rgba(255,212,59,0.08);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-modal-mark-card[aria-pressed="true"] { color: #171300; background: #ffd43b; }
+
 .card-image-full {
   width: 100%;
   height: 100%;

@@ -126,7 +126,10 @@ def init_draft_round(session: dict, round_num: int):
 
     for idx, username in enumerate(order):
         selected_names = random.sample(pool, k=cards_per_pack)
-        pack_cards = [build_card_from_name(card_name) for card_name in selected_names]
+        pack_cards = [
+            {**build_card_from_name(card_name), "draft_card_key": f"round_{round_num}_pack_{idx + 1}_card_{card_idx + 1}"}
+            for card_idx, card_name in enumerate(selected_names)
+        ]
         draft["current_packs"][username] = {
             "pack_id": f"round_{round_num}_pack_{idx + 1}",
             "initial_owner": username,
