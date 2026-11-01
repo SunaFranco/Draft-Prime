@@ -13,6 +13,7 @@ create table if not exists public.profiles (
     username text not null,
     display_name text not null,
     avatar_key text not null default 'avatar_01',
+    is_admin boolean not null default false,
     must_change_password boolean not null default true,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
@@ -34,12 +35,13 @@ security definer
 set search_path = ''
 as $$
 begin
-    insert into public.profiles (id, username, display_name, avatar_key, must_change_password)
+    insert into public.profiles (id, username, display_name, avatar_key, is_admin, must_change_password)
     values (
         new.id,
         coalesce(nullif(new.raw_user_meta_data ->> 'username', ''), split_part(new.email, '@', 1)),
         coalesce(nullif(new.raw_user_meta_data ->> 'display_name', ''), split_part(new.email, '@', 1)),
         coalesce(nullif(new.raw_user_meta_data ->> 'avatar_key', ''), 'avatar_01'),
+        coalesce((new.raw_user_meta_data ->> 'is_admin')::boolean, false),
         coalesce((new.raw_user_meta_data ->> 'must_change_password')::boolean, true)
     )
     on conflict (id) do nothing;

@@ -138,10 +138,11 @@ document.getElementById("admin-create-account-form").addEventListener("submit", 
       username: document.getElementById("admin-account-username").value,
       display_name: document.getElementById("admin-account-display-name").value,
       avatar_key: document.getElementById("admin-account-avatar").value,
+      is_admin: document.getElementById("admin-account-role").value === "admin",
       temporary_password: document.getElementById("admin-account-temporary-password").value,
     });
     event.currentTarget.reset();
-    messageEl.textContent = `Cuenta creada para @${created.username}. Entrégale el email y la contraseña temporal por un canal privado.`;
+    messageEl.textContent = `Cuenta de ${created.is_admin ? "admin global" : "usuario común"} creada para @${created.username}. Entrégale el email y la contraseña temporal por un canal privado.`;
   } catch (error) {
     messageEl.textContent = error.message;
   }

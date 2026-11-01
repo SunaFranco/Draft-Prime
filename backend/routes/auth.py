@@ -39,6 +39,7 @@ class CreateAccountRequest(BaseModel):
     username: str = Field(min_length=3, max_length=24)
     display_name: str = Field(min_length=1, max_length=40)
     avatar_key: str = "avatar_01"
+    is_admin: bool = False
     temporary_password: str = Field(min_length=12, max_length=128)
 
     @field_validator("email")
@@ -88,7 +89,7 @@ def _public_profile(profile: dict[str, Any], email: str) -> dict[str, Any]:
         "display_name": profile["display_name"],
         "avatar_key": profile["avatar_key"],
         "must_change_password": profile["must_change_password"],
-        "is_admin": email.casefold() in ADMIN_EMAILS,
+        "is_admin": email.casefold() in ADMIN_EMAILS or bool(profile.get("is_admin", False)),
     }
 
 
@@ -259,6 +260,7 @@ def create_account(
                 "username": username,
                 "display_name": display_name,
                 "avatar_key": data.avatar_key,
+                "is_admin": data.is_admin,
                 "must_change_password": True,
             },
         })

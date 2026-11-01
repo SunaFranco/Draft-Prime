@@ -71,6 +71,11 @@
             <option value="avatar_05">Avatar 5</option><option value="avatar_06">Avatar 6</option>
             <option value="avatar_07">Avatar 7</option><option value="avatar_08">Avatar 8</option>
           </select>
+          <label for="admin-account-role">Tipo de cuenta</label>
+          <select id="admin-account-role" required>
+            <option value="player">Usuario común</option>
+            <option value="admin">Admin global</option>
+          </select>
           <label for="admin-account-temporary-password">Contraseña temporal</label>
           <input id="admin-account-temporary-password" type="password" autocomplete="new-password" minlength="12" required />
           <button type="submit">Crear cuenta</button>
