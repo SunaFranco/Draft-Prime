@@ -554,10 +554,10 @@ button.btn-danger:hover {
 .picked-card-wiki-link:hover, .picked-card-wiki-link:focus-visible { border-color: var(--border-neon); background: rgba(255,255,255,0.12); }
 .picked-card-detail-meta { margin: 0 0 0.5rem; color: var(--text-bright, #fff); font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; }
 .picked-card-detail-desc { margin: 0; color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
-.draft-results-simple { width: 100%; padding: 1.25rem; border: 2px solid var(--border-bright); background: var(--bg-surface-card); box-shadow: var(--shadow-card); }
+.draft-results-simple { width: 100%; min-width: 0; box-sizing: border-box; padding: 1.25rem; border: 2px solid var(--border-bright); background: var(--bg-surface-card); box-shadow: var(--shadow-card); }
 .draft-results-simple h2 { margin: 0 0 0.5rem; }
 .draft-results-simple > p { margin: 0 0 1rem; color: var(--text-muted); }
-.draft-results-names { display: block; width: 100%; min-height: 16rem; padding: 0.85rem; resize: vertical; color: var(--text-main); background: rgba(0,0,0,0.2); border: 1px solid var(--border-bright); font: inherit; line-height: 1.55; }
+.draft-results-names { display: block; width: 100%; min-width: 0; box-sizing: border-box; min-height: 16rem; padding: 0.85rem; resize: vertical; overflow-x: auto; white-space: pre; overflow-wrap: normal; color: var(--text-main); background: rgba(0,0,0,0.2); border: 1px solid var(--border-bright); font: inherit; line-height: 1.55; }
 .draft-results-copy { margin-top: 0.75rem; }
 .draft-results-copy-status { display: inline-block; margin-left: 0.75rem; color: var(--text-muted); font-size: 0.9rem; }
 

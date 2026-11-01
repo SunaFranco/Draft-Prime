@@ -301,7 +301,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
       <section class="draft-results-simple">
         <h2>Resumen de tus cartas (${myCollection.length})</h2>
         <p>Un nombre por línea. Puedes seleccionar el texto o copiar la lista completa.</p>
-        <textarea class="draft-results-names" aria-label="Nombres de tus cartas" readonly></textarea>
+        <textarea class="draft-results-names" aria-label="Nombres de tus cartas" wrap="off" readonly></textarea>
         <button class="btn-primary draft-results-copy" type="button">Copiar nombres</button>
         <span class="draft-results-copy-status" role="status" aria-live="polite"></span>
       </section>`;
