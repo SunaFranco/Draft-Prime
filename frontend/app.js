@@ -77,6 +77,7 @@ function renderAuthProfile(profile) {
 
   document.getElementById("auth-account-panel").classList.remove("hidden");
   document.getElementById("admin-create-account-panel").classList.toggle("hidden", !profile.is_admin);
+  document.getElementById("btn-create-room").classList.toggle("hidden", !profile.is_admin);
 }
 
 function showLoginPanel() {
@@ -208,6 +209,7 @@ document.getElementById("my-rooms-list").addEventListener("click", async (event)
 
 async function refreshRoomDashboard() {
   if (!authClient.profile || authClient.profile.must_change_password) return;
+  document.getElementById("btn-create-room").classList.toggle("hidden", !authClient.profile.is_admin);
   const error = document.getElementById("rooms-error");
   error.textContent = "";
   try {
