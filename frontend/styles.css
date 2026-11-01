@@ -592,8 +592,8 @@ button.btn-danger:hover {
 
 .draft-card-only-img.is-marked,
 .draft-card-only-img.is-marked:hover {
-  border-color: #ffd43b;
-  box-shadow: 4px 4px 0 #ffd43b;
+  border-color: #ffd43b !important;
+  box-shadow: 4px 4px 0 #ffd43b !important;
 }
 
 .btn-modal-mark-card {
@@ -608,6 +608,13 @@ button.btn-danger:hover {
 }
 
 .btn-modal-mark-card[aria-pressed="true"] { color: #171300; background: #ffd43b; }
+
+@media (max-width: 560px) {
+  .modal-overlay { align-items: center; padding: 0.5rem; }
+  .modal { display: flex; flex-direction: column; width: 100%; max-height: calc(100dvh - 1rem); padding: 0.75rem; overflow: hidden; }
+  .modal-close { position: sticky; top: 0; z-index: 2; flex: 0 0 36px; align-self: flex-end; margin: 0 0 -2.25rem auto; }
+  .modal-card { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-top: 2.5rem; }
+}
 
 .card-image-full {
   width: 100%;

@@ -173,8 +173,9 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     cards.forEach((card) => {
       const cardEl = document.createElement("div");
       cardEl.className = "draft-card-only-img";
-      if (this.markedCardKeys.has(card.draft_card_key)) cardEl.classList.add("is-marked");
-      cardEl.dataset.draftCardKey = card.draft_card_key || "";
+      const cardKey = card.draft_card_key;
+      if (cardKey && this.markedCardKeys.has(cardKey)) cardEl.classList.add("is-marked");
+      cardEl.dataset.draftCardKey = cardKey || "";
 
       if (card.image_url) {
         cardEl.innerHTML = `<img src="${card.image_url}" alt="${card.name}" class="card-image-full" loading="lazy" />`;
@@ -365,12 +366,13 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
       markButton.className = "btn-modal-mark-card";
       markButton.type = "button";
       const updateMarkButton = () => {
-        const marked = this.markedCardKeys.has(card.draft_card_key);
+        const marked = Boolean(card.draft_card_key && this.markedCardKeys.has(card.draft_card_key));
         markButton.textContent = marked ? "★ Marcada" : "☆ Marcar carta";
         markButton.setAttribute("aria-pressed", String(marked));
       };
       updateMarkButton();
       markButton.addEventListener("click", () => {
+        if (!card.draft_card_key) return;
         if (this.markedCardKeys.has(card.draft_card_key)) {
           this.markedCardKeys.delete(card.draft_card_key);
         } else {
