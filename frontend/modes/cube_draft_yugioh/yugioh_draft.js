@@ -372,6 +372,16 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
       `;
     }
 
+    const wikiLink = document.createElement("a");
+    wikiLink.className = "picked-card-wiki-link modal-card-wiki-link";
+    wikiLink.href = `https://yugioh.fandom.com/wiki/${encodeURIComponent(card.name || "")}`;
+    wikiLink.target = "_blank";
+    wikiLink.rel = "noopener noreferrer";
+    wikiLink.setAttribute("aria-label", `Abrir ${card.name || "la carta"} en Yu-Gi-Oh! Wiki`);
+    wikiLink.title = "Ver carta en Yu-Gi-Oh! Wiki";
+    wikiLink.textContent = "🌐";
+    actionsEl.appendChild(wikiLink);
+
     modal.classList.remove("hidden");
   }
 
