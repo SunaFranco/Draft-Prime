@@ -293,9 +293,34 @@ async function refreshRoomDashboard() {
     const trophiesList = document.getElementById("my-trophies-list");
     trophiesList.innerHTML = "";
     for (const entry of trophiesData.trophies) {
-      const item = document.createElement("div"); item.className = "profile-record-item";
+      const item = document.createElement("div"); item.className = "profile-record-item trophy-record";
       const trophy = entry.trophies || {};
-      item.textContent = `${trophy.icon_key || "🏆"} ${trophy.title || trophy.id || "Trofeo"} · ${new Date(entry.earned_at).toLocaleDateString()}`;
+      const medal = document.createElement("span");
+      medal.className = "trophy-medal";
+      medal.textContent = trophy.icon_key || "🏅";
+      medal.setAttribute("aria-hidden", "true");
+      const title = document.createElement("strong");
+      title.className = "trophy-title";
+      title.textContent = trophy.title || trophy.id || "Trofeo";
+      item.append(medal, title);
+
+      const pokemonNames = { 493: "Arceus", 142: "Aerodactyl", 452: "Drapion", 904: "Overqwil", 28: "Sandslash", 330: "Flygon" };
+      const sprites = document.createElement("span");
+      sprites.className = "trophy-pokemon-sprites";
+      for (const pokemonId of trophy.pokemon_ids || []) {
+        const img = document.createElement("img");
+        const id = Number(pokemonId);
+        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/${id}.png`;
+        img.alt = pokemonNames[id] || `Pokémon ${id}`;
+        img.title = img.alt;
+        img.loading = "lazy";
+        img.onerror = () => {
+          img.onerror = null;
+          img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+        };
+        sprites.append(img);
+      }
+      item.append(sprites);
       item.title = trophy.description || "";
       trophiesList.append(item);
     }

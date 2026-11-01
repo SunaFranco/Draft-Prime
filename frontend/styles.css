@@ -2439,6 +2439,11 @@ button.btn-danger:hover {
 .profile-records { margin-top: 1rem; }
 .profile-record-list { display: grid; gap: .4rem; margin: .6rem 0 1rem; }
 .profile-record-item { padding: .6rem .75rem; border-left: 2px solid var(--accent); background: rgba(0, 0, 0, .18); overflow-wrap: anywhere; }
+.trophy-record { display: flex; align-items: center; gap: .4rem; min-width: 0; overflow: hidden; }
+.trophy-medal { flex: 0 0 auto; font-size: 1.25rem; }
+.trophy-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trophy-pokemon-sprites { display: flex; flex: 0 0 auto; align-items: center; gap: .1rem; }
+.trophy-pokemon-sprites img { display: block; width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; }
 .invite-room-form { display: grid; gap: .5rem; margin-top: .75rem; color: var(--text); font-size: .85rem; }
 .invite-room-input-row { display: flex; gap: .4rem; }
 .invite-room-input-row input { min-width: 0; flex: 1; }
@@ -2452,4 +2457,8 @@ button.btn-danger:hover {
   .profile-menu { right: 0; }
   .app-user-actions button { width: 100%; }
   .room-dashboard-item { padding: .7rem; }
+}
+@media (max-width: 420px) {
+  .trophy-record { gap: .25rem; padding: .5rem; }
+  .trophy-pokemon-sprites img { width: 23px; height: 23px; }
 }

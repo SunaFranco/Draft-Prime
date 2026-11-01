@@ -102,6 +102,7 @@ create table if not exists public.trophies (
     title text not null,
     description text not null default '',
     icon_key text not null,
+    pokemon_ids integer[] not null default '{}',
     created_at timestamptz not null default now()
 );
 
