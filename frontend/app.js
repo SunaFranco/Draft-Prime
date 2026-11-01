@@ -315,6 +315,10 @@ function setupModeConfig(data) {
   if (modeConfig) modeConfig.classList.remove("hidden");
   document.getElementById("mode-config-title").textContent = `Configurar ${data.mode_name}`;
 
+  // Cada modo reutiliza el mismo panel: quitar los campos anteriores antes de dibujar el nuevo.
+  const modeConfigFields = document.getElementById("mode-config-fields");
+  if (modeConfigFields) modeConfigFields.replaceChildren();
+
   if (currentModeUI) {
     currentModeUI.resetState();
     currentModeUI.renderConfigFields(modeConfig, data, isHost);

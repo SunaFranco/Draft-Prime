@@ -280,55 +280,31 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     const myCollection = collections[sessionClient.currentUsername] || [];
     this.currentPickedCards = myCollection;
     this.renderPickedDrawer(sessionClient);
+    const pickedDrawer = document.getElementById("draft-picked");
+    if (pickedDrawer) pickedDrawer.classList.add("hidden");
+    const names = myCollection.map((card) => card.name).filter(Boolean).join("\n");
+    grid.innerHTML = `
+      <section class="draft-results-simple">
+        <h2>Resumen de tus cartas (${myCollection.length})</h2>
+        <p>Un nombre por línea. Puedes seleccionar el texto o copiar la lista completa.</p>
+        <textarea class="draft-results-names" aria-label="Nombres de tus cartas" readonly></textarea>
+        <button class="btn-primary draft-results-copy" type="button">Copiar nombres</button>
+        <span class="draft-results-copy-status" role="status" aria-live="polite"></span>
+      </section>`;
 
-    let html = `
-      <div class="card results-card" style="grid-column: 1 / -1; padding: 2rem;">
-        <h2>🏆 Resumen de Cartas Elegidas</h2>
-        <p style="color: var(--muted); margin-bottom: 1.5rem;">A continuación se muestran los mazos drafteados por cada jugador (haz clic en una carta para ver sus detalles):</p>
-        <div class="collections-grid" style="display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
-    `;
-
-    Object.entries(collections).forEach(([uname, cardList]) => {
-      html += `
-        <div class="card" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-dim); padding: 1rem;">
-          <h3 style="margin-bottom: 0.75rem;">${uname} (${cardList.length} cartas)</h3>
-          <div class="results-card-list" id="results-user-${uname}" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto;"></div>
-        </div>
-      `;
-    });
-
-    html += `</div></div>`;
-    grid.innerHTML = html;
-
-    // Renderizar miniaturas clickeables para los resultados finales
-    Object.entries(collections).forEach(([uname, cardList]) => {
-      const container = document.getElementById(`results-user-${uname}`);
-      if (!container) return;
-
-      cardList.forEach((c) => {
-        const item = document.createElement("div");
-        item.className = "picked-card-row";
-        item.style.padding = "0.5rem";
-
-        const hasImg = Boolean(c.image_url);
-        const thumbHtml = hasImg
-          ? `<img class="picked-card-thumb" src="${c.image_url}" alt="${c.name}" loading="lazy" />`
-          : `<div class="picked-card-thumb--fallback"><span>${c.name}</span></div>`;
-
-        item.innerHTML = `
-          <div class="picked-card-thumb-wrapper" style="width: 50px; min-width: 50px;">${thumbHtml}</div>
-          <div class="picked-card-info">
-            <strong style="font-size: 0.9rem;">${c.name}</strong>
-            <p style="font-size: 0.75rem;">${c.type || "Yu-Gi-Oh!"}</p>
-          </div>
-        `;
-
-        item.addEventListener("click", () => {
-          this.openCardModal(c, sessionClient, false);
-        });
-
-        container.appendChild(item);
-      });
+    const namesField = grid.querySelector(".draft-results-names");
+    const copyButton = grid.querySelector(".draft-results-copy");
+    const copyStatus = grid.querySelector(".draft-results-copy-status");
+    namesField.value = names;
+    copyButton.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(names);
+        copyStatus.textContent = "Copiado al portapapeles.";
+      } catch {
+        namesField.focus();
+        namesField.select();
+        copyStatus.textContent = "Texto seleccionado; cópialo desde aquí.";
+      }
     });
 
     const btnBack = document.getElementById("btn-back-to-lobby-draft");
