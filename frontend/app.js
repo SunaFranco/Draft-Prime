@@ -249,15 +249,8 @@ document.getElementById("room-invitations").addEventListener("click", async (eve
 });
 document.getElementById("my-rooms-list").addEventListener("click", async (event) => {
   const openButton = event.target.closest("[data-open-room]");
-  const inviteButton = event.target.closest("[data-send-invite]");
   try {
     if (openButton) await openRoom(openButton.dataset.openRoom);
-    if (inviteButton) {
-      const row = inviteButton.closest(".room-dashboard-item");
-      const username = row.querySelector("input").value.trim();
-      await sessionClient.invite(inviteButton.dataset.sendInvite, username);
-      row.querySelector(".room-action-message").textContent = `Invitación enviada a @${username}.`;
-    }
   } catch (e) { document.getElementById("rooms-error").textContent = e.message; }
 });
 
@@ -272,27 +265,21 @@ async function refreshRoomDashboard() {
     ]);
     const rooms = document.getElementById("my-rooms-list");
     rooms.innerHTML = "";
-    for (const room of roomsData.rooms) {
+    const visibleRooms = roomsData.rooms.filter((room) => room.status === "active" || room.status === "finished_natural");
+    for (const room of visibleRooms) {
       const item = document.createElement("article");
       item.className = "room-dashboard-item";
       const label = document.createElement("strong");
-      const statusLabel = room.status === "active" ? "En curso" : room.status === "finished_natural" ? "Finalizada" : "";
+      const statusLabel = room.status === "finished_natural" ? "Finalizada" : "";
       label.textContent = [room.name, room.mode_name || "Lobby", statusLabel].filter(Boolean).join(" · ");
       item.append(label);
       if (room.status === "active") {
         const open = document.createElement("button");
         open.className = "btn-small"; open.type = "button"; open.dataset.openRoom = room.session_id; open.textContent = "Abrir"; item.append(open);
-        if (authClient.profile.is_admin) {
-          const row = document.createElement("div"); row.className = "room-invite-controls";
-          const input = document.createElement("input"); input.placeholder = "Usuario a invitar"; input.maxLength = 24; input.setAttribute("aria-label", "Usuario a invitar");
-          const invite = document.createElement("button"); invite.className = "btn-small"; invite.type = "button"; invite.dataset.sendInvite = room.session_id; invite.textContent = "Invitar";
-          const message = document.createElement("span"); message.className = "room-action-message";
-          row.append(input, invite, message); item.append(row);
-        }
       }
       rooms.append(item);
     }
-    if (!roomsData.rooms.length) rooms.textContent = "Todavía no participás en ninguna sala.";
+    if (!visibleRooms.length) rooms.textContent = "Todavía no participás en ninguna sala.";
 
     const invites = document.getElementById("room-invitations");
     invites.innerHTML = "";

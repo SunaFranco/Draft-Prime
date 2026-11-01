@@ -2447,13 +2447,9 @@ button.btn-danger:hover {
 .my-rooms-list, #room-invitations { display: grid; gap: .7rem; margin: .8rem 0; }
 .room-dashboard-item { display: grid; gap: .6rem; padding: .85rem; border: 1px solid var(--accent); background: rgba(0, 0, 0, .2); min-width: 0; }
 .room-dashboard-item strong { overflow-wrap: anywhere; }
-.room-invite-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
-.room-invite-controls input { flex: 1 1 12rem; min-width: 0; }
-.room-action-message { flex-basis: 100%; color: var(--muted); font-size: .9rem; }
 @media (max-width: 600px) {
   .app-user-header { position: relative; flex-direction: row; align-items: center; }
   .profile-menu { right: 0; }
   .app-user-actions button { width: 100%; }
   .room-dashboard-item { padding: .7rem; }
-  .room-invite-controls button { min-height: 2.75rem; }
 }
