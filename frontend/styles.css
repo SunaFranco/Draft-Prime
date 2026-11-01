@@ -550,6 +550,8 @@ button.btn-danger:hover {
 .picked-card-detail-image { display: block; flex: 0 0 auto; width: clamp(90px, 22vw, 150px); max-height: 230px; aspect-ratio: 0.69; object-fit: contain; border-radius: 4px; }
 .picked-card-detail-fallback { display: grid; place-items: center; padding: 0.5rem; color: var(--text-main); background: rgba(255,255,255,0.08); text-align: center; overflow-wrap: anywhere; }
 .picked-card-detail-info { min-width: 0; }
+.picked-card-wiki-link { display: inline-grid; place-items: center; width: 40px; height: 40px; margin-bottom: 0.5rem; border: 1px solid var(--border-bright); border-radius: 6px; color: var(--text-main); background: rgba(255,255,255,0.06); font-size: 1.2rem; text-decoration: none; }
+.picked-card-wiki-link:hover, .picked-card-wiki-link:focus-visible { border-color: var(--border-neon); background: rgba(255,255,255,0.12); }
 .picked-card-detail-meta { margin: 0 0 0.5rem; color: var(--text-bright, #fff); font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; }
 .picked-card-detail-desc { margin: 0; color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
 .draft-results-simple { width: 100%; padding: 1.25rem; border: 2px solid var(--border-bright); background: var(--bg-surface-card); box-shadow: var(--shadow-card); }
