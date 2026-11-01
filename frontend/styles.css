@@ -125,8 +125,13 @@ header h1::after {
 
 /* ── Account Screen Layout ─────────────────────────────────────────────────── */
 .auth-panel { width: min(100%, 680px); margin: 0 auto 1.5rem; }
-.app-user-header { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: min(100%, 1200px); margin: 0 auto 1rem; padding: .65rem .85rem; border: 1px solid var(--border-neon); background: var(--bg-surface-card); box-shadow: 4px 4px 0 var(--border-neon); }
-.app-user-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; }
+.app-user-header { position: relative; z-index: 40; display: flex; justify-content: flex-end; width: min(100%, 1200px); height: 56px; margin: 0 auto .5rem; }
+.profile-menu-toggle { display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 2px solid var(--border-neon); border-radius: 50%; background: var(--bg-surface-card); cursor: pointer; }
+.profile-menu-toggle .auth-avatar { width: 100%; height: 100%; border: 0; border-radius: 50%; font-size: 1.65rem; }
+.profile-menu { position: absolute; top: 52px; right: 0; z-index: 50; width: min(320px, calc(100vw - 2rem)); padding: 1rem; border: 1px solid var(--border-neon); background: var(--bg-surface-card); box-shadow: 4px 4px 0 var(--border-neon); }
+.profile-menu-info { overflow-wrap: anywhere; margin-bottom: .8rem; }
+.profile-menu-info h2 { margin: 0 0 .25rem; }
+.app-user-actions { display: grid; gap: .5rem; }
 .app-user-actions button { white-space: nowrap; }
 .invite-room-menu { width: min(100%, 720px); margin: 0 auto 1rem; padding: .8rem 1rem; border: 1px solid var(--border-neon); background: var(--bg-surface-card); }
 .invite-room-menu summary { cursor: pointer; font-weight: 700; color: var(--accent); }
@@ -2446,9 +2451,8 @@ button.btn-danger:hover {
 .room-invite-controls input { flex: 1 1 12rem; min-width: 0; }
 .room-action-message { flex-basis: 100%; color: var(--muted); font-size: .9rem; }
 @media (max-width: 600px) {
-  .app-user-header { position: static; flex-direction: column; align-items: flex-start; }
-  .app-user-actions { flex-direction: column; align-items: stretch; }
-  .app-user-actions { width: 100%; }
+  .app-user-header { position: relative; flex-direction: row; align-items: center; }
+  .profile-menu { right: 0; }
   .app-user-actions button { width: 100%; }
   .room-dashboard-item { padding: .7rem; }
   .room-invite-controls button { min-height: 2.75rem; }

@@ -7,24 +7,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20261101_room_names" />
+  <link rel="stylesheet" href="styles.css?v=20261101_profile_menu" />
 </head>
 <body>
 
   <div id="app-user-header" class="app-user-header hidden">
-    <div class="auth-profile-heading">
-      <div id="auth-profile-avatar" class="auth-avatar">🎴</div>
-      <div>
+    <button id="profile-menu-toggle" class="profile-menu-toggle" type="button" aria-label="Abrir menú de perfil" aria-expanded="false" aria-controls="profile-menu">
+      <span id="auth-profile-avatar" class="auth-avatar">🎴</span>
+    </button>
+    <div id="profile-menu" class="profile-menu hidden">
+      <div class="profile-menu-info">
         <h2 id="auth-profile-name"></h2>
         <p id="auth-profile-username" class="subtitle"></p>
         <span id="auth-profile-role" class="badge"></span>
         <p id="active-room-name" class="active-room-name hidden"></p>
       </div>
-    </div>
-    <div class="app-user-actions">
-      <button id="btn-finish-room" class="btn-small hidden" type="button">Finalizar partida</button>
-      <button id="btn-force-close-room" class="btn-small btn-danger hidden" type="button">Cerrar sin historial</button>
-      <button id="btn-auth-logout" class="btn-small btn-danger" type="button">Cerrar sesión</button>
+      <div class="app-user-actions">
+        <button id="btn-finish-room" class="btn-small hidden" type="button">Finalizar partida</button>
+        <button id="btn-force-close-room" class="btn-small btn-danger hidden" type="button">Cerrar sin historial</button>
+        <button id="btn-auth-logout" class="btn-small btn-danger" type="button">Cerrar sesión</button>
+      </div>
     </div>
   </div>
 
@@ -235,6 +237,6 @@
   </div>
 
   <script src="config.js"></script>
-  <script type="module" src="app.js?v=20261101_room_names"></script>
+  <script type="module" src="app.js?v=20261101_profile_menu"></script>
 </body>
 </html>

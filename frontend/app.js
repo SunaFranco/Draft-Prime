@@ -31,6 +31,8 @@ const btnLeave = document.getElementById("btn-leave");
 const btnForceCloseRoom = document.getElementById("btn-force-close-room");
 const btnFinishRoom = document.getElementById("btn-finish-room");
 const appUserHeader = document.getElementById("app-user-header");
+const profileMenuToggle = document.getElementById("profile-menu-toggle");
+const profileMenu = document.getElementById("profile-menu");
 const inviteRoomMenu = document.getElementById("invite-room-menu");
 const modeGrid = document.getElementById("mode-grid");
 const modeConfig = document.getElementById("mode-config");
@@ -60,6 +62,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 });
 
 function renderAuthProfile(profile) {
+  closeProfileMenu();
   document.getElementById("auth-login-panel").classList.add("hidden");
   document.getElementById("auth-change-password-panel").classList.add("hidden");
   document.getElementById("auth-account-panel").classList.add("hidden");
@@ -82,6 +85,7 @@ function renderAuthProfile(profile) {
 }
 
 function showLoginPanel() {
+  closeProfileMenu();
   document.getElementById("auth-login-panel").classList.remove("hidden");
   document.getElementById("auth-change-password-panel").classList.add("hidden");
   document.getElementById("auth-account-panel").classList.add("hidden");
@@ -163,6 +167,24 @@ function logoutToLogin() {
 document.getElementById("btn-auth-logout").addEventListener("click", logoutToLogin);
 document.getElementById("btn-auth-logout-forced").addEventListener("click", logoutToLogin);
 
+profileMenuToggle.addEventListener("click", () => {
+  const opening = profileMenu.classList.contains("hidden");
+  profileMenu.classList.toggle("hidden", !opening);
+  profileMenuToggle.setAttribute("aria-expanded", String(opening));
+});
+
+function closeProfileMenu() {
+  profileMenu.classList.add("hidden");
+  profileMenuToggle.setAttribute("aria-expanded", "false");
+}
+
+document.addEventListener("click", (event) => {
+  if (!appUserHeader.contains(event.target)) closeProfileMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeProfileMenu();
+});
+
 createRoomForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -179,6 +201,7 @@ document.getElementById("btn-refresh-rooms").addEventListener("click", refreshRo
 btnForceCloseRoom.addEventListener("click", async () => {
   if (!sessionClient.currentSessionId) return;
   try {
+    closeProfileMenu();
     await sessionClient.closeRoom(sessionClient.currentSessionId, true);
     sessionClient.disconnect();
     inviteRoomMenu.open = false;
@@ -193,6 +216,7 @@ btnForceCloseRoom.addEventListener("click", async () => {
 btnFinishRoom.addEventListener("click", async () => {
   if (!sessionClient.currentSessionId) return;
   try {
+    closeProfileMenu();
     await sessionClient.closeRoom(sessionClient.currentSessionId, false);
   } catch (error) { logEvent(`❌ ${error.message}`); }
 });
@@ -454,6 +478,7 @@ function handleWebSocketMessage(msg) {
       break;
 
     case "room_closed":
+      closeProfileMenu();
       logEvent(data.finish_type === "forced" ? "La sala fue cerrada sin guardar historial." : "La sala finalizó.");
       sessionClient.disconnect();
       btnForceCloseRoom.classList.add("hidden");
