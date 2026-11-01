@@ -190,12 +190,18 @@ createRoomForm.addEventListener("submit", async (event) => {
   const form = event.currentTarget;
   const error = document.getElementById("rooms-error");
   error.textContent = "";
+  let createdRoom = null;
   try {
     const roomName = document.getElementById("create-room-name").value.trim();
-    const room = await sessionClient.createSession(roomName);
+    createdRoom = await sessionClient.createSession(roomName);
     form.reset();
-    await openRoom(room.session_id);
-  } catch (e) { error.textContent = e.message; }
+    await openRoom(createdRoom.session_id);
+  } catch (e) {
+    error.textContent = createdRoom
+      ? `La sala “${createdRoom.name}” se creó, pero no se pudo abrir: ${e.message}`
+      : e.message;
+    if (createdRoom) await refreshRoomDashboard();
+  }
 });
 document.getElementById("btn-refresh-rooms").addEventListener("click", refreshRoomDashboard);
 btnForceCloseRoom.addEventListener("click", async () => {
@@ -270,7 +276,8 @@ async function refreshRoomDashboard() {
       const item = document.createElement("article");
       item.className = "room-dashboard-item";
       const label = document.createElement("strong");
-      label.textContent = `${room.name} · ${room.mode_name || "Lobby"} · ${room.status}`;
+      const statusLabel = room.status === "active" ? "En curso" : room.status === "finished_natural" ? "Finalizada" : "";
+      label.textContent = [room.name, room.mode_name || "Lobby", statusLabel].filter(Boolean).join(" · ");
       item.append(label);
       if (room.status === "active") {
         const open = document.createElement("button");
@@ -335,20 +342,23 @@ function resetCurrentRoomUi() {
   currentModeUI = null;
   isHost = false;
   isReady = false;
-  document.getElementById("active-room-name").classList.add("hidden");
+  document.getElementById("active-room-name")?.classList.add("hidden");
   btnForceCloseRoom.classList.add("hidden");
   btnFinishRoom.classList.add("hidden");
   inviteRoomMenu.open = false;
   inviteRoomMenu.classList.add("hidden");
-  document.getElementById("draft-grid").replaceChildren();
-  document.getElementById("draft-state").textContent = "";
-  document.getElementById("draft-subtitle").textContent = "Esperando que el draft comience...";
-  pickedList.replaceChildren();
-  document.getElementById("draft-picked").classList.add("hidden");
+  document.getElementById("draft-grid")?.replaceChildren();
+  const draftState = document.getElementById("draft-state");
+  if (draftState) draftState.textContent = "";
+  const draftSubtitle = document.getElementById("draft-subtitle");
+  if (draftSubtitle) draftSubtitle.textContent = "Esperando que el draft comience...";
+  pickedList?.replaceChildren();
+  document.getElementById("draft-picked")?.classList.add("hidden");
 }
 
 function setActiveRoomName(name) {
   const label = document.getElementById("active-room-name");
+  if (!label) return;
   label.textContent = `Sala: ${name || "Sala anterior"}`;
   label.classList.remove("hidden");
 }
@@ -479,7 +489,7 @@ function handleWebSocketMessage(msg) {
 
     case "room_closed":
       closeProfileMenu();
-      logEvent(data.finish_type === "forced" ? "La sala fue cerrada sin guardar historial." : "La sala finalizó.");
+      if (data.finish_type !== "forced") logEvent("La sala finalizó.");
       sessionClient.disconnect();
       btnForceCloseRoom.classList.add("hidden");
       btnFinishRoom.classList.add("hidden");
