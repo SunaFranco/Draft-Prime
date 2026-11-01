@@ -31,7 +31,6 @@ const btnLeave = document.getElementById("btn-leave");
 const btnForceCloseRoom = document.getElementById("btn-force-close-room");
 const btnFinishRoom = document.getElementById("btn-finish-room");
 const roomAdminActions = document.getElementById("room-admin-actions");
-const btnCopyLink = document.getElementById("btn-copy-link");
 const modeGrid = document.getElementById("mode-grid");
 const modeConfig = document.getElementById("mode-config");
 const btnConfigure = document.getElementById("btn-configure-mode");
@@ -45,8 +44,9 @@ const pickedList = document.getElementById("draft-picked-list");
 
 // ── Al cargar la página ───────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
-  const params = new URLSearchParams(window.location.search);
-  if (params.has("session")) document.getElementById("invite-banner").classList.add("hidden");
+  window.history.replaceState({}, "", window.location.pathname);
+  localStorage.removeItem("draft_prime_session_id");
+  localStorage.removeItem("draft_prime_username");
   const profile = await authClient.restore();
   sessionClient.setAccessToken(authClient.accessToken, async () => {
     const refreshed = await authClient.restore();
@@ -63,7 +63,6 @@ function renderAuthProfile(profile) {
   document.getElementById("auth-login-panel").classList.add("hidden");
   document.getElementById("auth-change-password-panel").classList.add("hidden");
   document.getElementById("auth-account-panel").classList.add("hidden");
-  document.getElementById("home-cards").classList.add("hidden");
   document.getElementById("auth-profile-name").textContent = profile.display_name;
   document.getElementById("auth-profile-username").textContent = `@${profile.username} · ${profile.email}`;
   document.getElementById("auth-profile-role").textContent = profile.is_admin ? "Admin" : "Jugador";
@@ -84,7 +83,6 @@ function showLoginPanel() {
   document.getElementById("auth-login-panel").classList.remove("hidden");
   document.getElementById("auth-change-password-panel").classList.add("hidden");
   document.getElementById("auth-account-panel").classList.add("hidden");
-  document.getElementById("home-cards").classList.add("hidden");
 }
 
 document.getElementById("auth-login-form").addEventListener("submit", async (event) => {
@@ -151,7 +149,6 @@ document.getElementById("admin-create-account-form").addEventListener("submit", 
 
 function logoutToLogin() {
   sessionClient.disconnect();
-  sessionClient.clearSavedSession();
   authClient.logout();
   sessionClient.setAccessToken(null, null);
   showLoginPanel();
@@ -174,8 +171,7 @@ btnForceCloseRoom.addEventListener("click", async () => {
   try {
     await sessionClient.closeRoom(sessionClient.currentSessionId, true);
     sessionClient.disconnect();
-    sessionClient.clearSavedSession();
-    window.history.pushState({}, "", window.location.pathname);
+    window.history.replaceState({}, "", window.location.pathname);
     showScreen("home");
     await refreshRoomDashboard();
   } catch (error) { logEvent(`❌ ${error.message}`); }
@@ -185,6 +181,18 @@ btnFinishRoom.addEventListener("click", async () => {
   try {
     await sessionClient.closeRoom(sessionClient.currentSessionId, false);
   } catch (error) { logEvent(`❌ ${error.message}`); }
+});
+document.getElementById("invite-room-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = document.getElementById("invite-room-username");
+  const username = input.value.trim();
+  const message = document.getElementById("invite-room-message");
+  message.textContent = "";
+  try {
+    await sessionClient.invite(sessionClient.currentSessionId, username);
+    message.textContent = `Invitación enviada a @${username}.`;
+    input.value = "";
+  } catch (error) { message.textContent = error.message; }
 });
 document.getElementById("room-invitations").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-invite-action]");
@@ -274,7 +282,6 @@ async function refreshRoomDashboard() {
 
 async function openRoom(sessionId) {
   const profile = authClient.profile;
-  window.history.pushState({}, "", `?session=${encodeURIComponent(sessionId)}`);
   document.getElementById("session-id-display").textContent = sessionId;
   const state = await sessionClient.getSession(sessionId);
   showScreen(state.started ? "draft" : "lobby");
@@ -295,7 +302,6 @@ async function connect(sessionId, username) {
       logEvent("Conectado a la sesión.");
       document.getElementById("session-id-display").textContent = sessionId;
       showScreen("lobby");
-      sessionClient.saveActiveSession(sessionId, username);
     },
     () => {
       setConnectionStatus("○ Desconectado", "offline");
@@ -402,9 +408,8 @@ function handleWebSocketMessage(msg) {
     case "room_closed":
       logEvent(data.finish_type === "forced" ? "La sala fue cerrada sin guardar historial." : "La sala finalizó.");
       sessionClient.disconnect();
-      sessionClient.clearSavedSession();
       roomAdminActions.classList.add("hidden");
-      window.history.pushState({}, "", window.location.pathname);
+      window.history.replaceState({}, "", window.location.pathname);
       showScreen("home");
       refreshRoomDashboard();
       break;
@@ -507,22 +512,11 @@ if (btnStartGame) {
 if (btnLeave) {
   btnLeave.addEventListener("click", () => {
     sessionClient.disconnect();
-    sessionClient.clearSavedSession();
     if (currentModeUI) currentModeUI.resetState();
     currentModeUI = null;
     currentModeKey = null;
     showScreen("home");
-    window.history.pushState({}, "", window.location.pathname);
-  });
-}
-
-if (btnCopyLink) {
-  btnCopyLink.addEventListener("click", () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      btnCopyLink.textContent = "¡Copiado!";
-      setTimeout(() => (btnCopyLink.textContent = "Copiar link"), 2000);
-    });
+    window.history.replaceState({}, "", window.location.pathname);
   });
 }
 

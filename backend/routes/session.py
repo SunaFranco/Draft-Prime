@@ -119,7 +119,6 @@ async def create_session(
 
     return {
         "session_id":  session_id,
-        "session_url": f"/?session={session_id}",
         **session_public_state(new_session),
     }
 

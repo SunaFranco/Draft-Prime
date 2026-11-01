@@ -123,13 +123,7 @@ header h1::after {
   box-shadow: 3px 3px 0px #000;
 }
 
-/* ── Home Screen Layout ────────────────────────────────────────────────────── */
-.home-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.75rem;
-}
-
+/* ── Account Screen Layout ─────────────────────────────────────────────────── */
 .auth-panel { width: min(100%, 680px); margin: 0 auto 1.5rem; }
 .auth-form { display: grid; gap: 0.65rem; }
 .auth-form input, .auth-form select { width: 100%; }
@@ -1915,7 +1909,6 @@ button.btn-danger:hover {
     padding: 1.25rem;
   }
 
-  .home-cards,
   .mode-grid,
   .auction-grid,
   .inventory-grid {
@@ -2436,6 +2429,10 @@ button.btn-danger:hover {
 .profile-record-list { display: grid; gap: .4rem; margin: .6rem 0 1rem; }
 .profile-record-item { padding: .6rem .75rem; border-left: 2px solid var(--accent); background: rgba(0, 0, 0, .18); overflow-wrap: anywhere; }
 .room-admin-actions { position: fixed; z-index: 30; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; max-width: calc(100vw - 2rem); padding: .65rem; border: 1px solid var(--accent); background: var(--panel, #08120e); box-shadow: 0 4px 24px rgba(0, 0, 0, .45); }
+.invite-room-form { display: grid; gap: .35rem; flex: 1 1 100%; color: var(--text); font-size: .85rem; }
+.invite-room-input-row { display: flex; gap: .4rem; }
+.invite-room-input-row input { min-width: 0; flex: 1; }
+#invite-room-message { color: var(--muted); overflow-wrap: anywhere; }
 .room-dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .my-rooms-list, #room-invitations { display: grid; gap: .7rem; margin: .8rem 0; }
 .room-dashboard-item { display: grid; gap: .6rem; padding: .85rem; border: 1px solid var(--accent); background: rgba(0, 0, 0, .2); min-width: 0; }

@@ -102,39 +102,6 @@
       </section>
     </section>
 
-    <!-- Banner de invitación (visible cuando hay ?session= en la URL) -->
-    <div id="invite-banner" class="card hidden" style="border-color: var(--accent);">
-      <h2>Te invitaron a una sesión</h2>
-      <p style="font-size: 0.9rem; color: var(--muted);">Sesión: <code id="invite-session-id" style="color: var(--text);"></code></p>
-      <label for="invite-username">Tu nombre</label>
-      <input id="invite-username" type="text" placeholder="Ej: Bob" maxlength="24" />
-      <button id="btn-join-invite">Unirse a la sala 🚀</button>
-      <p id="invite-error" class="error-msg"></p>
-    </div>
-
-    <div id="home-cards" class="home-cards hidden">
-
-      <!-- Crear sesión nueva -->
-      <div class="card">
-        <h2>Crear sesión</h2>
-        <label for="create-username">Tu nombre</label>
-        <input id="create-username" type="text" placeholder="Ej: Alice" maxlength="24" />
-        <button id="btn-create">Crear lobby</button>
-        <p id="create-error" class="error-msg"></p>
-      </div>
-
-      <!-- Unirse a sesión existente por ID manual -->
-      <div class="card">
-        <h2>Unirse con ID</h2>
-        <label for="join-username">Tu nombre</label>
-        <input id="join-username" type="text" placeholder="Ej: Bob" maxlength="24" />
-        <label for="join-session-id">ID de sesión</label>
-        <input id="join-session-id" type="text" placeholder="Ej: b43ce3c59eef" maxlength="12" />
-        <button id="btn-join">Unirse al lobby</button>
-        <p id="join-error" class="error-msg"></p>
-      </div>
-
-    </div>
   </div>
 
   <!-- ══ PANTALLA 2: Lobby ════════════════════════════════════════════════ -->
@@ -145,7 +112,6 @@
       <div class="session-info">
         <span>ID de sesión:</span>
         <code id="session-id-display"></code>
-        <button id="btn-copy-link" class="btn-small">Copiar link</button>
       </div>
       <p id="connection-status" class="conn-status">Conectando...</p>
     </div>
@@ -234,6 +200,14 @@
   </div>
 
   <aside id="room-admin-actions" class="room-admin-actions hidden" aria-label="Acciones de administrador de sala">
+    <form id="invite-room-form" class="invite-room-form">
+      <label for="invite-room-username">Invitar por usuario</label>
+      <div class="invite-room-input-row">
+        <input id="invite-room-username" type="text" minlength="3" maxlength="24" placeholder="Nombre de usuario" autocomplete="off" required />
+        <button type="submit" class="btn-small">Invitar</button>
+      </div>
+      <span id="invite-room-message" role="status"></span>
+    </form>
     <button id="btn-finish-room" class="hidden" type="button">Finalizar partida</button>
     <button id="btn-force-close-room" class="btn-danger hidden" type="button">Cerrar sin historial</button>
   </aside>
