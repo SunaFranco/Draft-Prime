@@ -396,6 +396,9 @@ if (modalClose) {
 
 if (btnTogglePicked) {
   btnTogglePicked.addEventListener("click", () => {
-    if (pickedList) pickedList.classList.toggle("hidden");
+    if (!pickedList) return;
+    const isOpening = pickedList.classList.contains("hidden");
+    pickedList.classList.toggle("hidden", !isOpening);
+    btnTogglePicked.setAttribute("aria-expanded", String(isOpening));
   });
 }

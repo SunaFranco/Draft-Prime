@@ -200,7 +200,7 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     }
 
     if (toggleBtn) {
-      toggleBtn.innerHTML = `Mis cartas elegidas (${this.currentPickedCards.length})`;
+      toggleBtn.innerHTML = `Mis cartas elegidas <span class="draft-picked-count">${this.currentPickedCards.length}</span><span class="draft-picked-chevron" aria-hidden="true">⌄</span>`;
     }
 
     list.innerHTML = "";
@@ -210,28 +210,66 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
       return;
     }
 
-    this.currentPickedCards.forEach((c) => {
-      const row = document.createElement("div");
-      row.className = "picked-card-row";
+    this.currentPickedCards.forEach((c, index) => {
+      const item = document.createElement("article");
+      item.className = "picked-card-item";
+      const stats = [
+        c.type,
+        c.race,
+        c.level !== undefined && c.level !== null ? `Nivel ${c.level} ★` : null,
+        c.atk !== undefined && c.atk !== null ? `ATK ${c.atk}` : null,
+        c.def !== undefined && c.def !== null ? `DEF ${c.def}` : null,
+      ].filter(Boolean).join(" · ");
+      const nameButton = document.createElement("button");
+      nameButton.className = "picked-card-name";
+      nameButton.type = "button";
+      nameButton.setAttribute("aria-expanded", "false");
+      nameButton.setAttribute("aria-controls", `picked-card-detail-${index}`);
+      const name = document.createElement("span");
+      name.textContent = c.name || "Carta sin nombre";
+      const chevron = document.createElement("span");
+      chevron.className = "picked-card-chevron";
+      chevron.setAttribute("aria-hidden", "true");
+      chevron.textContent = "⌄";
+      nameButton.append(name, chevron);
 
-      const hasImg = Boolean(c.image_url);
-      const thumbHtml = hasImg
-        ? `<img class="picked-card-thumb" src="${c.image_url}" alt="${c.name}" loading="lazy" />`
-        : `<div class="picked-card-thumb--fallback"><span>${c.name}</span></div>`;
-
-      row.innerHTML = `
-        <div class="picked-card-thumb-wrapper">${thumbHtml}</div>
-        <div class="picked-card-info">
-          <strong>${c.name}</strong>
-          <p>${c.type || "Yu-Gi-Oh!"} ${c.level ? "• " + c.level + "★" : ""}</p>
-        </div>
-      `;
-
-      row.addEventListener("click", () => {
-        this.openCardModal(c, sessionClient, false);
+      const detail = document.createElement("div");
+      detail.className = "picked-card-detail hidden";
+      detail.id = `picked-card-detail-${index}`;
+      let image;
+      if (c.image_url) {
+        image = document.createElement("img");
+        image.src = c.image_url;
+        image.alt = c.name || "Carta";
+        image.loading = "lazy";
+        image.className = "picked-card-detail-image";
+      } else {
+        image = document.createElement("div");
+        image.className = "picked-card-detail-image picked-card-detail-fallback";
+        image.textContent = c.name || "Carta sin imagen";
+      }
+      const info = document.createElement("div");
+      info.className = "picked-card-detail-info";
+      if (stats) {
+        const meta = document.createElement("p");
+        meta.className = "picked-card-detail-meta";
+        meta.textContent = stats;
+        info.appendChild(meta);
+      }
+      if (c.desc) {
+        const description = document.createElement("p");
+        description.className = "picked-card-detail-desc";
+        description.textContent = c.desc;
+        info.appendChild(description);
+      }
+      detail.append(image, info);
+      item.append(nameButton, detail);
+      nameButton.addEventListener("click", () => {
+        const opening = detail.classList.contains("hidden");
+        detail.classList.toggle("hidden", !opening);
+        nameButton.setAttribute("aria-expanded", String(opening));
       });
-
-      list.appendChild(row);
+      list.appendChild(item);
     });
   }
 
