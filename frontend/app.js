@@ -30,7 +30,8 @@ const btnReady = document.getElementById("btn-ready");
 const btnLeave = document.getElementById("btn-leave");
 const btnForceCloseRoom = document.getElementById("btn-force-close-room");
 const btnFinishRoom = document.getElementById("btn-finish-room");
-const roomAdminActions = document.getElementById("room-admin-actions");
+const appUserHeader = document.getElementById("app-user-header");
+const inviteRoomMenu = document.getElementById("invite-room-menu");
 const modeGrid = document.getElementById("mode-grid");
 const modeConfig = document.getElementById("mode-config");
 const btnConfigure = document.getElementById("btn-configure-mode");
@@ -41,12 +42,11 @@ const modalClose = document.getElementById("modal-close");
 const modalOverlay = document.getElementById("card-detail-modal");
 const btnTogglePicked = document.getElementById("btn-toggle-picked-cards");
 const pickedList = document.getElementById("draft-picked-list");
+const createRoomForm = document.getElementById("create-room-form");
 
 // ── Al cargar la página ───────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
   window.history.replaceState({}, "", window.location.pathname);
-  localStorage.removeItem("draft_prime_session_id");
-  localStorage.removeItem("draft_prime_username");
   const profile = await authClient.restore();
   sessionClient.setAccessToken(authClient.accessToken, async () => {
     const refreshed = await authClient.restore();
@@ -63,6 +63,7 @@ function renderAuthProfile(profile) {
   document.getElementById("auth-login-panel").classList.add("hidden");
   document.getElementById("auth-change-password-panel").classList.add("hidden");
   document.getElementById("auth-account-panel").classList.add("hidden");
+  appUserHeader.classList.add("hidden");
   document.getElementById("auth-profile-name").textContent = profile.display_name;
   document.getElementById("auth-profile-username").textContent = `@${profile.username} · ${profile.email}`;
   document.getElementById("auth-profile-role").textContent = profile.is_admin ? "Admin" : "Jugador";
@@ -74,15 +75,17 @@ function renderAuthProfile(profile) {
     return;
   }
 
+  appUserHeader.classList.remove("hidden");
   document.getElementById("auth-account-panel").classList.remove("hidden");
   document.getElementById("admin-create-account-panel").classList.toggle("hidden", !profile.is_admin);
-  document.getElementById("btn-create-room").classList.toggle("hidden", !profile.is_admin);
+  createRoomForm.classList.toggle("hidden", !profile.is_admin);
 }
 
 function showLoginPanel() {
   document.getElementById("auth-login-panel").classList.remove("hidden");
   document.getElementById("auth-change-password-panel").classList.add("hidden");
   document.getElementById("auth-account-panel").classList.add("hidden");
+  appUserHeader.classList.add("hidden");
 }
 
 document.getElementById("auth-login-form").addEventListener("submit", async (event) => {
@@ -149,6 +152,9 @@ document.getElementById("admin-create-account-form").addEventListener("submit", 
 
 function logoutToLogin() {
   sessionClient.disconnect();
+  resetCurrentRoomUi();
+  sessionClient.currentSessionId = null;
+  sessionClient.currentUsername = null;
   authClient.logout();
   sessionClient.setAccessToken(null, null);
   showLoginPanel();
@@ -157,11 +163,15 @@ function logoutToLogin() {
 document.getElementById("btn-auth-logout").addEventListener("click", logoutToLogin);
 document.getElementById("btn-auth-logout-forced").addEventListener("click", logoutToLogin);
 
-document.getElementById("btn-create-room").addEventListener("click", async () => {
+createRoomForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
   const error = document.getElementById("rooms-error");
   error.textContent = "";
   try {
-    const room = await sessionClient.createSession();
+    const roomName = document.getElementById("create-room-name").value.trim();
+    const room = await sessionClient.createSession(roomName);
+    form.reset();
     await openRoom(room.session_id);
   } catch (e) { error.textContent = e.message; }
 });
@@ -171,6 +181,10 @@ btnForceCloseRoom.addEventListener("click", async () => {
   try {
     await sessionClient.closeRoom(sessionClient.currentSessionId, true);
     sessionClient.disconnect();
+    inviteRoomMenu.open = false;
+    inviteRoomMenu.classList.add("hidden");
+    btnForceCloseRoom.classList.add("hidden");
+    btnFinishRoom.classList.add("hidden");
     window.history.replaceState({}, "", window.location.pathname);
     showScreen("home");
     await refreshRoomDashboard();
@@ -219,7 +233,7 @@ document.getElementById("my-rooms-list").addEventListener("click", async (event)
 
 async function refreshRoomDashboard() {
   if (!authClient.profile || authClient.profile.must_change_password) return;
-  document.getElementById("btn-create-room").classList.toggle("hidden", !authClient.profile.is_admin);
+  createRoomForm.classList.toggle("hidden", !authClient.profile.is_admin);
   const error = document.getElementById("rooms-error");
   error.textContent = "";
   try {
@@ -232,7 +246,7 @@ async function refreshRoomDashboard() {
       const item = document.createElement("article");
       item.className = "room-dashboard-item";
       const label = document.createElement("strong");
-      label.textContent = `Sala ${room.session_id} · ${room.mode_name || "Lobby"} · ${room.status}`;
+      label.textContent = `${room.name} · ${room.mode_name || "Lobby"} · ${room.status}`;
       item.append(label);
       if (room.status === "active") {
         const open = document.createElement("button");
@@ -253,7 +267,7 @@ async function refreshRoomDashboard() {
     invites.innerHTML = "";
     for (const invite of invitesData.invites) {
       const item = document.createElement("article"); item.className = "room-dashboard-item";
-      const label = document.createElement("strong"); label.textContent = `Invitación a sala ${invite.session_id} de @${invite.inviter?.username || "admin"}`;
+      const label = document.createElement("strong"); label.textContent = `Invitación a “${invite.room_name || "Sala anterior"}” de @${invite.inviter?.username || "admin"}`;
       const accept = document.createElement("button"); accept.className = "btn-small"; accept.type = "button"; accept.dataset.inviteAction = "accept"; accept.dataset.inviteId = invite.id; accept.textContent = "Aceptar";
       const decline = document.createElement("button"); decline.className = "btn-small btn-danger"; decline.type = "button"; decline.dataset.inviteAction = "decline"; decline.dataset.inviteId = invite.id; decline.textContent = "Rechazar";
       item.append(label, accept, decline); invites.append(item);
@@ -272,21 +286,47 @@ async function refreshRoomDashboard() {
     historyList.innerHTML = "";
     for (const entry of historyData.history) {
       const item = document.createElement("div"); item.className = "profile-record-item";
-      item.textContent = `${entry.mode || "Sala"} · ${new Date(entry.finished_at).toLocaleDateString()} · ${entry.session_id}`;
+      item.textContent = `${entry.room_name || "Sala anterior"} · ${entry.mode || "Sala"} · ${new Date(entry.finished_at).toLocaleDateString()}`;
       historyList.append(item);
     }
     if (!historyData.history.length) historyList.textContent = "Todavía no hay salas finalizadas en tu historial.";
-    document.getElementById("btn-create-room").classList.toggle("hidden", !authClient.profile.is_admin);
+    createRoomForm.classList.toggle("hidden", !authClient.profile.is_admin);
   } catch (e) { error.textContent = e.message; }
 }
 
 async function openRoom(sessionId) {
+  sessionClient.disconnect();
+  resetCurrentRoomUi();
   const profile = authClient.profile;
-  document.getElementById("session-id-display").textContent = sessionId;
   const state = await sessionClient.getSession(sessionId);
+  setActiveRoomName(state.name);
   showScreen(state.started ? "draft" : "lobby");
   renderPlayers(state.players, state.host, profile.username);
   await connect(sessionId, profile.username);
+}
+
+function resetCurrentRoomUi() {
+  if (currentModeUI) currentModeUI.resetState();
+  currentModeKey = null;
+  currentModeUI = null;
+  isHost = false;
+  isReady = false;
+  document.getElementById("active-room-name").classList.add("hidden");
+  btnForceCloseRoom.classList.add("hidden");
+  btnFinishRoom.classList.add("hidden");
+  inviteRoomMenu.open = false;
+  inviteRoomMenu.classList.add("hidden");
+  document.getElementById("draft-grid").replaceChildren();
+  document.getElementById("draft-state").textContent = "";
+  document.getElementById("draft-subtitle").textContent = "Esperando que el draft comience...";
+  pickedList.replaceChildren();
+  document.getElementById("draft-picked").classList.add("hidden");
+}
+
+function setActiveRoomName(name) {
+  const label = document.getElementById("active-room-name");
+  label.textContent = `Sala: ${name || "Sala anterior"}`;
+  label.classList.remove("hidden");
 }
 
 // ── Conexión WebSocket ────────────────────────────────────────────────────
@@ -300,7 +340,6 @@ async function connect(sessionId, username) {
     () => {
       setConnectionStatus("● En línea", "online");
       logEvent("Conectado a la sesión.");
-      document.getElementById("session-id-display").textContent = sessionId;
       showScreen("lobby");
     },
     () => {
@@ -324,15 +363,18 @@ function handleWebSocketMessage(msg) {
   const data = msg.data || {};
 
   if (event === "session_state") {
+    setActiveRoomName(data.name);
     isHost = data.can_control === true;
-    roomAdminActions.classList.toggle("hidden", !isHost);
     btnForceCloseRoom.classList.toggle("hidden", !isHost);
+    inviteRoomMenu.classList.toggle("hidden", !isHost);
     const naturallyFinished = Boolean(data.draft_state?.finished || data.event_finished);
     btnFinishRoom.classList.toggle("hidden", !isHost || !naturallyFinished);
 
-    if (data.mode) {
-      currentModeKey = data.mode;
-      currentModeUI = modeUIRegistry[data.mode] || null;
+    const nextModeKey = data.mode || null;
+    if (nextModeKey !== currentModeKey) {
+      if (currentModeUI) currentModeUI.resetState();
+      currentModeKey = nextModeKey;
+      currentModeUI = nextModeKey ? modeUIRegistry[nextModeKey] || null : null;
     }
   }
 
@@ -379,11 +421,16 @@ function handleWebSocketMessage(msg) {
       break;
 
     case "mode_selection":
+      inviteRoomMenu.open = false;
       showScreen("mode");
       renderModeSelection(data.available_modes);
       break;
 
     case "mode_config":
+      inviteRoomMenu.open = false;
+      if (currentModeKey !== data.mode && currentModeUI) currentModeUI.resetState();
+      currentModeKey = data.mode || null;
+      currentModeUI = currentModeKey ? modeUIRegistry[currentModeKey] || null : null;
       setupModeConfig(data);
       break;
 
@@ -395,6 +442,7 @@ function handleWebSocketMessage(msg) {
       break;
 
     case "draft_started":
+      inviteRoomMenu.open = false;
       showScreen("draft");
       logEvent("¡La partida ha comenzado!");
       break;
@@ -408,7 +456,11 @@ function handleWebSocketMessage(msg) {
     case "room_closed":
       logEvent(data.finish_type === "forced" ? "La sala fue cerrada sin guardar historial." : "La sala finalizó.");
       sessionClient.disconnect();
-      roomAdminActions.classList.add("hidden");
+      btnForceCloseRoom.classList.add("hidden");
+      btnFinishRoom.classList.add("hidden");
+      inviteRoomMenu.open = false;
+      inviteRoomMenu.classList.add("hidden");
+      resetCurrentRoomUi();
       window.history.replaceState({}, "", window.location.pathname);
       showScreen("home");
       refreshRoomDashboard();
@@ -432,6 +484,7 @@ function updatePlayersAndHost(players, host) {
   const me = playerList.find((p) => p && p.username === sessionClient.currentUsername);
   isHost = Boolean(me && me.is_admin);
   btnForceCloseRoom.classList.toggle("hidden", !isHost);
+  inviteRoomMenu.classList.toggle("hidden", !isHost);
   if (me) {
     isReady = me.ready;
     btnReady.textContent = isReady ? "Cancelar Listo" : "Listo ✓";
@@ -512,9 +565,12 @@ if (btnStartGame) {
 if (btnLeave) {
   btnLeave.addEventListener("click", () => {
     sessionClient.disconnect();
-    if (currentModeUI) currentModeUI.resetState();
-    currentModeUI = null;
-    currentModeKey = null;
+    isHost = false;
+    btnForceCloseRoom.classList.add("hidden");
+    btnFinishRoom.classList.add("hidden");
+    inviteRoomMenu.open = false;
+    inviteRoomMenu.classList.add("hidden");
+    resetCurrentRoomUi();
     showScreen("home");
     window.history.replaceState({}, "", window.location.pathname);
   });

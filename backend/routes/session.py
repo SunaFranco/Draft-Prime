@@ -47,6 +47,7 @@ def get_cube_card_pool(cube_key: str) -> List[dict]:
 
 
 class CreateSessionRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
     max_players: int = Field(default=4, ge=2, le=8)
 
 
@@ -72,15 +73,24 @@ async def create_session(
     """
     profile = auth["profile"]
     username = profile["username"]
+    room_name = data.name.strip()
+    if not room_name:
+        raise HTTPException(status_code=422, detail="El nombre de la sala no puede estar vacío.")
 
     session_id = make_session_id()
 
-    while session_id in sessions:
+    while session_id in sessions or (
+        database.supabase_client
+        and database.supabase_client.table("game_sessions").select("session_id").eq(
+            "session_id", session_id
+        ).limit(1).execute().data
+    ):
         session_id = make_session_id()
 
     now_ts = datetime.utcnow().timestamp()
     new_session = {
         "id":            session_id,
+        "name":          room_name,
         "host":          username,
         "created_by":    profile["id"],
         "status":        "active",
@@ -167,8 +177,10 @@ def list_my_rooms(auth: dict = Depends(get_current_auth_user)):
             continue
         rooms.append({
             "session_id": session["id"],
+            "name": session.get("name") or "Sala anterior",
             "status": session.get("status", "active"),
             "mode": session.get("mode"),
+            "mode_name": registry.get_mode_name(session.get("mode")) if session.get("mode") else None,
             "players": session.get("players", []),
             "created_at": session.get("created_at"),
         })
@@ -189,6 +201,7 @@ def list_pending_invites(auth: dict = Depends(get_current_auth_user)):
         invite["inviter"] = inviter[0]
         session = get_or_restore_session(invite["session_id"])
         invite["room_status"] = session.get("status", "active") if session else "missing"
+        invite["room_name"] = session.get("name") if session else "Sala anterior"
     return {"invites": invites}
 
 
@@ -318,6 +331,7 @@ async def _close_room(session_id: str, auth: dict, forced: bool) -> dict:
         for member in members:
             database.supabase_client.table("user_room_history").upsert({
                 "session_id": session_id,
+                "room_name": session.get("name") or "Sala anterior",
                 "user_id": member["user_id"],
                 "mode": session.get("mode"),
                 "started_at": session.get("created_at"),

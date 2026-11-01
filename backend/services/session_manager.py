@@ -84,8 +84,8 @@ _websocket_tickets: Dict[str, dict] = {}
 
 
 def make_session_id() -> str:
-    """Genera un ID de sesión de 12 caracteres hex."""
-    return secrets.token_hex(6)
+    """Genera un ID de sesión de 32 caracteres hex (128 bits)."""
+    return secrets.token_hex(16)
 
 
 def issue_websocket_ticket(session_id: str, auth: dict) -> str:
@@ -161,6 +161,7 @@ def session_public_state(session: dict, target_username: Optional[str] = None) -
     mode_key = session.get("mode")
     state = {
         "id":            session["id"],
+        "name":          session.get("name") or "Sala anterior",
         "host":          session["host"],
         "can_control":   can_control_room(session, target_username) if target_username else False,
         "players":       session["players"],

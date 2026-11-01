@@ -197,7 +197,7 @@ def get_me(auth: dict[str, Any] = Depends(get_current_auth_user)) -> dict[str, A
 def get_my_room_history(auth: dict[str, Any] = Depends(get_current_auth_user)) -> dict[str, Any]:
     client = _get_service_client()
     result = client.table("user_room_history").select(
-        "session_id, mode, started_at, finished_at, result_summary"
+        "session_id, room_name, mode, started_at, finished_at, result_summary"
     ).eq("user_id", auth["user"].id).order("finished_at", desc=True).execute()
     return {"history": result.data or []}
 

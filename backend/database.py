@@ -166,6 +166,7 @@ def save_full_session(session: dict) -> None:
 
     session_payload = {
         "id": session_id,
+        "name": session.get("name"),
         "host": session.get("host"),
         "created_by": session.get("created_by"),
         "status": session.get("status", "active"),

@@ -35,7 +35,7 @@ export class SessionClient {
     return data;
   }
 
-  createSession(maxPlayers = 4) { return this._request("/create", { method: "POST", body: { max_players: maxPlayers } }); }
+  createSession(name, maxPlayers = 4) { return this._request("/create", { method: "POST", body: { name, max_players: maxPlayers } }); }
 
   getSession(sessionId) { return this._request(`/${encodeURIComponent(sessionId)}`); }
   getMyRooms() { return this._request("/mine/rooms"); }
