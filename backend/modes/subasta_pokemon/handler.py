@@ -897,6 +897,17 @@ class SubastaPokemonMode(BaseGameMode):
             "total_player_count": len(subasta_state["players"]),
             "negative_players": [u for u, p in subasta_state["players"].items() if p.get("money", 0) < 0],
         }
+        standings = subasta_state.get("standings", [])
+        highest_score = max((int(row.get("points", 0)) for row in standings), default=None)
+        trophy_winners = [
+            row.get("username") for row in standings
+            if highest_score is not None and int(row.get("points", 0)) == highest_score
+        ]
+        saved_trophy_selections = subasta_state.get("trophy_selections", {})
+        trophy_selections_complete = all(
+            len((saved_trophy_selections.get(winner) or {}).get("pokemon_ids", [])) == 6
+            for winner in trophy_winners
+        ) if trophy_winners else False
 
         return {
             "stage": current_stage,
@@ -914,9 +925,17 @@ class SubastaPokemonMode(BaseGameMode):
             "current_auction": current_auction,
             "current_turn_event": subasta_state.get("current_turn_events", {}).get(username),
             "showdown_text": showdown_text,
-            "standings": subasta_state.get("standings", []),
+            "standings": standings,
             "match_history": subasta_state.get("match_history", []),
             "event_finished": subasta_state.get("event_finished", False),
+            "trophy_winners": trophy_winners,
+            "trophy_winner_statuses": [
+                {"username": winner, "selected": len((saved_trophy_selections.get(winner) or {}).get("pokemon_ids", [])) == 6}
+                for winner in trophy_winners
+            ],
+            "is_trophy_winner": username in trophy_winners,
+            "trophy_selection": copy.deepcopy(saved_trophy_selections.get(username)),
+            "trophy_ready_to_close": trophy_selections_complete,
             "removed_pokemon": subasta_state.get("removed_pokemon", []),
             "trade_session": subasta_state.get("trade_session"),
             "year_pools": subasta_state.get("year_pools", {}),
@@ -1773,6 +1792,45 @@ class SubastaPokemonMode(BaseGameMode):
             )
             subasta_state["standings"] = sorted_standings
 
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_save_trophy_selection":
+            if subasta_state.get("current_stage") != 13 or not subasta_state.get("event_finished"):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "La selección de trofeo solo está disponible al finalizar el evento."}})
+                return True
+            standings = subasta_state.get("standings", [])
+            highest_score = max((int(row.get("points", 0)) for row in standings), default=None)
+            winners = [row.get("username") for row in standings if highest_score is not None and int(row.get("points", 0)) == highest_score]
+            if username not in winners:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo el ganador puede elegir sus Pokémon para el trofeo."}})
+                return True
+
+            raw_indices = message.get("pokemon_indices", [])
+            try:
+                indices = [int(index) for index in raw_indices]
+            except (TypeError, ValueError):
+                indices = []
+            owned_pokemon = subasta_state.get("players", {}).get(username, {}).get("pokemon", [])
+            if len(indices) != 6 or len(set(indices)) != 6 or any(index < 0 or index >= len(owned_pokemon) for index in indices):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Elige exactamente seis Pokémon de tu colección."}})
+                return True
+            selected_ids = []
+            for index in indices:
+                try:
+                    pokemon_id = int(owned_pokemon[index].get("id"))
+                except (AttributeError, TypeError, ValueError):
+                    pokemon_id = 0
+                if pokemon_id <= 0:
+                    await manager.send_personal(websocket, {"event": "error", "data": {"message": "Uno de tus Pokémon no tiene un ID válido para el trofeo."}})
+                    return True
+                selected_ids.append(pokemon_id)
+            subasta_state.setdefault("trophy_selections", {})[username] = {
+                "pokemon_indices": indices,
+                "pokemon_ids": selected_ids,
+                "pokemon_names": [owned_pokemon[index].get("name", "Pokémon") for index in indices],
+            }
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
             return True

@@ -307,7 +307,7 @@ async function refreshRoomDashboard() {
       const pokemonNames = { 493: "Arceus", 142: "Aerodactyl", 452: "Drapion", 904: "Overqwil", 28: "Sandslash", 330: "Flygon" };
       const sprites = document.createElement("span");
       sprites.className = "trophy-pokemon-sprites";
-      for (const pokemonId of trophy.pokemon_ids || []) {
+      for (const pokemonId of entry.pokemon_ids || trophy.pokemon_ids || []) {
         const img = document.createElement("img");
         const id = Number(pokemonId);
         img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/${id}.png`;
@@ -407,13 +407,24 @@ async function connect(sessionId, username) {
 function handleWebSocketMessage(msg) {
   const event = msg.event;
   const data = msg.data || {};
+  if (event === "session_state" || event === "subasta_state_update") {
+    const modeState = event === "session_state" ? (data.draft_state || data) : data;
+    const isSubasta = (data.mode || currentModeKey) === "subasta_pokemon";
+    const trophySelectionPending = isSubasta
+      && modeState.event_finished === true
+      && modeState.trophy_ready_to_close === false;
+    btnFinishRoom.disabled = Boolean(trophySelectionPending);
+    btnFinishRoom.title = trophySelectionPending
+      ? "Cada ganador debe guardar seis Pokémon para su trofeo."
+      : "";
+  }
 
   if (event === "session_state") {
     setActiveRoomName(data.name);
     isHost = data.can_control === true;
     btnForceCloseRoom.classList.toggle("hidden", !isHost);
     inviteRoomMenu.classList.toggle("hidden", !isHost);
-    const naturallyFinished = Boolean(data.draft_state?.finished || data.event_finished);
+    const naturallyFinished = Boolean(data.draft_state?.finished || data.draft_state?.event_finished || data.event_finished);
     btnFinishRoom.classList.toggle("hidden", !isHost || !naturallyFinished);
 
     const nextModeKey = data.mode || null;
@@ -427,7 +438,7 @@ function handleWebSocketMessage(msg) {
   if (event === "draft_finished" || event === "draft_complete" || event === "event_finished") {
     if (isHost) btnFinishRoom.classList.remove("hidden");
   }
-  if (isHost && (data.finished === true || data.event_finished === true || data.draft_state?.finished === true)) {
+  if (isHost && (data.finished === true || data.event_finished === true || data.draft_state?.finished === true || data.draft_state?.event_finished === true)) {
     btnFinishRoom.classList.remove("hidden");
   }
 

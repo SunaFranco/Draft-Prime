@@ -206,7 +206,7 @@ def get_my_room_history(auth: dict[str, Any] = Depends(get_current_auth_user)) -
 def get_my_trophies(auth: dict[str, Any] = Depends(get_current_auth_user)) -> dict[str, Any]:
     client = _get_service_client()
     result = client.table("user_trophies").select(
-        "earned_at, source_session_id, trophies(id, title, description, icon_key, pokemon_ids)"
+        "earned_at, source_session_id, pokemon_ids, trophies(id, title, description, icon_key, pokemon_ids)"
     ).eq("user_id", auth["user"].id).order("earned_at", desc=True).execute()
     return {"trophies": result.data or []}
 

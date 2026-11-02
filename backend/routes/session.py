@@ -307,6 +307,7 @@ async def _close_room(session_id: str, auth: dict, forced: bool) -> dict:
         raise HTTPException(status_code=403, detail="Solo un admin participante puede cerrar la sala.")
     if session.get("status", "active") != "active":
         raise HTTPException(status_code=410, detail="La sala ya está cerrada.")
+    trophy_winners = []
     if not forced:
         naturally_finished = (
             bool(session.get("draft", {}).get("finished"))
@@ -319,12 +320,58 @@ async def _close_room(session_id: str, auth: dict, forced: bool) -> dict:
         if not naturally_finished:
             raise HTTPException(status_code=409, detail="La partida todavía no figura como finalizada.")
 
-    now = datetime.utcnow().isoformat()
-    session["status"] = "finished_forced" if forced else "finished_natural"
-    session["finish_type"] = "forced" if forced else "natural"
-    session["finished_at"] = now
+        if session.get("mode") == "subasta_pokemon":
+            subasta_state = session.get("subasta", {})
+            standings = subasta_state.get("standings", [])
+            highest_score = max((int(row.get("points", 0)) for row in standings), default=None)
+            trophy_winners = [
+                row.get("username") for row in standings
+                if highest_score is not None and int(row.get("points", 0)) == highest_score
+            ]
+            selections = subasta_state.get("trophy_selections", {})
+            if not trophy_winners or any(
+                len((selections.get(username) or {}).get("pokemon_ids", [])) != 6
+                for username in trophy_winners
+            ):
+                raise HTTPException(status_code=409, detail="Todos los ganadores deben guardar seis Pokémon para el trofeo antes del cierre natural.")
 
+    now = datetime.utcnow().isoformat()
     if not forced and database.supabase_client:
+        if trophy_winners:
+            trophy_id = f"subasta_{session_id}"
+            try:
+                database.supabase_client.table("trophies").upsert({
+                    "id": trophy_id,
+                    "title": session.get("name") or "Sala anterior",
+                    "description": f"Trofeo por ganar {session.get('name') or 'la sala'}.",
+                    "icon_key": "🏅",
+                    "pokemon_ids": [],
+                }, on_conflict="id").execute()
+                for username in trophy_winners:
+                    player = next((item for item in session.get("players", []) if item.get("username") == username), None)
+                    selection = subasta_state["trophy_selections"][username]
+                    if not player or not player.get("user_id"):
+                        raise ValueError(f"No se pudo asociar el ganador {username} con su perfil.")
+                    existing_award = database.supabase_client.table("user_trophies").select(
+                        "user_id, trophy_id, earned_at"
+                    ).eq("user_id", player["user_id"]).eq("source_session_id", session_id).limit(1).execute().data or []
+                    award_data = {
+                        "user_id": player["user_id"],
+                        "trophy_id": trophy_id,
+                        "source_session_id": session_id,
+                        "pokemon_ids": selection["pokemon_ids"],
+                    }
+                    if existing_award:
+                        database.supabase_client.table("user_trophies").update({
+                            "pokemon_ids": selection["pokemon_ids"],
+                        }).eq("user_id", player["user_id"]).eq("trophy_id", trophy_id).eq(
+                            "earned_at", existing_award[0]["earned_at"]
+                        ).execute()
+                    else:
+                        database.supabase_client.table("user_trophies").insert(award_data).execute()
+            except Exception as error:
+                raise HTTPException(status_code=503, detail="No se pudo guardar el trofeo. La sala sigue abierta; vuelve a intentar el cierre.") from error
+
         members = database.supabase_client.table("game_session_members").select("user_id").eq(
             "session_id", session_id
         ).execute().data or []
@@ -338,6 +385,10 @@ async def _close_room(session_id: str, auth: dict, forced: bool) -> dict:
                 "finished_at": now,
                 "result_summary": {},
             }, on_conflict="session_id,user_id").execute()
+
+    session["status"] = "finished_forced" if forced else "finished_natural"
+    session["finish_type"] = "forced" if forced else "natural"
+    session["finished_at"] = now
 
     save_full_session(session)
     await manager.broadcast(session_id, {

@@ -916,6 +916,29 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     }
 
+    const trophyCheckboxes = Array.from(document.querySelectorAll(".trophy-pokemon-checkbox"));
+    const trophyCount = document.getElementById("trophy-selection-count");
+    const saveTrophySelection = document.getElementById("btn-save-trophy-selection");
+    const updateTrophySelectionControls = () => {
+      const checked = trophyCheckboxes.filter((checkbox) => checkbox.checked);
+      if (trophyCount) trophyCount.textContent = String(checked.length);
+      if (saveTrophySelection) saveTrophySelection.disabled = checked.length !== 6;
+      if (checked.length >= 6) {
+        trophyCheckboxes.filter((checkbox) => !checkbox.checked).forEach((checkbox) => { checkbox.disabled = true; });
+      } else {
+        trophyCheckboxes.forEach((checkbox) => { checkbox.disabled = false; });
+      }
+    };
+    trophyCheckboxes.forEach((checkbox) => checkbox.addEventListener("change", updateTrophySelectionControls));
+    if (saveTrophySelection) {
+      updateTrophySelectionControls();
+      saveTrophySelection.addEventListener("click", () => {
+        const pokemonIndices = trophyCheckboxes.filter((checkbox) => checkbox.checked).map((checkbox) => Number(checkbox.value));
+        if (pokemonIndices.length !== 6) return;
+        sessionClient.send({ action: "subasta_save_trophy_selection", pokemon_indices: pokemonIndices });
+      });
+    }
+
     // Registrar Resultado de Enfrentamiento (Admin / Host)
     const btnSubmitMatch = document.getElementById("btn-submit-match");
     if (btnSubmitMatch) {

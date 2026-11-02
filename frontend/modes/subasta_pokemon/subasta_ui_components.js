@@ -1007,7 +1007,12 @@ export function renderExportView(data, sessionClient, isHost, lockedText = null,
 export function renderAdminAndStandingsView(data, sessionClient, isHost) {
   const standings = data.standings || [];
   const winner = standings[0];
+  const coWinners = winner ? standings.filter((standing) => standing.points === winner.points) : [];
   const removedPokemon = data.removed_pokemon || [];
+  const trophyPokemon = data.my_data?.pokemon || [];
+  const selectedIndices = data.trophy_selection?.pokemon_indices || [];
+  const canChooseTrophy = data.event_finished && data.is_trophy_winner;
+  const selectedCount = selectedIndices.length;
 
   return `
     <div class="card standings-card">
@@ -1017,8 +1022,29 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
       ${data.event_finished && winner ? `
         <div class="secret-choice-modal">
           <h2>🏆 Evento finalizado</h2>
-          <p>El ganador es <strong>${winner.username}</strong> con <strong>${winner.points} pts</strong>.</p>
+          <p>${coWinners.length > 1 ? "Los ganadores son" : "El ganador es"} <strong>${coWinners.map((standing) => escapeHtml(standing.username)).join(", ")}</strong> con <strong>${winner.points} pts</strong>.</p>
         </div>
+      ` : ""}
+
+      ${canChooseTrophy ? `
+        <section class="trophy-selection-panel">
+          <h3>🏅 Elige seis Pokémon para tu trofeo</h3>
+          <p>Seleccionados: <strong id="trophy-selection-count">${selectedCount}</strong>/6. Puedes cambiar tu selección hasta que se cierre la sala naturalmente.</p>
+          ${trophyPokemon.length < 6 ? `<p class="error-message">Necesitas tener al menos seis Pokémon en tu colección.</p>` : `
+            <div class="trophy-pokemon-grid">
+              ${trophyPokemon.map((pokemon, index) => `
+                <label class="trophy-pokemon-option">
+                  <input type="checkbox" class="trophy-pokemon-checkbox" value="${index}" ${selectedIndices.includes(index) ? "checked" : ""}>
+                  ${pokemon.image_url ? `<img src="${escapeHtml(pokemon.image_url)}" alt="" loading="lazy">` : ""}
+                  <span>${escapeHtml(pokemon.name || "Pokémon")}</span>
+                </label>
+              `).join("")}
+            </div>
+            <button id="btn-save-trophy-selection" class="btn-primary" ${selectedCount !== 6 ? "disabled" : ""}>Guardar selección</button>
+            ${data.trophy_selection ? `<p class="success-message">Selección guardada. Puedes volver a guardarla si quieres cambiarla.</p>` : ""}
+          `}
+          <p>${(data.trophy_winner_statuses || []).filter((winnerStatus) => winnerStatus.username !== sessionClient.currentUsername).map((winnerStatus) => `${escapeHtml(winnerStatus.username)}: ${winnerStatus.selected ? "selección lista" : "esperando selección"}`).join(" · ")}</p>
+        </section>
       ` : ""}
 
       ${data.event_finished ? `
