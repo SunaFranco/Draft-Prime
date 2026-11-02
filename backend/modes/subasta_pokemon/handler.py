@@ -824,6 +824,43 @@ class SubastaPokemonMode(BaseGameMode):
         current_stage = subasta_state.get("current_stage", 2)
         current_year = subasta_state.get("current_year", 1)
         current_turn = subasta_state.get("current_turn", 1)
+        raw_auction = subasta_state.get("current_auction") or {}
+        if (
+            current_stage in (2, 6, 10)
+            and raw_auction.get("pokemon")
+            and not raw_auction.get("finished")
+            and not raw_auction.get("winner")
+        ):
+            player_order = subasta_state.get("player_order", list(subasta_state.get("players", {})))
+            folded = set(raw_auction.get("folded_players", []))
+            no_touch = set(raw_auction.get("no_touch_players", []))
+            active_players = [name for name in player_order if name not in folded and name not in no_touch]
+            valid_high_bidder = raw_auction.get("high_bidder") in active_players
+            valid_opening_price = int(raw_auction.get("current_bid") or 0) > 0
+            if not valid_high_bidder or not valid_opening_price:
+                assigned_player = raw_auction.get("assigned_player")
+                if assigned_player not in active_players:
+                    if active_players:
+                        turn_index = int(subasta_state.get("auction_turn_index", 0)) % max(1, len(player_order))
+                        assigned_player = next(
+                            (player_order[(turn_index + offset) % len(player_order)] for offset in range(len(player_order))
+                             if player_order[(turn_index + offset) % len(player_order)] in active_players),
+                            active_players[0],
+                        )
+                    else:
+                        # Recupera una ronda corrupta sin dejar a todos retirados.
+                        raw_auction["folded_players"] = []
+                        raw_auction["no_touch_players"] = []
+                        folded.clear()
+                        no_touch.clear()
+                        active_players = list(player_order)
+                        assigned_player = active_players[0] if active_players else None
+                tier = raw_auction.get("phase_tier", subasta_state.get("current_phase_tier", "normal"))
+                fallback_price = 80000 if tier == "mega" else 100000 if tier == "legendary" else 50000
+                raw_auction["high_bidder"] = assigned_player
+                raw_auction["current_bid"] = int(raw_auction.get("base_price") or fallback_price)
+                raw_auction.setdefault("assigned_player", assigned_player)
+                save_game_session(session["id"], self.key, subasta_state)
         current_auction = copy.deepcopy(subasta_state.get("current_auction", {}))
         radar_types = player_data.get("pokeradar_types") or []
         radar_active = player_data.get("pokeradar_year") == current_year and bool(radar_types)
@@ -1143,6 +1180,44 @@ class SubastaPokemonMode(BaseGameMode):
         subasta_state = session.get("subasta")
         if not subasta_state:
             return False
+
+        # Algunas salas que ya estaban activas pueden conservar una subasta antigua
+        # sin pujador ni precio. Repara el estado antes de procesar pujas o retiros.
+        active_auction = subasta_state.get("current_auction") or {}
+        if (
+            subasta_state.get("current_stage") in (2, 6, 10)
+            and active_auction.get("pokemon")
+            and not active_auction.get("finished")
+            and not active_auction.get("winner")
+            and (
+                active_auction.get("high_bidder") not in subasta_state.get("player_order", [])
+                or active_auction.get("high_bidder") in active_auction.get("folded_players", [])
+                or active_auction.get("high_bidder") in active_auction.get("no_touch_players", [])
+                or int(active_auction.get("current_bid") or 0) <= 0
+            )
+        ):
+            player_order = subasta_state.get("player_order", [])
+            excluded = set(active_auction.get("folded_players", [])) | set(active_auction.get("no_touch_players", []))
+            eligible = [player_name for player_name in player_order if player_name not in excluded]
+            assigned_player = active_auction.get("assigned_player")
+            if assigned_player not in eligible:
+                turn_index = int(subasta_state.get("auction_turn_index", 0)) % max(1, len(player_order))
+                assigned_player = next(
+                    (player_order[(turn_index + offset) % len(player_order)] for offset in range(len(player_order))
+                     if player_order[(turn_index + offset) % len(player_order)] in eligible),
+                    eligible[0] if eligible else (player_order[0] if player_order else username),
+                )
+            if not eligible:
+                active_auction["folded_players"] = []
+                active_auction["no_touch_players"] = []
+            else:
+                active_auction["folded_players"] = [name for name in active_auction.get("folded_players", []) if name != assigned_player]
+            active_auction["assigned_player"] = assigned_player
+            active_auction["high_bidder"] = assigned_player
+            tier = active_auction.get("phase_tier", subasta_state.get("current_phase_tier", "normal"))
+            fallback_price = 80000 if tier == "mega" else 100000 if tier == "legendary" else 50000
+            active_auction["current_bid"] = int(active_auction.get("base_price") or fallback_price)
+            save_game_session(session_id, self.key, subasta_state)
 
         # ── Acciones de Subasta ──────────────────────────────────────────────
         if action == "subasta_create_pokemon_box":
