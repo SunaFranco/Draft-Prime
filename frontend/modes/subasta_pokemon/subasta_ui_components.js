@@ -1829,3 +1829,320 @@ export function showBoxOddsModal(boxName) {
     if (e.target === overlay) closeModal();
   });
 }
+
+
+// ==========================================
+// FASE DE FARMEO (EXPEDICIONES)
+// ==========================================
+
+export const FARMING_ZONES_CONFIG = {
+  minas: {
+    key: "minas",
+    name: "Minas",
+    icon: "⛏️",
+    types: ["Tierra", "Roca", "Acero"],
+    rawTypes: ["ground", "rock", "steel", "tierra", "roca", "acero"],
+    description: "Piedras evolutivas y minerales",
+    color: "#b07d56",
+  },
+  bosques: {
+    key: "bosques",
+    name: "Bosques",
+    icon: "🌲",
+    types: ["Planta", "Bicho", "Hada"],
+    rawTypes: ["grass", "bug", "fairy", "planta", "bicho", "hada"],
+    description: "Bayas y restos naturales",
+    color: "#4caf50",
+  },
+  ciudad: {
+    key: "ciudad",
+    name: "Ciudad",
+    icon: "🏙️",
+    types: ["Normal", "Eléctrico", "Fuego"],
+    rawTypes: ["normal", "electric", "fire", "electrico", "eléctrico", "fuego"],
+    description: "Tecnología y MTs potentes",
+    color: "#ff9800",
+  },
+  templo: {
+    key: "templo",
+    name: "Templo",
+    icon: "⛩️",
+    types: ["Psíquico", "Fantasma", "Dragón"],
+    rawTypes: ["psychic", "ghost", "dragon", "psiquico", "psíquico", "fantasma", "dragón"],
+    description: "Tablas elementales de Arceus",
+    color: "#9c27b0",
+  },
+  casino: {
+    key: "casino",
+    name: "Casino",
+    icon: "🎰",
+    types: ["Veneno", "Lucha", "Siniestro"],
+    rawTypes: ["poison", "fighting", "dark", "veneno", "lucha", "siniestro"],
+    description: "Dinero en efectivo y apuestas",
+    color: "#e91e63",
+  },
+  montanas_nevadas: {
+    key: "montanas_nevadas",
+    name: "Montañas Nevadas",
+    icon: "❄️",
+    types: ["Agua", "Volador", "Hielo"],
+    rawTypes: ["water", "flying", "ice", "agua", "volador", "hielo"],
+    description: "Objetos climáticos y de montaña",
+    color: "#00bcd4",
+  },
+};
+
+export function getFarmingAffinity(pokemon, zoneKey) {
+  const zone = FARMING_ZONES_CONFIG[zoneKey];
+  if (!zone || !pokemon) return { count: 0, pct: "40%", label: "40%", badgeClass: "none" };
+  const pokeTypes = (pokemon.types || []).map((t) => String(t).trim().toLowerCase());
+  const matches = pokeTypes.filter((t) => zone.rawTypes.includes(t));
+  const count = matches.length;
+  if (count >= 2) return { count: 2, pct: "100%", label: "⭐⭐ Doble Afinidad (100%)", badgeClass: "double" };
+  if (count === 1) return { count: 1, pct: "75%", label: "⭐ Afín (75%)", badgeClass: "single" };
+  return { count: 0, pct: "40%", label: "40%", badgeClass: "none" };
+}
+
+export function renderFarmingView(data, sessionClient, isHost) {
+  const farming = data.farming_phase || {};
+  const status = farming.status || "planning";
+  const myData = data.my_data || {};
+  const myPokemon = myData.pokemon || [];
+  const myAssignments = farming.my_assignments || {};
+  const isConfirmed = Boolean(farming.is_confirmed);
+  const confirmedPlayers = farming.confirmed_players || [];
+  const totalPlayers = Object.keys(data.all_players || {}).length || (data.connected_players || []).length || 1;
+
+  if (status === "revealing") {
+    const results = farming.my_results || [];
+    const nextYear = Number(farming.year || 1) + 1;
+
+    return `
+      <div class="card farming-card farming-revealing-view">
+        <div class="farming-header">
+          <div class="farming-header-left">
+            <h2>🎁 Resultados de las Expediciones</h2>
+            <p class="text-muted">Descubre qué trajeron tus Pokémon de cada zona.</p>
+          </div>
+          <div class="farming-header-actions">
+            ${results.length ? '<button type="button" class="btn btn-warning" id="btn-reveal-all-rewards">✨ Revelar Todos</button>' : ''}
+            ${isHost ? `
+              <button type="button" class="btn btn-primary" id="btn-advance-farming">Avanzar al Año ${nextYear} ➔</button>
+              <button type="button" class="btn btn-danger btn-small" id="btn-skip-farming" title="Saltar de emergencia">Saltar fase</button>
+            ` : '<span class="text-muted">Esperando a que el host avance al siguiente año...</span>'}
+          </div>
+        </div>
+
+        ${!results.length ? `
+          <div class="farming-empty-results">
+            <p>No enviaste Pokémon a ninguna zona en esta ronda.</p>
+          </div>
+        ` : `
+          <div class="farming-results-table-wrapper">
+            <table class="farming-results-table">
+              <thead>
+                <tr>
+                  <th>Pokémon</th>
+                  <th>Zona</th>
+                  <th>Afinidad</th>
+                  <th style="min-width: 170px;">Recompensa</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${results.map((r, i) => {
+                  const zone = FARMING_ZONES_CONFIG[r.zone_key] || { name: r.zone_name, icon: "📍" };
+                  const poke = myPokemon[r.pokemon_index] || { name: r.pokemon_name, id: r.pokemon_id, types: r.pokemon_types };
+                  const affClass = r.affinity_count >= 2 ? "double" : r.affinity_count === 1 ? "single" : "none";
+                  const affLabel = r.affinity_count >= 2 ? "⭐⭐ Doble (100%)" : r.affinity_count === 1 ? "⭐ Afín (75%)" : "40%";
+                  const isItem = r.reward_category === "item";
+                  const itemSprite = isItem ? buildItemSpriteUrl(r.reward) : "";
+
+                  return `
+                    <tr class="farming-result-row">
+                      <td class="farming-td-poke">
+                        <div class="farming-result-poke">
+                          ${buildPokemonSpriteMarkup(poke, poke.name)}
+                          <div>
+                            <strong>${escapeHtml(r.pokemon_name)}</strong>
+                            <div class="farming-mini-types">
+                              ${(r.pokemon_types || []).map((t) => `<span class="farming-type-tag type-${String(t).toLowerCase()}">${escapeHtml(t)}</span>`).join("")}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="farming-td-zone">
+                        <span class="farming-zone-pill zone-${r.zone_key}">${zone.icon} ${escapeHtml(r.zone_name)}</span>
+                      </td>
+                      <td>
+                        <span class="farming-badge farming-badge--${affClass}">${affLabel}</span>
+                      </td>
+                      <td class="farming-td-reward">
+                        <div class="farming-reward-slot" data-index="${i}">
+                          <button type="button" class="btn-reveal-reward"
+                            data-reward-text="${escapeHtml(r.reward)}"
+                            data-success="${r.success ? "1" : "0"}"
+                            data-category="${escapeHtml(r.reward_category)}"
+                            data-sprite="${escapeHtml(itemSprite)}">
+                            Recompensa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // --- PLANNING STAGE ---
+  const assignedPokemonIndices = new Set();
+  Object.values(myAssignments).forEach((indices) => {
+    (indices || []).forEach((idx) => assignedPokemonIndices.add(idx));
+  });
+
+  return `
+    <div class="card farming-card farming-planning-view">
+      <div class="farming-header">
+        <div class="farming-header-left">
+          <h2>🗺️ ${escapeHtml(data.stage_name || "Fase de Farmeo")}</h2>
+          <p class="text-muted">
+            Manda hasta <strong>3 Pokémon</strong> a cada zona del mapa. La afinidad de tipo eleva las chances de éxito (<strong>40% base</strong>, <strong>75% con 1 tipo</strong>, <strong>100% con doble tipo</strong>).
+          </p>
+        </div>
+        <div class="farming-header-actions">
+          <div class="farming-confirm-status">
+            <span class="badge badge-info">${confirmedPlayers.length} / ${totalPlayers} listos</span>
+          </div>
+          ${isConfirmed ? `
+            <span class="badge badge-success farming-confirmed-badge">✓ Expediciones confirmadas</span>
+          ` : `
+            <button type="button" class="btn btn-primary" id="btn-confirm-farming">
+              Confirmar Expediciones
+            </button>
+          `}
+          ${isHost ? `
+            <button type="button" class="btn btn-secondary btn-small" id="btn-force-resolve-farming" title="Forzar resolución con los Pokémon actuales">Forzar resolución</button>
+            <button type="button" class="btn btn-danger btn-small" id="btn-skip-farming" title="Saltar de emergencia">Saltar fase</button>
+          ` : ""}
+        </div>
+      </div>
+
+      <div class="farming-layout">
+        <!-- Bandeja de Pokémon del jugador -->
+        <aside class="farming-tray-panel" aria-label="Tus Pokémon disponibles">
+          <div class="farming-tray-header">
+            <h4>Tus Pokémon (${myPokemon.length})</h4>
+            <span class="farming-tray-hint">Arrastra o haz clic para seleccionar</span>
+          </div>
+          <div class="farming-poke-rack" id="farming-poke-rack">
+            ${myPokemon.map((poke, idx) => {
+              const isAssigned = assignedPokemonIndices.has(idx);
+              let assignedZoneKey = null;
+              if (isAssigned) {
+                for (const [zk, pList] of Object.entries(myAssignments)) {
+                  if (pList.includes(idx)) {
+                    assignedZoneKey = zk;
+                    break;
+                  }
+                }
+              }
+              const assignedZone = assignedZoneKey ? FARMING_ZONES_CONFIG[assignedZoneKey] : null;
+
+              return `
+                <div class="farming-poke-item${isAssigned ? " is-assigned" : ""}"
+                  data-poke-idx="${idx}"
+                  data-is-assigned="${isAssigned ? "1" : "0"}"
+                  data-assigned-zone="${assignedZoneKey || ""}"
+                  role="button"
+                  tabindex="0"
+                  aria-label="${escapeHtml(poke.name)} ${isAssigned ? `(En ${assignedZone?.name || ""})` : ""}"
+                  title="${escapeHtml(poke.name)}: ${(poke.types || []).join("/")}">
+                  <div class="farming-poke-sprite">
+                    ${buildPokemonSpriteMarkup(poke, poke.name)}
+                  </div>
+                  <div class="farming-poke-info">
+                    <span class="farming-poke-name">${escapeHtml(poke.name)}</span>
+                    <div class="farming-mini-types">
+                      ${(poke.types || []).map((t) => `<span class="farming-type-tag type-${String(t).toLowerCase()}">${escapeHtml(t)}</span>`).join("")}
+                    </div>
+                    ${assignedZone ? `
+                      <span class="farming-assigned-tag">${assignedZone.icon} ${escapeHtml(assignedZone.name)}</span>
+                    ` : ""}
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </aside>
+
+        <!-- El Mapa de 6 Zonas -->
+        <main class="farming-map-container" aria-label="Mapa de Zonas">
+          <div class="farming-map-grid">
+            ${Object.entries(FARMING_ZONES_CONFIG).map(([zoneKey, zone]) => {
+              const assignedToZone = myAssignments[zoneKey] || [];
+
+              return `
+                <div class="farming-zone-card zone-${zoneKey}" data-zone-key="${zoneKey}">
+                  <div class="farming-zone-header" style="border-top-color: ${zone.color};">
+                    <div class="farming-zone-title-row">
+                      <span class="farming-zone-icon">${zone.icon}</span>
+                      <h4 class="farming-zone-name">${escapeHtml(zone.name)}</h4>
+                      <span class="farming-zone-counter">(${assignedToZone.length}/3)</span>
+                    </div>
+                    <p class="farming-zone-desc">${escapeHtml(zone.description)}</p>
+                    <div class="farming-zone-affinities">
+                      <span class="farming-affinity-label">Afinidad:</span>
+                      ${zone.types.map((t) => `<span class="farming-type-tag type-${t.toLowerCase()}">${escapeHtml(t)}</span>`).join("")}
+                    </div>
+                  </div>
+
+                  <div class="farming-zone-slots" data-zone-key="${zoneKey}">
+                    ${[0, 1, 2].map((slotIdx) => {
+                      const pokeIdx = assignedToZone[slotIdx];
+                      const hasPoke = pokeIdx !== undefined && myPokemon[pokeIdx];
+                      const poke = hasPoke ? myPokemon[pokeIdx] : null;
+                      const affinity = hasPoke ? getFarmingAffinity(poke, zoneKey) : null;
+
+                      if (!hasPoke) {
+                        return `
+                          <div class="farming-zone-slot is-empty"
+                            data-zone-key="${zoneKey}"
+                            data-slot-idx="${slotIdx}">
+                            <span class="farming-slot-plus">+</span>
+                            <span class="farming-slot-hint">Asignar Pokémon</span>
+                          </div>
+                        `;
+                      }
+
+                      return `
+                        <div class="farming-zone-slot is-filled"
+                          data-zone-key="${zoneKey}"
+                          data-slot-idx="${slotIdx}"
+                          data-poke-idx="${pokeIdx}">
+                          <div class="farming-slot-thumb">
+                            ${buildPokemonSpriteMarkup(poke, poke.name)}
+                          </div>
+                          <div class="farming-slot-details">
+                            <span class="farming-slot-poke-name">${escapeHtml(poke.name)}</span>
+                            <span class="farming-badge farming-badge--${affinity.badgeClass}">${affinity.label}</span>
+                          </div>
+                          ${!isConfirmed ? `
+                            <button type="button" class="btn-remove-farming-slot" data-zone-key="${zoneKey}" data-poke-idx="${pokeIdx}" aria-label="Quitar Pokémon">✕</button>
+                          ` : ""}
+                        </div>
+                      `;
+                    }).join("")}
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </main>
+      </div>
+    </div>
+  `;
+}

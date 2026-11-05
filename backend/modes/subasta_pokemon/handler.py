@@ -10,7 +10,7 @@ import time
 from typing import Dict, List, Any, Optional
 from backend.modes.base import BaseGameMode
 from backend.modes.subasta_pokemon import poke_api, events_data, showdown
-from backend.database import save_game_session, save_full_session, get_game_session, get_fusion_pokemon_from_db
+from backend.database import save_game_session, save_full_session, get_game_session, get_fusion_pokemon_from_db, get_items_by_zone_from_db
 from backend.services.session_manager import can_control_room, get_connected_player_order
 
 _PENDING_BID_SAVES: dict[str, dict] = {}
@@ -45,11 +45,11 @@ STAGE_NAMES = {
     2: "Año 1: Subasta Inicial",
     3: "Año 1: Eventos de Turno",
     4: "Año 1: Exportar Equipos (Showdown)",
-    5: "Año 2: Inicio & Evoluciones (Lvl 40)",
+    5: "Año 1: Fase de Farmeo",
     6: "Año 2: Segunda Subasta",
     7: "Año 2: Eventos de Turno",
     8: "Año 2: Exportar Equipos (Showdown)",
-    9: "Año 3: Inicio & Evoluciones (Lvl 100)",
+    9: "Año 2: Fase de Farmeo",
     10: "Año 3: Última Subasta",
     11: "Año 3: Eventos de Turno",
     12: "Año 3: Exportar Equipos Definitivos",
@@ -364,6 +364,144 @@ def remove_item_from_inventory(player: dict, item_name: str, qty: int = 1):
     else:
         items[item_name] = new_qty
     player["items"] = {k: v for k, v in sorted(items.items()) if v > 0}
+
+
+FARMING_ZONES = {
+    "minas": {
+        "name": "Minas",
+        "description": "Piedras evolutivas y minerales",
+        "affinity_types": {"ground", "rock", "steel", "tierra", "roca", "acero"},
+        "reward_type": "items",
+    },
+    "bosques": {
+        "name": "Bosques",
+        "description": "Bayas y restos naturales",
+        "affinity_types": {"grass", "bug", "fairy", "planta", "bicho", "hada"},
+        "reward_type": "items",
+    },
+    "ciudad": {
+        "name": "Ciudad",
+        "description": "Tecnología y MTs potentes",
+        "affinity_types": {"normal", "electric", "fire", "electrico", "eléctrico", "fuego"},
+        "reward_type": "items",
+    },
+    "templo": {
+        "name": "Templo",
+        "description": "Tablas y reliquias ancestrales",
+        "affinity_types": {"psychic", "ghost", "dragon", "psiquico", "psíquico", "fantasma", "dragón"},
+        "reward_type": "items",
+    },
+    "casino": {
+        "name": "Casino",
+        "description": "Grandes premios en efectivo",
+        "affinity_types": {"poison", "fighting", "dark", "veneno", "lucha", "siniestro"},
+        "reward_type": "casino_money",
+    },
+    "montanas_nevadas": {
+        "name": "Montañas Nevadas",
+        "description": "Objetos climáticos y equipo de montaña",
+        "affinity_types": {"water", "flying", "ice", "agua", "volador", "hielo"},
+        "reward_type": "items",
+    },
+}
+
+
+def calculate_farming_affinity(pokemon: dict, zone_key: str) -> tuple[int, float]:
+    """Retorna (cantidad_afinidades, probabilidad_exito)."""
+    zone = FARMING_ZONES.get(zone_key)
+    if not zone:
+        return 0, 0.40
+
+    poke_types = pokemon.get("types") or []
+    normalized_types = {str(t).strip().lower() for t in poke_types if t}
+    matched = normalized_types.intersection(zone["affinity_types"])
+    affinity_count = len(matched)
+
+    if affinity_count >= 2:
+        return 2, 1.0
+    elif affinity_count == 1:
+        return 1, 0.75
+    else:
+        return 0, 0.40
+
+
+def resolve_farming_phase(subasta_state: dict):
+    farming = subasta_state.get("farming_phase")
+    if not farming or farming.get("status") == "revealing":
+        return
+
+    assignments = farming.get("assignments", {})
+    players = subasta_state.get("players", {})
+    results = {}
+
+    used_zones = set()
+    for player_zones in assignments.values():
+        for z, pokes in player_zones.items():
+            if pokes and z in FARMING_ZONES and z != "casino":
+                used_zones.add(z)
+
+    zone_items = {}
+    for z in used_zones:
+        zone_items[z] = get_items_by_zone_from_db(z)
+
+    for username, player in players.items():
+        user_assignments = assignments.get(username, {})
+        user_pokemon = player.get("pokemon", [])
+        user_results = []
+        assigned_indices = set()
+
+        for zone_key, poke_indices in user_assignments.items():
+            if zone_key not in FARMING_ZONES:
+                continue
+            valid_indices = [
+                idx for idx in poke_indices[:3]
+                if 0 <= idx < len(user_pokemon) and idx not in assigned_indices
+            ]
+            for idx in valid_indices:
+                assigned_indices.add(idx)
+                poke = user_pokemon[idx]
+                affinity_count, success_chance = calculate_farming_affinity(poke, zone_key)
+                is_success = random.random() < success_chance
+
+                reward_name = "Sin recompensa"
+                amount = 0
+                reward_category = "none"
+
+                if is_success:
+                    if zone_key == "casino":
+                        amount = events_data._generate_traffic_amount()
+                        if amount > 0:
+                            player["money"] += amount
+                            reward_name = format_money_k(amount)
+                            reward_category = "money"
+                        else:
+                            reward_name = "$0"
+                            reward_category = "money"
+                    else:
+                        items_pool = zone_items.get(zone_key) or []
+                        if items_pool:
+                            reward_name = random.choice(items_pool)
+                            add_item_to_inventory(player, reward_name, 1)
+                            reward_category = "item"
+
+                user_results.append({
+                    "pokemon_index": idx,
+                    "pokemon_name": poke.get("name", "Pokémon"),
+                    "pokemon_id": poke.get("id"),
+                    "pokemon_types": poke.get("types", []),
+                    "zone_key": zone_key,
+                    "zone_name": FARMING_ZONES[zone_key]["name"],
+                    "affinity_count": affinity_count,
+                    "success": is_success,
+                    "reward": reward_name,
+                    "reward_category": reward_category,
+                    "amount": amount,
+                })
+
+        results[username] = user_results
+
+    farming["results"] = results
+    farming["status"] = "revealing"
 
 
 def build_fusion_preview(pokemon_a: dict, pokemon_b: dict, candidates: List[dict]) -> dict:
@@ -1039,11 +1177,25 @@ class SubastaPokemonMode(BaseGameMode):
             for winner in trophy_winners
         ) if trophy_winners else False
 
+        farming_client = None
+        raw_farming = subasta_state.get("farming_phase")
+        if raw_farming:
+            farming_status = raw_farming.get("status", "planning")
+            farming_client = {
+                "year": raw_farming.get("year", 1),
+                "status": farming_status,
+                "confirmed_players": raw_farming.get("confirmed", []),
+                "is_confirmed": username in raw_farming.get("confirmed", []),
+                "my_assignments": raw_farming.get("assignments", {}).get(username, {}),
+                "my_results": raw_farming.get("results", {}).get(username, []) if farming_status == "revealing" else [],
+            }
+
         return {
             "stage": current_stage,
             "stage_name": STAGE_NAMES.get(current_stage, "En Juego"),
             "current_year": current_year,
             "current_turn": current_turn,
+            "farming_phase": farming_client,
             "connected_players": [
                 player["username"]
                 for player in session.get("players", [])
@@ -2065,34 +2217,138 @@ class SubastaPokemonMode(BaseGameMode):
             if current_stage == 12:
                 subasta_state["current_stage"] = 13
                 subasta_state["event_finished"] = True
-            else:
-                next_stage = current_stage + 1
-                subasta_state["current_stage"] = next_stage
-                if next_stage == 5:
-                    subasta_state["current_year"] = 2
-                    year_money = subasta_state.get("year_starting_money", {}).get(2, subasta_state.get("starting_money", 1000000))
-                    for p_info in subasta_state["players"].values():
-                        p_info["money"] += year_money
-                        evolve_player_pokemon(p_info, 40)
-                    has_phases = setup_year_auction_phases(subasta_state, 2)
-                    if has_phases:
-                        subasta_state["current_stage"] = 6
-                        await init_subasta_round(session)
-                    else:
-                        self._start_year_events(subasta_state, 7)
-                elif next_stage == 9:
-                    subasta_state["current_year"] = 3
-                    year_money = subasta_state.get("year_starting_money", {}).get(3, subasta_state.get("starting_money", 1000000))
-                    for p_info in subasta_state["players"].values():
-                        p_info["money"] += year_money
-                        evolve_player_pokemon(p_info, 100)
-                        activate_pokeradar_for_year(p_info, 3)
-                    has_phases = setup_year_auction_phases(subasta_state, 3)
-                    if has_phases:
-                        subasta_state["current_stage"] = 10
-                        await init_subasta_round(session)
-                    else:
-                        self._start_year_events(subasta_state, 11)
+            elif current_stage == 4:
+                subasta_state["current_stage"] = 5
+                subasta_state["farming_phase"] = {
+                    "year": 1,
+                    "status": "planning",
+                    "assignments": {},
+                    "confirmed": [],
+                    "results": {},
+                }
+            elif current_stage == 8:
+                subasta_state["current_stage"] = 9
+                subasta_state["farming_phase"] = {
+                    "year": 2,
+                    "status": "planning",
+                    "assignments": {},
+                    "confirmed": [],
+                    "results": {},
+                }
+
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_set_farming_assignment":
+            current_stage = subasta_state.get("current_stage")
+            if current_stage not in (5, 9):
+                return True
+
+            farming = subasta_state.setdefault("farming_phase", {})
+            if farming.get("status") == "revealing":
+                return True
+
+            player = subasta_state.get("players", {}).get(username)
+            if not player:
+                return True
+
+            raw_assignments = message.get("assignments") or {}
+            player_pokemon = player.get("pokemon", [])
+            max_pokes = len(player_pokemon)
+            valid_assignments = {}
+            seen_indices = set()
+
+            for zone_key, indices in raw_assignments.items():
+                if zone_key not in FARMING_ZONES:
+                    continue
+                zone_valid = []
+                for idx in indices:
+                    try:
+                        idx_int = int(idx)
+                    except (ValueError, TypeError):
+                        continue
+                    if 0 <= idx_int < max_pokes and idx_int not in seen_indices:
+                        seen_indices.add(idx_int)
+                        zone_valid.append(idx_int)
+                        if len(zone_valid) == 3:
+                            break
+                if zone_valid:
+                    valid_assignments[zone_key] = zone_valid
+
+            farming.setdefault("assignments", {})[username] = valid_assignments
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_confirm_farming":
+            current_stage = subasta_state.get("current_stage")
+            if current_stage not in (5, 9):
+                return True
+
+            farming = subasta_state.setdefault("farming_phase", {})
+            if farming.get("status") == "revealing":
+                return True
+
+            confirmed = farming.setdefault("confirmed", [])
+            if username not in confirmed:
+                confirmed.append(username)
+
+            active_players = {
+                p["username"] for p in session.get("players", [])
+                if p.get("connected", False) and p["username"] in subasta_state.get("players", {})
+            }
+            if not active_players:
+                active_players = set(subasta_state.get("players", {}).keys())
+
+            if active_players and active_players.issubset(set(confirmed)):
+                resolve_farming_phase(subasta_state)
+
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_admin_force_resolve_farming":
+            if not can_control_room(session, username):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo un admin puede resolver la fase de farmeo."}})
+                return True
+
+            current_stage = subasta_state.get("current_stage")
+            if current_stage not in (5, 9):
+                return True
+
+            resolve_farming_phase(subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_admin_advance_from_farming":
+            if not can_control_room(session, username):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo un admin participante puede avanzar al siguiente año."}})
+                return True
+
+            current_stage = subasta_state.get("current_stage")
+            if current_stage not in (5, 9):
+                return True
+
+            await self._advance_year_from_farming(session, subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
+
+        elif action == "subasta_admin_skip_farming":
+            if not can_control_room(session, username):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Solo un admin participante puede saltar la fase de farmeo."}})
+                return True
+
+            current_stage = subasta_state.get("current_stage")
+            if current_stage not in (5, 9):
+                return True
+
+            await self._advance_year_from_farming(session, subasta_state)
+            save_game_session(session_id, self.key, subasta_state)
+            await self._broadcast_subasta_state(session, manager)
+            return True
 
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
@@ -2818,6 +3074,34 @@ class SubastaPokemonMode(BaseGameMode):
             self._generate_turn_events(subasta_state)
         else:
             subasta_state["current_stage"] += 1
+
+    async def _advance_year_from_farming(self, session: dict, subasta_state: dict):
+        current_stage = subasta_state.get("current_stage")
+        if current_stage == 5:
+            subasta_state["current_year"] = 2
+            year_money = subasta_state.get("year_starting_money", {}).get(2, subasta_state.get("starting_money", 1000000))
+            for p_info in subasta_state["players"].values():
+                p_info["money"] += year_money
+                evolve_player_pokemon(p_info, 40)
+            has_phases = setup_year_auction_phases(subasta_state, 2)
+            if has_phases:
+                subasta_state["current_stage"] = 6
+                await init_subasta_round(session)
+            else:
+                self._start_year_events(subasta_state, 7)
+        elif current_stage == 9:
+            subasta_state["current_year"] = 3
+            year_money = subasta_state.get("year_starting_money", {}).get(3, subasta_state.get("starting_money", 1000000))
+            for p_info in subasta_state["players"].values():
+                p_info["money"] += year_money
+                evolve_player_pokemon(p_info, 100)
+                activate_pokeradar_for_year(p_info, 3)
+            has_phases = setup_year_auction_phases(subasta_state, 3)
+            if has_phases:
+                subasta_state["current_stage"] = 10
+                await init_subasta_round(session)
+            else:
+                self._start_year_events(subasta_state, 11)
 
     async def _broadcast_subasta_state(self, session: dict, manager: Any):
         """Envía a cada jugador conectado su estado formateado."""

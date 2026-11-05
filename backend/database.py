@@ -581,3 +581,16 @@ def get_random_pokemon_from_db(year: Optional[int] = None, auction_type: Optiona
         print(f"[WARNING] Error eligiendo Pokémon aleatorio desde Supabase: {e}")
 
     return None
+
+
+def get_items_by_zone_from_db(zone: str) -> List[str]:
+    """Obtiene los nombres de items asociados a una zona directamente desde Supabase."""
+    if not supabase_client:
+        return []
+
+    try:
+        res = supabase_client.table("items").select("name").eq("zone", zone).execute()
+        return [row["name"] for row in (res.data or []) if row.get("name")]
+    except Exception as e:
+        print(f"[WARNING] Error consultando items de la zona '{zone}' en Supabase: {e}")
+        return []

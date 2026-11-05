@@ -12,6 +12,7 @@ import {
   renderExportView,
   renderAdminAndStandingsView,
   renderMyPokemonInventory,
+  renderFarmingView,
   POKEMON_CARD_COLORS,
   formatMoneyCompact,
   NATURE_EFFECTS,
@@ -478,6 +479,9 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     } else if ([4, 8, 12].includes(stage)) {
       // Exportación a Showdown (Año 1, 2, 3)
       html = renderExportView(state, sessionClient, isHost, this._lockedShowdownText, isTeamLocked);
+    } else if ([5, 9].includes(stage)) {
+      // Fase de Farmeo (Año 1, 2)
+      html = renderFarmingView(state, sessionClient, isHost);
     } else {
       // Resultados y Administración (Etapa 13 o intermedia)
       html = renderAdminAndStandingsView(state, sessionClient, isHost);
@@ -551,6 +555,11 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
   attachEventListeners(state, sessionClient, isHost) {
     this.startRevealCountdown(state);
+
+    const stage = Number(state.stage || 0);
+    if ([5, 9].includes(stage)) {
+      this.attachFarmingEventListeners(state, sessionClient, isHost);
+    }
 
     const updateMoveUiState = (panel, mode) => {
       const pokeIdx = panel.dataset.pokeIdx;
@@ -1678,6 +1687,245 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     }
     tick();
     window.__subastaRevealTimer = setInterval(tick, 100);
+  }
+
+  attachFarmingEventListeners(state, sessionClient, isHost) {
+    const farming = state.farming_phase || {};
+    const status = farming.status || "planning";
+
+    // --- SUBFASE DE REVELACIÓN DE RECOMPENSAS ---
+    if (status === "revealing") {
+      const revealButtons = document.querySelectorAll(".btn-reveal-reward");
+
+      const revealButton = (btn) => {
+        if (!btn || btn.dataset.revealed === "true") return;
+        btn.dataset.revealed = "true";
+        const isSuccess = btn.dataset.success === "1";
+        const rewardText = btn.dataset.rewardText || "";
+        const sprite = btn.dataset.sprite || "";
+        const category = btn.dataset.category || "";
+
+        const slot = btn.closest(".farming-reward-slot");
+        if (!slot) return;
+
+        let content = "";
+        if (isSuccess) {
+          if (category === "money") {
+            content = `<span class="farming-revealed-val success money">💰 ${rewardText}</span>`;
+          } else {
+            const imgTag = sprite ? `<img src="${sprite}" alt="" class="farming-reward-icon" onerror="this.style.display='none'" /> ` : "";
+            content = `<span class="farming-revealed-val success item">${imgTag}${rewardText}</span>`;
+          }
+        } else {
+          content = `<span class="farming-revealed-val failure">❌ Sin recompensa</span>`;
+        }
+
+        slot.innerHTML = content;
+        slot.classList.add("is-revealed");
+      };
+
+      revealButtons.forEach((btn) => {
+        btn.addEventListener("click", () => revealButton(btn));
+      });
+
+      const revealAllBtn = document.getElementById("btn-reveal-all-rewards");
+      if (revealAllBtn) {
+        revealAllBtn.addEventListener("click", () => {
+          document.querySelectorAll(".btn-reveal-reward").forEach((btn, index) => {
+            setTimeout(() => revealButton(btn), index * 80);
+          });
+        });
+      }
+
+      const advanceBtn = document.getElementById("btn-advance-farming");
+      if (advanceBtn) {
+        advanceBtn.addEventListener("click", () => {
+          sessionClient.send("subasta_admin_advance_from_farming", {});
+        });
+      }
+
+      const skipBtn = document.getElementById("btn-skip-farming");
+      if (skipBtn) {
+        skipBtn.addEventListener("click", () => {
+          if (confirm("¿Estás seguro de que deseas saltar esta fase de farmeo?")) {
+            sessionClient.send("subasta_admin_skip_farming", {});
+          }
+        });
+      }
+      return;
+    }
+
+    // --- SUBFASE DE PLANIFICACIÓN (ASIGNACIÓN) ---
+    const isConfirmed = Boolean(farming.is_confirmed);
+    const myAssignments = JSON.parse(JSON.stringify(farming.my_assignments || {}));
+
+    const confirmBtn = document.getElementById("btn-confirm-farming");
+    if (confirmBtn) {
+      confirmBtn.addEventListener("click", () => {
+        sessionClient.send("subasta_confirm_farming", {});
+      });
+    }
+
+    const forceResolveBtn = document.getElementById("btn-force-resolve-farming");
+    if (forceResolveBtn) {
+      forceResolveBtn.addEventListener("click", () => {
+        if (confirm("¿Forzar la resolución de la fase de farmeo con las asignaciones actuales?")) {
+          sessionClient.send("subasta_admin_force_resolve_farming", {});
+        }
+      });
+    }
+
+    const skipBtn = document.getElementById("btn-skip-farming");
+    if (skipBtn) {
+      skipBtn.addEventListener("click", () => {
+        if (confirm("¿Estás seguro de que deseas saltar esta fase de farmeo?")) {
+          sessionClient.send("subasta_admin_skip_farming", {});
+        }
+      });
+    }
+
+    if (isConfirmed) return;
+
+    const saveAssignments = () => {
+      sessionClient.send("subasta_set_farming_assignment", { assignments: myAssignments });
+    };
+
+    // Botones para quitar Pokémon de un slot asignado
+    document.querySelectorAll(".btn-remove-farming-slot").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const zoneKey = btn.dataset.zoneKey;
+        const pokeIdx = Number(btn.dataset.pokeIdx);
+        if (myAssignments[zoneKey]) {
+          myAssignments[zoneKey] = myAssignments[zoneKey].filter((i) => i !== pokeIdx);
+          saveAssignments();
+        }
+      });
+    });
+
+    const assignPokeToZone = (pokeIdx, zoneKey) => {
+      pokeIdx = Number(pokeIdx);
+      if (isNaN(pokeIdx)) return;
+
+      Object.keys(myAssignments).forEach((zk) => {
+        myAssignments[zk] = (myAssignments[zk] || []).filter((i) => i !== pokeIdx);
+      });
+
+      if (!myAssignments[zoneKey]) myAssignments[zoneKey] = [];
+      if (myAssignments[zoneKey].length < 3) {
+        myAssignments[zoneKey].push(pokeIdx);
+      } else {
+        alert("Esta zona ya tiene el límite de 3 Pokémon.");
+        return;
+      }
+
+      saveAssignments();
+    };
+
+    // Selección por clic (compatible con pantallas táctiles)
+    let selectedPokeIdx = null;
+    const pokeItems = document.querySelectorAll(".farming-poke-item");
+    pokeItems.forEach((item) => {
+      item.addEventListener("click", () => {
+        const pokeIdx = Number(item.dataset.pokeIdx);
+        if (selectedPokeIdx === pokeIdx) {
+          selectedPokeIdx = null;
+          item.classList.remove("is-selected");
+        } else {
+          pokeItems.forEach((el) => el.classList.remove("is-selected"));
+          selectedPokeIdx = pokeIdx;
+          item.classList.add("is-selected");
+        }
+      });
+    });
+
+    document.querySelectorAll(".farming-zone-slot.is-empty, .farming-zone-card").forEach((target) => {
+      target.addEventListener("click", () => {
+        if (selectedPokeIdx === null) return;
+        const zoneKey = target.dataset.zoneKey || target.closest(".farming-zone-card")?.dataset.zoneKey;
+        if (zoneKey) {
+          assignPokeToZone(selectedPokeIdx, zoneKey);
+          selectedPokeIdx = null;
+        }
+      });
+    });
+
+    // Drag & Drop con Pointer Events reutilizando el estilo fluido de las cajas
+    pokeItems.forEach((item) => {
+      let startX = 0;
+      let startY = 0;
+      let pointerId = null;
+      let dragStarted = false;
+      let dragGhost = null;
+
+      const clearDropTargets = () => {
+        document.querySelectorAll(".farming-zone-card, .farming-zone-slot")
+          .forEach((t) => t.classList.remove("farming-drop-target"));
+      };
+
+      const startDrag = () => {
+        if (dragStarted) return;
+        dragStarted = true;
+        item.classList.add("is-dragging");
+        dragGhost = item.cloneNode(true);
+        dragGhost.classList.add("farming-drag-ghost");
+        dragGhost.style.transform = `translate3d(${startX}px, ${startY}px, 0) translate(-50%, -50%) scale(1.08)`;
+        document.body.appendChild(dragGhost);
+        if (pointerId !== null) item.setPointerCapture?.(pointerId);
+      };
+
+      item.addEventListener("pointerdown", (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        startX = e.clientX;
+        startY = e.clientY;
+        pointerId = e.pointerId;
+        dragStarted = false;
+        if (e.pointerType === "mouse") {
+          item.setPointerCapture?.(pointerId);
+        }
+      });
+
+      item.addEventListener("pointermove", (e) => {
+        if (pointerId === null || e.pointerId !== pointerId) return;
+        const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+        if (!dragStarted && dist > 6) startDrag();
+
+        if (dragStarted && dragGhost) {
+          dragGhost.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%) scale(1.08)`;
+          const under = document.elementFromPoint(e.clientX, e.clientY);
+          const zoneCard = under?.closest(".farming-zone-card");
+          clearDropTargets();
+          if (zoneCard) zoneCard.classList.add("farming-drop-target");
+        }
+      });
+
+      const endDrag = (e) => {
+        if (pointerId === null || e.pointerId !== pointerId) return;
+        if (dragStarted) {
+          const under = document.elementFromPoint(e.clientX, e.clientY);
+          const zoneCard = under?.closest(".farming-zone-card");
+          if (zoneCard) {
+            const zoneKey = zoneCard.dataset.zoneKey;
+            const pokeIdx = Number(item.dataset.pokeIdx);
+            assignPokeToZone(pokeIdx, zoneKey);
+          }
+          if (dragGhost) {
+            dragGhost.remove();
+            dragGhost = null;
+          }
+          item.classList.remove("is-dragging");
+          clearDropTargets();
+        }
+        try {
+          if (pointerId !== null) item.releasePointerCapture?.(pointerId);
+        } catch (_) {}
+        pointerId = null;
+        dragStarted = false;
+      };
+
+      item.addEventListener("pointerup", endDrag);
+      item.addEventListener("pointercancel", endDrag);
+    });
   }
 
   resetState() {

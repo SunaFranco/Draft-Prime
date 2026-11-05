@@ -2800,3 +2800,480 @@ button.fusion-creature-slot:hover:not(:disabled) {
   .trophy-record { gap: .25rem; padding: .5rem; }
   .trophy-pokemon-sprites img { width: 23px; height: 23px; }
 }
+
+
+/* ==========================================================================
+   FASE DE FARMEO (EXPEDICIONES)
+   ========================================================================== */
+
+.farming-card {
+  padding: 1.25rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.farming-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.farming-header-left h2 {
+  margin: 0 0 0.25rem;
+  color: var(--accent-gold);
+}
+
+.farming-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.farming-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .farming-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Bandeja lateral de Pokémon */
+.farming-tray-panel {
+  background: var(--bg-surface-card);
+  border: 1.5px solid var(--border-dim);
+  border-radius: 6px;
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.farming-tray-header h4 {
+  margin: 0;
+  color: var(--text-bright);
+}
+
+.farming-tray-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.farming-poke-rack {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.farming-poke-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.farming-poke-item:hover {
+  border-color: var(--accent-gold);
+  background: rgba(255, 212, 59, 0.08);
+}
+
+.farming-poke-item.is-selected {
+  border-color: var(--accent-gold);
+  background: rgba(255, 212, 59, 0.2);
+  box-shadow: 0 0 0 2px var(--accent-gold);
+}
+
+.farming-poke-item.is-assigned {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.farming-poke-item.is-dragging {
+  opacity: 0.25;
+}
+
+.farming-poke-sprite {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+}
+
+.farming-poke-sprite img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.farming-poke-info {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.farming-poke-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.farming-mini-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.farming-type-tag {
+  font-size: 0.65rem;
+  padding: 0.08rem 0.35rem;
+  border-radius: 3px;
+  font-weight: bold;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.farming-assigned-tag {
+  font-size: 0.7rem;
+  color: var(--accent-gold);
+  font-weight: bold;
+}
+
+/* El mapa de 6 zonas */
+.farming-map-container {
+  min-width: 0;
+}
+
+.farming-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.farming-zone-card {
+  background: var(--bg-surface-card);
+  border: 1.5px solid var(--border-dim);
+  border-radius: 6px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.farming-zone-card.farming-drop-target {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px rgba(255, 212, 59, 0.3);
+  transform: scale(1.02);
+}
+
+.farming-zone-header {
+  padding: 0.75rem 0.85rem;
+  border-top: 4px solid var(--accent);
+  background: rgba(0, 0, 0, 0.25);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.farming-zone-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.farming-zone-icon {
+  font-size: 1.25rem;
+}
+
+.farming-zone-name {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-bright);
+}
+
+.farming-zone-counter {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.farming-zone-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.farming-zone-affinities {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+}
+
+.farming-affinity-label {
+  color: var(--text-muted);
+}
+
+.farming-zone-slots {
+  padding: 0.75rem 0.85rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.farming-zone-slot {
+  min-height: 52px;
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: all 120ms ease;
+}
+
+.farming-zone-slot.is-empty {
+  border: 1.5px dashed var(--border-dim);
+  background: rgba(255, 255, 255, 0.02);
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.farming-zone-slot.is-empty:hover {
+  border-color: var(--accent-gold);
+  color: var(--text-bright);
+  background: rgba(255, 212, 59, 0.06);
+}
+
+.farming-slot-plus {
+  font-size: 1.2rem;
+  margin-right: 0.3rem;
+}
+
+.farming-zone-slot.is-filled {
+  border: 1px solid var(--border-bright);
+  background: rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.farming-slot-thumb {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+}
+
+.farming-slot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.farming-slot-details {
+  display: grid;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.farming-slot-poke-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-remove-farming-slot {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.btn-remove-farming-slot:hover {
+  color: #ff5252;
+  background: rgba(255, 82, 82, 0.15);
+}
+
+/* Badges de Afinidad */
+.farming-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.farming-badge--none {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+}
+
+.farming-badge--single {
+  background: rgba(76, 175, 80, 0.25);
+  color: #81c784;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.farming-badge--double {
+  background: rgba(255, 212, 59, 0.25);
+  color: #ffe36e;
+  border: 1px solid #ffd43b;
+  box-shadow: 0 0 8px rgba(255, 212, 59, 0.35);
+}
+
+/* Fantasma de arrastre (Ghost) */
+.farming-drag-ghost {
+  position: fixed !important;
+  z-index: 99999 !important;
+  left: 0;
+  top: 0;
+  width: 220px;
+  pointer-events: none !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+  border-color: var(--accent-gold) !important;
+  background: rgba(20, 24, 30, 0.95) !important;
+}
+
+/* Subfase de Revelación / Resultados */
+.farming-revealing-view .farming-results-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+}
+
+.farming-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.farming-results-table th,
+.farming-results-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.farming-results-table th {
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-bright);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.farming-result-poke {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.farming-result-poke img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.farming-zone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Botón Recompensa en Amarillo */
+.btn-reveal-reward {
+  background: rgba(255, 212, 59, 0.15);
+  border: 1.5px solid var(--accent-gold);
+  color: #ffe36e;
+  font-weight: bold;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 150ms ease;
+  box-shadow: 0 0 6px rgba(255, 212, 59, 0.2);
+}
+
+.btn-reveal-reward:hover {
+  background: var(--accent-gold);
+  color: #000;
+  box-shadow: 0 0 12px rgba(255, 212, 59, 0.5);
+  transform: translateY(-1px);
+}
+
+.farming-reward-slot.is-revealed {
+  animation: revealPop 220ms ease-out;
+}
+
+@keyframes revealPop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.farming-revealed-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+
+.farming-revealed-val.success {
+  color: #a3e635;
+}
+
+.farming-revealed-val.success.money {
+  color: #ffd43b;
+}
+
+.farming-revealed-val.failure {
+  color: var(--text-muted);
+  font-weight: normal;
+  font-style: italic;
+}
+
+.farming-reward-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
