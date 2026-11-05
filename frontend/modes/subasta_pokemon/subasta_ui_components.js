@@ -40,6 +40,24 @@ function escapeHtml(value) {
   })[char]);
 }
 
+export function buildPokemonSpriteMarkup(pokemon, alt = "") {
+  const spriteId = Number(pokemon?.id) || 0;
+  const miniSpriteUrl = spriteId
+    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/${spriteId}.png`
+    : (pokemon?.image_url || "");
+  const fullSpriteUrl = spriteId
+    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${spriteId}.png`
+    : (pokemon?.image_url || "");
+  const artworkUrl = pokemon?.image_url || fullSpriteUrl;
+  return `
+    <picture>
+      <source media="(min-width: 769px)" srcset="${escapeHtml(fullSpriteUrl)}" />
+      <img src="${escapeHtml(miniSpriteUrl)}" alt="${escapeHtml(alt)}" loading="lazy"
+        onerror="if (!this.dataset.fallback) { this.dataset.fallback = '1'; this.parentElement.querySelector('source')?.remove(); this.src = '${escapeHtml(fullSpriteUrl)}'; } else if (!this.dataset.artFallback) { this.dataset.artFallback = '1'; this.src = '${escapeHtml(artworkUrl)}'; } else { this.style.visibility = 'hidden'; }" />
+    </picture>
+  `;
+}
+
 function buildWikidexUrl(name) {
   if (!name) return "";
   const megaInfo = getMegaInfo(name);
@@ -1174,7 +1192,6 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
     ...currentShopItems.filter((item) => !isPriorityShopItem(item)),
   ];
   const shopTitle = currentYear === 1 ? "Tienda Año 1" : currentYear === 2 ? "Tienda Año 2" : "Tienda Año 3";
-  const canFuse = fusionStage && pokemonList.length >= 2 && (bagItems["DNA Splicers"] || 0) > 0;
 
   return `
     <div class="card inventory-card">
@@ -1242,19 +1259,9 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                 ? pokemonCardColors[pokeIdx]
                 : "green";
               const slotColor = POKEMON_CARD_COLORS[slotColorId];
-              const spriteId = Number(poke.id) || 0;
-              const miniSpriteUrl = spriteId
-                ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/${poke.id}.png`
-                : (poke.image_url || "");
-              const fullSpriteUrl = spriteId
-                ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${spriteId}.png`
-                : (poke.image_url || "");
               return `
                 <button type="button" class="pokemon-box-slot${pokeIdx === visibleSelectedPokemonIndex ? " is-selected" : ""}${poke.is_shiny ? " is-shiny" : ""}" data-poke-idx="${pokeIdx}" data-slot-position="${slotPosition}" aria-label="${poke.name || `Pokémon ${pokeIdx + 1}`}" title="${poke.name || `Pokémon ${pokeIdx + 1}`} — toca para ver datos; mantén pulsado y arrastra para mover" style="--pokemon-accent: ${slotColor.hex}; --pokemon-accent-rgb: ${slotColor.rgb}">
-                  <picture>
-                    <source media="(min-width: 769px)" srcset="${fullSpriteUrl}" />
-                    <img src="${miniSpriteUrl}" alt="" loading="lazy" onerror="if (!this.dataset.fallback) { this.dataset.fallback = '1'; this.parentElement.querySelector('source')?.remove(); this.src = '${fullSpriteUrl}'; } else if (!this.dataset.artFallback) { this.dataset.artFallback = '1'; this.src = '${poke.image_url || fullSpriteUrl}'; } else { this.style.visibility = 'hidden'; }" />
-                  </picture>
+                  ${buildPokemonSpriteMarkup(poke)}
                   ${poke.is_shiny ? '<span class="pokemon-box-shiny" aria-label="Shiny">✦</span>' : ""}
                 </button>
               `;
@@ -1490,22 +1497,54 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
               <h4>🧬 Fusión Pokémon</h4>
               <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
             </div>
-            <p>Elige dos Pokémon para consultar los resultados posibles. La fusión consume una DNA Splicers y ambos Pokémon.</p>
+            <p>Elige los dos Pokémon que quieres fusionar. Se consumen ambos Pokémon y una DNA Splicers.</p>
             <p>DNA Splicers: <strong>x${bagItems["DNA Splicers"] || 0}</strong></p>
-            <div class="fusion-selection">
-              <label>Primer Pokémon
-                <select id="fusion-pokemon-one" ${pokemonList.length < 2 ? "disabled" : ""}>
-                  ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`} — ${(poke.types || []).join(" / ")}</option>`).join("")}
-                </select>
-              </label>
-              <label>Segundo Pokémon
-                <select id="fusion-pokemon-two" ${pokemonList.length < 2 ? "disabled" : ""}>
-                  ${pokemonList.map((poke, idx) => `<option value="${idx}" ${idx === 1 ? "selected" : ""}>${poke.name || `Pokémon ${idx + 1}`} — ${(poke.types || []).join(" / ")}</option>`).join("")}
-                </select>
-              </label>
+            <div class="fusion-diagram">
+              <button type="button" class="fusion-creature-slot fusion-input-slot" data-fusion-slot="one" aria-label="Elegir primer Pokémon" ${pokemonList.length < 2 ? "disabled" : ""}>
+                <span class="fusion-slot-art">＋</span>
+                <span class="fusion-slot-name">Primer Pokémon</span>
+              </button>
+              <button type="button" class="fusion-creature-slot fusion-input-slot" data-fusion-slot="two" aria-label="Elegir segundo Pokémon" ${pokemonList.length < 2 ? "disabled" : ""}>
+                <span class="fusion-slot-art">＋</span>
+                <span class="fusion-slot-name">Segundo Pokémon</span>
+              </button>
+              <svg class="fusion-connections" viewBox="0 0 100 48" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M25 0 L50 48 M75 0 L50 48"></path>
+              </svg>
+              <div class="fusion-result">
+                <div class="fusion-creature-slot fusion-result-slot" id="fusion-result-slot" aria-live="polite">
+                  <span class="fusion-slot-art" id="fusion-result-art">?</span>
+                  <span class="fusion-slot-name" id="fusion-result-name">Resultado</span>
+                </div>
+                <p class="fusion-result-message" id="fusion-result-message">El Pokémon fusionado aparecerá aquí.</p>
+              </div>
+            </div>
+            <select id="fusion-pokemon-one" class="fusion-state-select" aria-hidden="true" tabindex="-1">
+              <option value=""></option>
+              ${pokemonList.map((poke, idx) => `<option value="${idx}">${escapeHtml(poke.name || `Pokémon ${idx + 1}`)}</option>`).join("")}
+            </select>
+            <select id="fusion-pokemon-two" class="fusion-state-select" aria-hidden="true" tabindex="-1">
+              <option value=""></option>
+              ${pokemonList.map((poke, idx) => `<option value="${idx}">${escapeHtml(poke.name || `Pokémon ${idx + 1}`)}</option>`).join("")}
+            </select>
+            <div class="fusion-picker" id="fusion-picker" hidden>
+              <div class="fusion-picker-header">
+                <strong id="fusion-picker-title">Elige un Pokémon</strong>
+                <button type="button" class="fusion-picker-close" id="fusion-picker-close" aria-label="Cerrar selección">✕</button>
+              </div>
+              <div class="fusion-pokemon-grid">
+                ${pokemonList.map((poke, idx) => `
+                  <button type="button" class="fusion-pokemon-option" data-pokemon-index="${idx}" aria-label="${escapeHtml(poke.name || `Pokémon ${idx + 1}`)}">
+                    ${buildPokemonSpriteMarkup(poke)}
+                    <span>${escapeHtml(poke.name || `Pokémon ${idx + 1}`)}</span>
+                    <small>${escapeHtml((poke.types || []).join(" / "))}</small>
+                  </button>
+                `).join("")}
+              </div>
+              <p class="fusion-picker-message" id="fusion-picker-message" aria-live="polite"></p>
             </div>
             <div id="fusion-preview-results" class="fusion-preview-results" aria-live="polite"><p class="text-muted">Elige dos Pokémon para ver los resultados y sus probabilidades.</p></div>
-            <button type="button" class="btn btn-primary btn-large" id="btn-fuse-pokemon" data-has-splicers="${Boolean(bagItems["DNA Splicers"])}" ${canFuse ? "" : "disabled"}>Fusionar</button>
+            <button type="button" class="btn btn-primary btn-large" id="btn-fuse-pokemon" data-has-splicers="${Boolean(bagItems["DNA Splicers"])}" data-has-combinations="false" disabled>Fusionar</button>
             ${!bagItems["DNA Splicers"] ? '<p class="text-muted">Necesitas una DNA Splicers para habilitar la fusión. Puedes comprarla en la tienda por $50K.</p>' : pokemonList.length < 2 ? '<p class="text-muted">Necesitas al menos dos Pokémon.</p>' : ""}
           </div>
         </div>

@@ -19,6 +19,7 @@ import {
   getTmMoveName,
   checkTmCompatibility,
   buildItemSpriteUrl,
+  buildPokemonSpriteMarkup,
   showBoxOddsModal,
 } from "./subasta_ui_components.js";
 
@@ -274,6 +275,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     this._pokemonColorStorageKey = null;
     this._pokemonCardColors = {};
     this._pokemonMoveUiStates = {};
+    this._lastFusionResult = null;
   }
 
   renderConfigFields(containerEl, data, isHost) {
@@ -311,6 +313,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         container.appendChild(combinations);
         const fusionButton = document.getElementById("btn-fuse-pokemon");
         if (fusionButton) {
+          fusionButton.dataset.hasCombinations = String(entries.length > 0);
           fusionButton.disabled = !entries.length || fusionButton.dataset.hasSplicers !== "true";
         }
         if (entries.length) {
@@ -327,8 +330,8 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     }
     if (event === "subasta_fusion_result") {
       const names = (data.sacrificed || []).join(" y ");
-      const resultName = data.pokemon?.name || "un Pokémon";
-      window.alert(`¡Fusión completada! ${names} se fusionaron en ${resultName}.`);
+      this._lastFusionResult = data.pokemon;
+      this.renderFusionResult(data.pokemon, `¡Fusión completada! ${names} se fusionaron.`);
       return true;
     }
     if (event === "subasta_mystery_box_result") {
@@ -351,6 +354,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       }
       return false;
     }
+
     if (event === "subasta_state_update" || (event === "session_state" && data.draft_state)) {
       const state = event === "subasta_state_update" ? data : data.draft_state;
       if (!state || Object.keys(state).length === 0) return false;
@@ -365,6 +369,19 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       return true;
     }
     return false;
+  }
+
+  renderFusionResult(pokemon, message = "") {
+    const resultSlot = document.getElementById("fusion-result-slot");
+    const resultArt = document.getElementById("fusion-result-art");
+    const resultName = document.getElementById("fusion-result-name");
+    const resultMessage = document.getElementById("fusion-result-message");
+    if (!resultSlot || !resultArt || !resultName || !pokemon) return;
+
+    resultSlot.classList.add("has-pokemon");
+    resultArt.innerHTML = buildPokemonSpriteMarkup(pokemon);
+    resultName.textContent = pokemon.name || "Pokémon fusionado";
+    if (resultMessage) resultMessage.textContent = message || "Resultado de la fusión.";
   }
 
   renderCurrentStageView(state, sessionClient, isHost) {
@@ -470,6 +487,9 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       this._selectedPokemonIndex
     );
     draftContainer.innerHTML = balanceHtml + html + "<br/>" + inventoryHtml;
+    if (this._lastFusionResult) {
+      this.renderFusionResult(this._lastFusionResult);
+    }
     this.attachEventListeners(state, sessionClient, isHost);
 
     bagItemState.forEach(({ name, isOpen }) => {
@@ -1470,20 +1490,101 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
 
     const fusionOne = document.getElementById("fusion-pokemon-one");
     const fusionTwo = document.getElementById("fusion-pokemon-two");
+    const fusionPicker = document.getElementById("fusion-picker");
+    const fusionPickerTitle = document.getElementById("fusion-picker-title");
+    const fusionPickerMessage = document.getElementById("fusion-picker-message");
+    let activeFusionSlot = null;
+    const getFusionPokemon = (select) => {
+      if (!select || select.value === "") return null;
+      return state.my_data?.pokemon?.[Number(select.value)] || null;
+    };
+    const updateFusionSlot = (slot) => {
+      const select = slot === "one" ? fusionOne : fusionTwo;
+      const pokemon = getFusionPokemon(select);
+      const button = document.querySelector(`[data-fusion-slot="${slot}"]`);
+      if (!button) return;
+      const art = button.querySelector(".fusion-slot-art");
+      const name = button.querySelector(".fusion-slot-name");
+      button.classList.toggle("has-pokemon", Boolean(pokemon));
+      if (art) art.innerHTML = pokemon ? buildPokemonSpriteMarkup(pokemon) : "＋";
+      if (name) name.textContent = pokemon?.name || (slot === "one" ? "Primer Pokémon" : "Segundo Pokémon");
+    };
+    const updateFusionButton = () => {
+      const button = document.getElementById("btn-fuse-pokemon");
+      if (button) {
+        button.disabled = !fusionOne?.value
+          || !fusionTwo?.value
+          || fusionOne.value === fusionTwo.value
+          || button.dataset.hasSplicers !== "true"
+          || button.dataset.hasCombinations !== "true";
+      }
+    };
     const requestFusionPreview = () => {
-      if (!fusionOne || !fusionTwo || fusionOne.value === fusionTwo.value) return;
+      if (!fusionOne?.value || !fusionTwo?.value || fusionOne.value === fusionTwo.value) return;
       sessionClient.send({
         action: "subasta_fusion_preview",
         pokemon_index_one: parseInt(fusionOne.value, 10),
         pokemon_index_two: parseInt(fusionTwo.value, 10),
       });
     };
-    fusionOne?.addEventListener("change", requestFusionPreview);
-    fusionTwo?.addEventListener("change", requestFusionPreview);
-    if (fusionOne && fusionTwo && fusionOne.value !== fusionTwo.value) requestFusionPreview();
+    const closeFusionPicker = () => {
+      if (fusionPicker) fusionPicker.hidden = true;
+      activeFusionSlot = null;
+    };
+    document.querySelectorAll("[data-fusion-slot]").forEach((slotButton) => {
+      slotButton.addEventListener("click", () => {
+        if (!fusionPicker || !fusionPickerTitle) return;
+        activeFusionSlot = slotButton.dataset.fusionSlot;
+        fusionPickerTitle.textContent = activeFusionSlot === "one" ? "Elige el primer Pokémon" : "Elige el segundo Pokémon";
+        const selectedPokemon = activeFusionSlot === "one" ? fusionOne?.value : fusionTwo?.value;
+        const otherPokemon = activeFusionSlot === "one" ? fusionTwo?.value : fusionOne?.value;
+        fusionPicker.querySelectorAll(".fusion-pokemon-option").forEach((option) => {
+          const isSelectedElsewhere = option.dataset.pokemonIndex === otherPokemon;
+          option.disabled = isSelectedElsewhere;
+          option.classList.toggle("is-selected", option.dataset.pokemonIndex === selectedPokemon);
+          option.classList.toggle("is-unavailable", isSelectedElsewhere);
+        });
+        if (fusionPickerMessage) fusionPickerMessage.textContent = "";
+        fusionPicker.hidden = false;
+        fusionPicker.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    });
+    fusionPicker?.querySelector("#fusion-picker-close")?.addEventListener("click", closeFusionPicker);
+    fusionPicker?.querySelectorAll(".fusion-pokemon-option").forEach((option) => {
+      option.addEventListener("click", () => {
+        if (!activeFusionSlot) return;
+        const targetSelect = activeFusionSlot === "one" ? fusionOne : fusionTwo;
+        if (!targetSelect) return;
+        targetSelect.value = option.dataset.pokemonIndex;
+        this._lastFusionResult = null;
+        const fusionButton = document.getElementById("btn-fuse-pokemon");
+        if (fusionButton) fusionButton.dataset.hasCombinations = "false";
+        const resultSlot = document.getElementById("fusion-result-slot");
+        const resultArt = document.getElementById("fusion-result-art");
+        const resultName = document.getElementById("fusion-result-name");
+        const resultMessage = document.getElementById("fusion-result-message");
+        resultSlot?.classList.remove("has-pokemon");
+        if (resultArt) resultArt.textContent = "?";
+        if (resultName) resultName.textContent = "Resultado";
+        if (resultMessage) resultMessage.textContent = "El Pokémon fusionado aparecerá aquí.";
+        updateFusionSlot(activeFusionSlot);
+        closeFusionPicker();
+        updateFusionButton();
+        const preview = document.getElementById("fusion-preview-results");
+        if (preview) {
+          preview.innerHTML = fusionOne?.value && fusionTwo?.value
+            ? '<p class="text-muted">Consultando combinaciones...</p>'
+            : '<p class="text-muted">Elige el otro Pokémon para consultar las combinaciones.</p>';
+        }
+        requestFusionPreview();
+      });
+    });
+    updateFusionSlot("one");
+    updateFusionSlot("two");
+    updateFusionButton();
     const fusionButton = document.getElementById("btn-fuse-pokemon");
     fusionButton?.addEventListener("click", () => {
-      if (!fusionOne || !fusionTwo || fusionButton.disabled || fusionOne.value === fusionTwo.value) return;
+      if (!fusionOne?.value || !fusionTwo?.value || fusionButton.disabled || fusionOne.value === fusionTwo.value) return;
       fusionButton.disabled = true;
       sessionClient.send({
         action: "subasta_fusion",
