@@ -1864,6 +1864,27 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       let pointerId = null;
       let dragStarted = false;
       let dragGhost = null;
+      let autoScrollRaf = null;
+      let autoScrollSpeed = 0;
+
+      const startAutoScroll = () => {
+        if (autoScrollRaf) return;
+        const step = () => {
+          if (autoScrollSpeed !== 0) {
+            window.scrollBy(0, autoScrollSpeed);
+          }
+          autoScrollRaf = requestAnimationFrame(step);
+        };
+        autoScrollRaf = requestAnimationFrame(step);
+      };
+
+      const stopAutoScroll = () => {
+        if (autoScrollRaf) {
+          cancelAnimationFrame(autoScrollRaf);
+          autoScrollRaf = null;
+        }
+        autoScrollSpeed = 0;
+      };
 
       const clearDropTargets = () => {
         document.querySelectorAll(".farming-zone-card, .farming-zone-slot")
@@ -1903,10 +1924,28 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           const under = document.elementFromPoint(e.clientX, e.clientY);
           const zoneTarget = under?.closest("[data-zone-key]");
           if (zoneTarget) zoneTarget.closest(".farming-zone-card")?.classList.add("farming-drop-target");
+
+          // Auto-scroll al acercarse a los bordes superior/inferior (crucial en celulares)
+          const edgeThreshold = 100;
+          const vh = window.innerHeight;
+          const y = e.clientY;
+
+          if (y < edgeThreshold) {
+            const intensity = Math.min(1, Math.max(0, (edgeThreshold - y) / edgeThreshold));
+            autoScrollSpeed = -Math.round(6 + intensity * 18);
+            startAutoScroll();
+          } else if (y > vh - edgeThreshold) {
+            const intensity = Math.min(1, Math.max(0, (y - (vh - edgeThreshold)) / edgeThreshold));
+            autoScrollSpeed = Math.round(6 + intensity * 18);
+            startAutoScroll();
+          } else {
+            autoScrollSpeed = 0;
+          }
         }
       });
 
       const endDrag = (e) => {
+        stopAutoScroll();
         if (pointerId === null || e.pointerId !== pointerId) return;
         if (dragStarted) {
           try {

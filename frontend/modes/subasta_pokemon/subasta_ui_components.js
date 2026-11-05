@@ -1960,9 +1960,9 @@ export function renderFarmingView(data, sessionClient, isHost) {
                   return `
                     <tr class="farming-result-row">
                       <td class="farming-td-poke">
-                        <div class="farming-result-poke">
+                        <div class="farming-result-poke" title="${escapeHtml(r.pokemon_name)}">
                           ${buildPokemonSpriteMarkup(poke, poke.name)}
-                          <div>
+                          <div class="farming-result-poke-info">
                             <strong>${escapeHtml(r.pokemon_name)}</strong>
                             <div class="farming-mini-types">
                               ${(r.pokemon_types || []).map((t) => `<span class="farming-type-tag type-${String(t).toLowerCase()}">${escapeHtml(t)}</span>`).join("")}
