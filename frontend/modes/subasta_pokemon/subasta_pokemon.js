@@ -307,8 +307,12 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         const combinations = document.createElement("p");
         combinations.textContent = entries.length
           ? `Combinaciones disponibles: ${(data.combinations || []).map((entry) => entry.types.join(" / ")).join(", ")}`
-          : "No hay resultados disponibles para estas combinaciones.";
+          : data.message || "No hay combinaciones disponibles para estos Pokémon.";
         container.appendChild(combinations);
+        const fusionButton = document.getElementById("btn-fuse-pokemon");
+        if (fusionButton) {
+          fusionButton.disabled = !entries.length || fusionButton.dataset.hasSplicers !== "true";
+        }
         if (entries.length) {
           const list = document.createElement("ul");
           entries.forEach((entry) => {
@@ -1480,7 +1484,6 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const fusionButton = document.getElementById("btn-fuse-pokemon");
     fusionButton?.addEventListener("click", () => {
       if (!fusionOne || !fusionTwo || fusionButton.disabled || fusionOne.value === fusionTwo.value) return;
-      if (!window.confirm("La fusión consume una DNA Splicers y sacrifica ambos Pokémon. ¿Continuar?")) return;
       fusionButton.disabled = true;
       sessionClient.send({
         action: "subasta_fusion",

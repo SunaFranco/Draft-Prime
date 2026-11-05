@@ -391,7 +391,11 @@ def build_fusion_preview(pokemon_a: dict, pokemon_b: dict, candidates: List[dict
             available.append((combo, matching))
 
     if not available:
-        return {"combinations": [], "pokemon": []}
+        return {
+            "combinations": [],
+            "pokemon": [],
+            "message": "No hay combinaciones disponibles para estos Pokémon.",
+        }
 
     combo_weight = 1 / len(available)
     odds = {}
@@ -2353,7 +2357,7 @@ class SubastaPokemonMode(BaseGameMode):
             candidates = await asyncio.to_thread(get_fusion_pokemon_from_db)
             preview = build_fusion_preview(pokemon[first_idx], pokemon[second_idx], candidates)
             if not preview["pokemon"]:
-                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No hay Pokémon en las pools de la base de datos con esas combinaciones de tipos."}})
+                await manager.send_personal(websocket, {"event": "subasta_fusion_preview", "data": preview})
                 return True
 
             if action == "subasta_fusion_preview":
@@ -2361,6 +2365,9 @@ class SubastaPokemonMode(BaseGameMode):
                 return True
 
             chosen = choose_fusion_candidate(preview)
+            if not chosen:
+                await manager.send_personal(websocket, {"event": "subasta_fusion_preview", "data": preview})
+                return True
             sacrificed_names = [pokemon[first_idx].get("name", "Pokémon"), pokemon[second_idx].get("name", "Pokémon")]
             result = await asyncio.to_thread(
                 poke_api.fetch_pokemon_data,

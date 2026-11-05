@@ -1505,7 +1505,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
               </label>
             </div>
             <div id="fusion-preview-results" class="fusion-preview-results" aria-live="polite"><p class="text-muted">Elige dos Pokémon para ver los resultados y sus probabilidades.</p></div>
-            <button type="button" class="btn btn-primary btn-large" id="btn-fuse-pokemon" ${canFuse ? "" : "disabled"}>Fusionar</button>
+            <button type="button" class="btn btn-primary btn-large" id="btn-fuse-pokemon" data-has-splicers="${Boolean(bagItems["DNA Splicers"])}" ${canFuse ? "" : "disabled"}>Fusionar</button>
             ${!bagItems["DNA Splicers"] ? '<p class="text-muted">Necesitas una DNA Splicers para habilitar la fusión. Puedes comprarla en la tienda por $50K.</p>' : pokemonList.length < 2 ? '<p class="text-muted">Necesitas al menos dos Pokémon.</p>' : ""}
           </div>
         </div>
