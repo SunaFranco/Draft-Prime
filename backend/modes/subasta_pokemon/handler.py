@@ -454,12 +454,16 @@ def setup_year_auction_phases(subasta_state: dict, year: int) -> bool:
     if not active_phases:
         subasta_state["current_phase_tier"] = "normal"
         subasta_state["current_phase_quota"] = 0
+        subasta_state["current_phase_total_rounds"] = 0
+        subasta_state["current_phase_rounds_completed"] = 0
         subasta_state["phase_pokemon_won"] = {u: 0 for u in all_players}
         return False
 
     first_phase = active_phases[0]
     subasta_state["current_phase_tier"] = first_phase["tier"]
     subasta_state["current_phase_quota"] = first_phase["count"]
+    subasta_state["current_phase_total_rounds"] = first_phase["count"] * len(all_players)
+    subasta_state["current_phase_rounds_completed"] = 0
     subasta_state["phase_pokemon_won"] = {u: 0 for u in all_players}
     return True
 
@@ -732,16 +736,14 @@ class SubastaPokemonMode(BaseGameMode):
         return "subasta_pokemon"
 
     def _phase_is_completed(self, subasta_state: dict) -> bool:
-        quota = int(subasta_state.get("current_phase_quota", 1) or 1)
-        phase_won = subasta_state.get("phase_pokemon_won", {}) or {}
-        players = list(subasta_state.get("players", {}).keys())
-
-        if quota <= 0:
-            return True
-
-        # La fase solo termina cuando todos los jugadores cumplen el mínimo de Pokémon
-        # requerido para esa pool actual. Si alguien queda corto, la subasta no avanza.
-        return all(phase_won.get(player, 0) >= quota for player in players)
+        total_rounds = subasta_state.get("current_phase_total_rounds")
+        if total_rounds is None:
+            # Compatibilidad con sesiones guardadas antes del contador de rondas.
+            quota = int(subasta_state.get("current_phase_quota", 0) or 0)
+            total_rounds = quota * len(subasta_state.get("players", {}))
+        total_rounds = int(total_rounds or 0)
+        completed_rounds = int(subasta_state.get("current_phase_rounds_completed", 0) or 0)
+        return total_rounds <= 0 or completed_rounds >= total_rounds
 
     async def _advance_auction_flow(self, session: dict):
         subasta_state = session["subasta"]
@@ -761,6 +763,8 @@ class SubastaPokemonMode(BaseGameMode):
                 next_phase = current_phases[next_idx]
                 subasta_state["current_phase_tier"] = next_phase["tier"]
                 subasta_state["current_phase_quota"] = max(1, int(next_phase.get("count", 1)))
+                subasta_state["current_phase_total_rounds"] = subasta_state["current_phase_quota"] * len(all_players)
+                subasta_state["current_phase_rounds_completed"] = 0
                 subasta_state["phase_pokemon_won"] = {u: 0 for u in all_players}
                 subasta_state["current_auction"] = {}
                 await init_subasta_round(session)
@@ -771,7 +775,7 @@ class SubastaPokemonMode(BaseGameMode):
                 self._start_year_events(subasta_state, event_stage)
                 subasta_state["phase_pokemon_won"] = {u: 0 for u in all_players}
         else:
-            # Si no llegó a la cuota, sigue con otra subasta de la misma fase.
+            # La fase continúa hasta completar su número fijo de rondas.
             subasta_state["current_auction"] = {}
             await init_subasta_round(session)
 
@@ -979,6 +983,8 @@ class SubastaPokemonMode(BaseGameMode):
             "year_event_counts": subasta_state.get("year_event_counts", DEFAULT_YEAR_EVENT_COUNTS),
             "current_phase_tier": current_phase_tier,
             "current_phase_quota": current_phase_quota,
+            "current_phase_total_rounds": subasta_state.get("current_phase_total_rounds", 0),
+            "current_phase_rounds_completed": subasta_state.get("current_phase_rounds_completed", 0),
             "current_pool_phase_index": current_pool_phase_index,
             "current_year_phases": current_year_phases,
             "phase_pokemon_won": phase_pokemon_won,
@@ -1437,6 +1443,9 @@ class SubastaPokemonMode(BaseGameMode):
             # Incrementar el contador de pokémon ganados en la fase actual
             phase_won = subasta_state.setdefault("phase_pokemon_won", {})
             phase_won[username] = phase_won.get(username, 0) + 1
+            subasta_state["current_phase_rounds_completed"] = (
+                int(subasta_state.get("current_phase_rounds_completed", 0) or 0) + 1
+            )
 
             # Cuando el ganador elige revelar, damos 5 segundos para que todos lo vean antes de avanzar.
             if not keep_secret:

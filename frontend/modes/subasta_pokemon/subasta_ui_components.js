@@ -410,8 +410,8 @@ export function renderConfigForm(containerEl, data, isHost) {
         </div>
       </div>
 
-      <div class="config-section-title" style="margin-top: 1rem;">🏆 Rondas de Subasta por Año (Pokémon por jugador)</div>
-      <p class="config-help-text">Establece cuántos Pokémon conseguirá cada jugador en cada pool por año. La subasta irá pasando de una pool a la siguiente en orden.</p>
+      <div class="config-section-title" style="margin-top: 1rem;">🏆 Pokémon base por jugador y pool</div>
+      <p class="config-help-text">El número de cada pool se multiplica por la cantidad de jugadores para definir sus rondas totales. La pool termina al completar esas rondas, sin exigir una cantidad mínima de Pokémon por jugador.</p>
 
       <div class="year-pools-config-grid">
         <!-- AÑO 1 -->
@@ -629,13 +629,15 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const tierDisplayName = tier === "mega" ? "🟣 Pool Mega" : (tier === "legendary" ? "🟡 Pool Legendaria" : "🔵 Pool Normal");
   const myWon = data.my_phase_pokemon_won ?? 0;
   const quota = data.current_phase_quota ?? auction.phase_quota ?? 1;
+  const completedRounds = data.current_phase_rounds_completed ?? 0;
+  const totalRounds = data.current_phase_total_rounds ?? quota;
   const currentPhaseIdx = (data.current_pool_phase_index ?? 0) + 1;
   const totalPhases = (data.current_year_phases?.length) || 1;
 
   let html = `
     <div class="subasta-header">
       <span class="badge badge-primary">📌 ${data.stage_name}</span>
-      <span class="badge badge-gold">🏆 ${tierDisplayName} (Fase ${currentPhaseIdx}/${totalPhases} • ${myWon}/${quota} míos)</span>
+      <span class="badge badge-gold">🏆 ${tierDisplayName} (Fase ${currentPhaseIdx}/${totalPhases} • Ronda ${Math.min(completedRounds + 1, totalRounds)}/${totalRounds} • ${myWon} míos)</span>
       <span class="badge badge-success">💰 Mi Saldo: $${formatMoneyCompact(myData.money || 0)}</span>
     </div>
 
