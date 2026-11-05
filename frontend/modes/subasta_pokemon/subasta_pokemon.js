@@ -1127,8 +1127,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         slot.dataset.dragged = "true";
         dragGhost = slot.cloneNode(true);
         dragGhost.classList.add("pokemon-box-drag-ghost");
-        dragGhost.style.left = `${startX}px`;
-        dragGhost.style.top = `${startY}px`;
+        dragGhost.style.transform = `translate3d(${startX}px, ${startY}px, 0) translate(-50%, -50%) scale(1.12)`;
         document.body.appendChild(dragGhost);
         if (pointerId !== null) slot.setPointerCapture?.(pointerId);
       };
@@ -1150,6 +1149,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
 
       slot.addEventListener("pointermove", (event) => {
+        if (pointerId === null || event.pointerId !== pointerId) return;
         const distance = Math.hypot(event.clientX - startX, event.clientY - startY);
         if (!dragStarted && event.pointerType === "mouse" && distance > 5) startDrag();
         if (!dragStarted && holdTimer && distance > 24) {
@@ -1159,8 +1159,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         if (!dragStarted) return;
         event.preventDefault();
         if (dragGhost) {
-          dragGhost.style.left = `${event.clientX}px`;
-          dragGhost.style.top = `${event.clientY}px`;
+          dragGhost.style.transform = `translate3d(${event.clientX}px, ${event.clientY}px, 0) translate(-50%, -50%) scale(1.12)`;
         }
         clearDropTargets();
         const target = document.elementFromPoint(event.clientX, event.clientY)
@@ -1171,7 +1170,10 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       const finishDrag = (event) => {
         if (holdTimer) window.clearTimeout(holdTimer);
         holdTimer = null;
-        if (!dragStarted) return;
+        if (!dragStarted) {
+          pointerId = null;
+          return;
+        }
         event.preventDefault();
         const sourceIndex = Number(slot.dataset.pokeIdx);
         const target = document.elementFromPoint(event.clientX, event.clientY)
@@ -1180,6 +1182,8 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         slot.classList.remove("pokemon-box-slot--dragging");
         dragGhost?.remove();
         dragGhost = null;
+        dragStarted = false;
+        pointerId = null;
         const sourcePokemon = state.my_data?.pokemon?.[sourceIndex];
         if (!sourcePokemon || !target) return;
 
@@ -1213,6 +1217,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         if (holdTimer) window.clearTimeout(holdTimer);
         holdTimer = null;
         dragStarted = false;
+        pointerId = null;
         slot.classList.remove("pokemon-box-slot--dragging");
         slot.dataset.dragged = "false";
         dragGhost?.remove();
