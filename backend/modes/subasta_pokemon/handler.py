@@ -372,7 +372,7 @@ def build_fusion_preview(pokemon_a: dict, pokemon_b: dict, candidates: List[dict
     types_b = list(dict.fromkeys(pokemon_b.get("types") or []))
     legendary_sacrifices = sum(
         1 for pokemon in (pokemon_a, pokemon_b)
-        if pokemon.get("acquisition_tier") == "legendary"
+        if pokemon.get("acquisition_tier") == "legendary" or pokemon.get("tier") == "legendary"
     )
     legendary_chance = {0: 0.05, 1: 0.15, 2: 0.25}[legendary_sacrifices]
     combinations = sorted({tuple(sorted((a, b))) for a in types_a for b in types_b})
@@ -394,19 +394,35 @@ def build_fusion_preview(pokemon_a: dict, pokemon_b: dict, candidates: List[dict
         return {
             "combinations": [],
             "pokemon": [],
+            "failure_chance": 0.0,
             "message": "No hay combinaciones disponibles para estos Pokémon.",
         }
 
     combo_weight = 1 / len(available)
     odds = {}
+    fail_probability = 0.0
     for combo, matching in available:
         normal = [entry for entry in matching if entry.get("tier") != "legendary"]
         legendary = [entry for entry in matching if entry.get("tier") == "legendary"]
-        normal_weight, legendary_weight = (
-            (1 - legendary_chance, legendary_chance)
-            if normal and legendary
-            else ((1, 0) if normal else (0, 1))
-        )
+        if normal and legendary:
+            normal_weight = 1 - legendary_chance
+            legendary_weight = legendary_chance
+            fail_weight = 0.0
+        elif normal:
+            normal_weight = 1.0
+            legendary_weight = 0.0
+            fail_weight = 0.0
+        else:
+            if legendary_sacrifices == 0:
+                normal_weight = 0.0
+                legendary_weight = legendary_chance
+                fail_weight = 1 - legendary_chance
+            else:
+                normal_weight = 0.0
+                legendary_weight = 1.0
+                fail_weight = 0.0
+
+        fail_probability += combo_weight * fail_weight
         for group, weight in ((normal, normal_weight), (legendary, legendary_weight)):
             if not group or weight <= 0:
                 continue
@@ -419,13 +435,19 @@ def build_fusion_preview(pokemon_a: dict, pokemon_b: dict, candidates: List[dict
     return {
         "combinations": [{"types": list(combo)} for combo, _ in available],
         "pokemon": sorted(odds.values(), key=lambda entry: (-entry["probability"], entry["name"].casefold())),
+        "failure_chance": round(fail_probability, 4),
     }
 
 
 def choose_fusion_candidate(preview: dict) -> Optional[dict]:
     entries = preview.get("pokemon") or []
-    if not entries:
+    failure_chance = float(preview.get("failure_chance") or 0.0)
+    if not entries and failure_chance <= 0:
         return None
+    if failure_chance > 0:
+        candidates = entries + [None]
+        weights = [entry["probability"] for entry in entries] + [failure_chance]
+        return random.choices(candidates, weights=weights, k=1)[0]
     return random.choices(entries, weights=[entry["probability"] for entry in entries], k=1)[0]
 
 
@@ -2365,10 +2387,30 @@ class SubastaPokemonMode(BaseGameMode):
                 return True
 
             chosen = choose_fusion_candidate(preview)
-            if not chosen:
-                await manager.send_personal(websocket, {"event": "subasta_fusion_preview", "data": preview})
-                return True
             sacrificed_names = [pokemon[first_idx].get("name", "Pokémon"), pokemon[second_idx].get("name", "Pokémon")]
+
+            # Devolver los objetos equipados a la mochila antes de sacrificar.
+            for index in sorted((first_idx, second_idx), reverse=True):
+                consumed = pokemon.pop(index)
+                held_item = consumed.get("item") or consumed.get("held_item")
+                if held_item:
+                    add_item_to_inventory(player, held_item)
+            remove_item_from_inventory(player, "DNA Splicers")
+
+            if not chosen:
+                save_game_session(session_id, self.key, subasta_state)
+                await manager.send_personal(websocket, {
+                    "event": "subasta_fusion_result",
+                    "data": {
+                        "pokemon": None,
+                        "sacrificed": sacrificed_names,
+                        "failed": True,
+                        "message": "algo fallo y los dos pokemon fallecieron",
+                    },
+                })
+                await self._broadcast_subasta_state(session, manager)
+                return True
+
             result = await asyncio.to_thread(
                 poke_api.fetch_pokemon_data,
                 chosen["name"],
@@ -2377,18 +2419,11 @@ class SubastaPokemonMode(BaseGameMode):
             result["acquisition_year"] = int(subasta_state.get("current_year", 1))
             result["acquisition_tier"] = chosen["tier"]
             result["fusion_types"] = chosen.get("combination")
-            # Devolver los objetos equipados a la mochila antes de sacrificar.
-            for index in sorted((first_idx, second_idx), reverse=True):
-                consumed = pokemon.pop(index)
-                held_item = consumed.get("item") or consumed.get("held_item")
-                if held_item:
-                    add_item_to_inventory(player, held_item)
-            remove_item_from_inventory(player, "DNA Splicers")
             player.setdefault("pokemon", []).append(result)
             save_game_session(session_id, self.key, subasta_state)
             await manager.send_personal(websocket, {
                 "event": "subasta_fusion_result",
-                "data": {"pokemon": result, "sacrificed": sacrificed_names},
+                "data": {"pokemon": result, "sacrificed": sacrificed_names, "failed": False},
             })
             await self._broadcast_subasta_state(session, manager)
             return True

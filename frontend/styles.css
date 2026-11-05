@@ -1607,6 +1607,12 @@ button.fusion-creature-slot:hover:not(:disabled) {
   box-shadow: 0 0 16px rgba(255, 212, 59, 0.28);
 }
 
+.fusion-result-slot.has-failed {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.28);
+}
+
 .fusion-slot-art {
   display: grid;
   place-items: center;
