@@ -1173,7 +1173,6 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
 
   return `
     <div class="card inventory-card">
-      <h3>Mis Pokémon Conseguidos (Level Cap: Nv. ${levelCap})</h3>
       ${preparationStage && (!tradeSession || ['completed', 'cancelled'].includes(tradeSession.status)) && bagItems["Cable Link"] && tradeTargets.length && pokemonList.length ? `
         <div class="trade-panel">
           <h4>🔗 Intercambio con Cable Link</h4>
@@ -1212,14 +1211,19 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
           ${tradeSession.initiator === currentUsername ? '<button class="btn btn-small btn-secondary" id="btn-cancel-trade" style="margin-left: 8px;">Cerrar</button>' : ''}
         </div>
       ` : ""}
-      <p class="pokemon-box-instructions">Toca un Pokémon para ver sus datos. Mantén pulsado y arrastra para ordenarlo o moverlo a otra caja.</p>
-      <div class="pokemon-boxes" role="tablist" aria-label="Cajas de Pokémon">
-        ${boxCounts.map((box) => `
-          <button type="button" class="pokemon-box-tab ${box.id === activeBox.id ? 'is-active' : ''}" data-pokemon-box-id="${box.id}" role="tab" aria-selected="${box.id === activeBox.id}">
-            ${box.name} <span>${box.count}</span>
-          </button>
-        `).join("")}
-        <button type="button" class="btn btn-small btn-secondary btn-create-pokemon-box">＋ Crear caja</button>
+      <div class="pokemon-box-navigation">
+        <span class="pokemon-boxes-label">Cajas:</span>
+        <div class="pokemon-boxes" role="tablist" aria-label="Cajas de Pokémon">
+          ${boxCounts.map((box, boxIndex) => {
+            const boxNumber = String(box.name).match(/\d+/)?.[0] || String(boxIndex + 1);
+            return `
+              <button type="button" class="pokemon-box-tab ${box.id === activeBox.id ? 'is-active' : ''}" data-pokemon-box-id="${box.id}" role="tab" aria-label="Caja ${boxNumber}, ${box.count} Pokémon" title="Caja ${boxNumber}" aria-selected="${box.id === activeBox.id}">
+                ${boxNumber}
+              </button>
+            `;
+          }).join("")}
+          <button type="button" class="btn btn-small btn-secondary btn-create-pokemon-box" aria-label="Crear caja" title="Crear caja">＋</button>
+        </div>
       </div>
       <div class="pokemon-box-layout">
         <div class="pokemon-box-frame">
@@ -1241,7 +1245,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                 ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${spriteId}.png`
                 : (poke.image_url || "");
               return `
-                <button type="button" class="pokemon-box-slot${pokeIdx === visibleSelectedPokemonIndex ? " is-selected" : ""}${poke.is_shiny ? " is-shiny" : ""}" data-poke-idx="${pokeIdx}" data-slot-position="${slotPosition}" aria-label="${poke.name || `Pokémon ${pokeIdx + 1}`}" title="${poke.name || `Pokémon ${pokeIdx + 1}`} — toca para ver datos; mantén pulsado para arrastrar" style="--pokemon-accent: ${slotColor.hex}; --pokemon-accent-rgb: ${slotColor.rgb}">
+                <button type="button" class="pokemon-box-slot${pokeIdx === visibleSelectedPokemonIndex ? " is-selected" : ""}${poke.is_shiny ? " is-shiny" : ""}" data-poke-idx="${pokeIdx}" data-slot-position="${slotPosition}" aria-label="${poke.name || `Pokémon ${pokeIdx + 1}`}" title="${poke.name || `Pokémon ${pokeIdx + 1}`} — toca para ver datos; mantén pulsado y arrastra para mover" style="--pokemon-accent: ${slotColor.hex}; --pokemon-accent-rgb: ${slotColor.rgb}">
                   <picture>
                     <source media="(min-width: 769px)" srcset="${fullSpriteUrl}" />
                     <img src="${miniSpriteUrl}" alt="" loading="lazy" onerror="if (!this.dataset.fallback) { this.dataset.fallback = '1'; this.parentElement.querySelector('source')?.remove(); this.src = '${fullSpriteUrl}'; } else if (!this.dataset.artFallback) { this.dataset.artFallback = '1'; this.src = '${poke.image_url || fullSpriteUrl}'; } else { this.style.visibility = 'hidden'; }" />

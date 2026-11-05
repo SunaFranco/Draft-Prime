@@ -1111,7 +1111,8 @@ button.btn-danger:hover {
   margin-top: 1rem;
 }
 
-.pokemon-box-instructions { margin: 0.75rem 0 0; color: var(--text-muted); font-size: 0.9rem; }
+.pokemon-box-navigation { display: flex; align-items: center; gap: 0.55rem; min-width: 0; margin-top: 0.65rem; }
+.pokemon-boxes-label { flex: 0 0 auto; color: var(--text-main); font-weight: 800; text-transform: uppercase; }
 .pokemon-box-layout { display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.3fr); grid-template-areas: "info box"; align-items: start; gap: 1rem; margin-top: 0.8rem; }
 .pokemon-box-frame { grid-area: box; min-width: 0; padding: 0.8rem; border: 2.5px solid var(--border-bright); background: var(--bg-surface-card); box-shadow: var(--shadow-card); }
 .pokemon-box-frame-header { display: flex; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.6rem; color: var(--accent-gold); font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -1120,9 +1121,11 @@ button.btn-danger:hover {
 .pokemon-box-slot img { display: block; width: 100%; max-width: 48px; height: 36px; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
 .pokemon-box-slot picture { display: grid; place-items: center; width: 100%; height: 100%; pointer-events: none; }
 .pokemon-box-slot.is-empty { border-color: rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.025); cursor: default; }
-.pokemon-box-slot.is-selected { z-index: 1; border: 2px solid var(--pokemon-accent, var(--border-neon)); background: rgba(var(--pokemon-accent-rgb, 0, 255, 102), 0.16); box-shadow: 0 0 0 1px rgba(var(--pokemon-accent-rgb, 0, 255, 102), 0.24); }
-.pokemon-box-slot:hover { transform: none; box-shadow: none; background: var(--bg-surface); }
-.pokemon-box-slot.is-selected:hover { border-color: var(--pokemon-accent, var(--border-neon)); background: rgba(var(--pokemon-accent-rgb, 0, 255, 102), 0.16); box-shadow: 0 0 0 1px rgba(var(--pokemon-accent-rgb, 0, 255, 102), 0.24); }
+.pokemon-box-slot:not(.is-empty) { border-color: rgba(var(--pokemon-accent-rgb), 0.88); background: rgba(var(--pokemon-accent-rgb), 0.2); }
+.pokemon-box-slot.is-selected { z-index: 1; border: 2px solid var(--pokemon-accent, var(--border-neon)); background: rgba(var(--pokemon-accent-rgb, 0, 255, 102), 0.34); box-shadow: 0 0 0 1px rgba(var(--pokemon-accent-rgb, 0, 255, 102), 0.4); }
+.pokemon-box-slot:hover { transform: none; box-shadow: none; }
+.pokemon-box-slot:not(.is-empty):hover { background: rgba(var(--pokemon-accent-rgb), 0.2); }
+.pokemon-box-slot.is-selected:hover { border-color: var(--pokemon-accent, var(--border-neon)); background: rgba(var(--pokemon-accent-rgb, 0, 255, 102), 0.34); box-shadow: 0 0 0 1px rgba(var(--pokemon-accent-rgb, 0, 255, 102), 0.4); }
 .pokemon-box-slot:active { transform: none; box-shadow: none; }
 .pokemon-box-slot.pokemon-box-drop-target:hover,
 .pokemon-box-slot.pokemon-box-drop-target:active { border-color: var(--accent-gold); background: rgba(255, 212, 59, 0.18); box-shadow: 0 0 0 2px rgba(255, 212, 59, 0.22); transform: scale(1.03); }
@@ -1144,16 +1147,21 @@ button.btn-danger:hover {
 .pokemon-boxes {
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: 0;
 }
 
 .pokemon-box-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.75rem;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
   background: #111827;
   border: 2px solid var(--border-dim);
   color: var(--text-main);
@@ -1161,9 +1169,7 @@ button.btn-danger:hover {
   cursor: pointer;
 }
 
-.pokemon-box-tab span {
-  color: var(--border-neon);
-}
+.pokemon-box-tab:hover, .pokemon-box-tab:active { transform: none; background: #111827; color: var(--text-main); box-shadow: 4px 4px 0 var(--border-bright); }
 
 .pokemon-box-tab.is-active {
   border-color: var(--border-neon);
@@ -1990,6 +1996,7 @@ button.btn-danger:hover {
   .pokemon-box-slot { min-height: 0; }
   .pokemon-box-slot img { height: clamp(28px, 9vw, 38px); }
   .pokemon-info-panel { padding: 0.7rem; }
+  .pokemon-box-navigation { gap: 0.4rem; }
   .pokemon-boxes { flex-wrap: nowrap; overflow-x: auto; padding: 0.2rem 0.1rem 0.5rem; scrollbar-width: thin; }
   .pokemon-box-tab { flex: 0 0 auto; min-height: 44px; }
   .pokemon-boxes > .btn { flex: 0 0 auto; white-space: nowrap; }
