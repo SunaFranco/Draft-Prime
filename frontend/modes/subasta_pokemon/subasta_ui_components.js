@@ -1092,7 +1092,7 @@ export function renderAdminAndStandingsView(data, sessionClient, isHost) {
   `;
 }
 
-export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxId = null, pokemonCardColors = {}, pokemonMoveUiStates = {}) {
+export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxId = null, pokemonCardColors = {}, pokemonMoveUiStates = {}, selectedPokemonIndex = null) {
   const myData = data.my_data || {};
   const pokemonList = myData.pokemon || [];
   const bagItems = normalizeItemMap(myData.items || {});
@@ -1108,6 +1108,13 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
     ? myData.pokemon_boxes
     : [{ id: "box-1", name: "Caja 1" }];
   const activeBox = pokemonBoxes.find((box) => box.id === activeBoxId) || pokemonBoxes[0];
+  const activeBoxPokemon = pokemonList
+    .map((poke, pokeIdx) => ({ poke, pokeIdx }))
+    .filter(({ poke }) => (poke.box_id || pokemonBoxes[0].id) === activeBox.id);
+  const activeBoxSlotCount = Math.max(30, activeBoxPokemon.length);
+  const visibleSelectedPokemonIndex = activeBoxPokemon.some(({ pokeIdx }) => pokeIdx === selectedPokemonIndex)
+    ? selectedPokemonIndex
+    : (activeBoxPokemon[0]?.pokeIdx ?? null);
   const boxCounts = pokemonBoxes.map((box) => ({
     ...box,
     count: pokemonList.filter((poke) => (poke.box_id || pokemonBoxes[0].id) === box.id).length,
@@ -1205,6 +1212,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
           ${tradeSession.initiator === currentUsername ? '<button class="btn btn-small btn-secondary" id="btn-cancel-trade" style="margin-left: 8px;">Cerrar</button>' : ''}
         </div>
       ` : ""}
+      <p class="pokemon-box-instructions">Toca un Pokémon para ver sus datos. Mantén pulsado y arrastra para ordenarlo o moverlo a otra caja.</p>
       <div class="pokemon-boxes" role="tablist" aria-label="Cajas de Pokémon">
         ${boxCounts.map((box) => `
           <button type="button" class="pokemon-box-tab ${box.id === activeBox.id ? 'is-active' : ''}" data-pokemon-box-id="${box.id}" role="tab" aria-selected="${box.id === activeBox.id}">
@@ -1213,7 +1221,30 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
         `).join("")}
         <button type="button" class="btn btn-small btn-secondary btn-create-pokemon-box">＋ Crear caja</button>
       </div>
-      <div class="inventory-grid">
+      <div class="pokemon-box-layout">
+        <div class="pokemon-box-frame">
+          <div class="pokemon-box-frame-header"><span>${activeBox.name}</span><span>${activeBoxPokemon.length} Pokémon</span></div>
+          <div class="inventory-grid" role="grid" aria-label="Pokémon en ${activeBox.name}">
+            ${Array.from({ length: activeBoxSlotCount }, (_, slotPosition) => {
+              const entry = activeBoxPokemon[slotPosition];
+              if (!entry) return `<div class="pokemon-box-slot is-empty" data-slot-position="${slotPosition}" aria-label="Espacio vacío"></div>`;
+              const { poke, pokeIdx } = entry;
+              const iconUrl = poke.id
+                ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/${poke.id}.png`
+                : (poke.image_url || "");
+              return `
+                <button type="button" class="pokemon-box-slot${pokeIdx === visibleSelectedPokemonIndex ? " is-selected" : ""}${poke.is_shiny ? " is-shiny" : ""}" data-poke-idx="${pokeIdx}" data-slot-position="${slotPosition}" aria-label="${poke.name || `Pokémon ${pokeIdx + 1}`}" title="${poke.name || `Pokémon ${pokeIdx + 1}`} — toca para ver datos; mantén pulsado para arrastrar">
+                  <img src="${iconUrl}" alt="" loading="lazy" onerror="if (!this.dataset.fallback) { this.dataset.fallback = '1'; this.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${poke.id || 0}.png'; } else { this.style.visibility = 'hidden'; }" />
+                  ${poke.is_shiny ? '<span class="pokemon-box-shiny" aria-label="Shiny">✦</span>' : ""}
+                </button>
+              `;
+            }).join("")}
+          </div>
+        </div>
+        <aside class="pokemon-info-panel" aria-label="Información del Pokémon seleccionado">
+          <h4>Datos del Pokémon</h4>
+          ${activeBoxPokemon.length ? "" : '<p class="text-muted">Esta caja está vacía.</p>'}
+        <div class="pokemon-info-cards" aria-live="polite">
         ${pokemonList.length ? pokemonList.map((poke, pokeIdx) => {
           if ((poke.box_id || pokemonBoxes[0].id) !== activeBox.id) return "";
           const isMega = isMegaPokemon(poke);
@@ -1312,10 +1343,11 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
 
           return `
             <details
-              class="poke-inventory-item"
+              class="poke-inventory-item pokemon-info-card"
               data-poke-idx="${pokeIdx}"
               data-pokemon-color-key="${pokeIdx}"
               data-color-id="${pokemonCardColorId}"
+              ${pokeIdx === visibleSelectedPokemonIndex ? "open" : "hidden"}
               style="--pokemon-accent: ${pokemonCardColor.hex}; --pokemon-accent-rgb: ${pokemonCardColor.rgb}"
             >
               <summary class="poke-inventory-summary">
@@ -1411,9 +1443,8 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
             </details>
           `;
         }).join("") : '<p class="text-muted">Aún no has conseguido ningún Pokémon en las subastas.</p>'}
-        ${pokemonList.length && !pokemonList.some((poke) => (poke.box_id || pokemonBoxes[0].id) === activeBox.id)
-          ? '<p class="text-muted">Esta caja está vacía. Elige una caja en un Pokémon para moverlo aquí.</p>'
-          : ""}
+        </div>
+        </aside>
       </div>
 
       <div class="inventory-actions">

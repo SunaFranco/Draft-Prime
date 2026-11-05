@@ -270,6 +270,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     this._isRouletteSpinning = false;
     this._lastCoinflipAnimationKey = null;
     this._activePokemonBoxId = null;
+    this._selectedPokemonIndex = null;
     this._pokemonColorStorageKey = null;
     this._pokemonCardColors = {};
     this._pokemonMoveUiStates = {};
@@ -357,11 +358,6 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       }
     }
 
-    const pokemonCardState = Array.from(draftContainer.querySelectorAll(".poke-inventory-item")).map((card) => ({
-      index: card.dataset.pokeIdx,
-      name: card.querySelector(".poke-inventory-name")?.textContent,
-      isOpen: card.open,
-    }));
     if (!sessionChanged) draftContainer.querySelectorAll(".moves-selector-box").forEach((panel) => {
       const pokeIdx = panel.dataset.pokeIdx;
       const pokemon = state.my_data?.pokemon?.[Number(pokeIdx)];
@@ -420,24 +416,29 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const currentlyOpenTarget = openModal ? openModal.dataset.modal : null;
     document.querySelectorAll("body > .inventory-modal-overlay").forEach((el) => el.remove());
 
+    const boxes = state.my_data?.pokemon_boxes || [];
+    const pokemon = state.my_data?.pokemon || [];
+    if (!this._activePokemonBoxId || !boxes.some((box) => box.id === this._activePokemonBoxId)) {
+      this._activePokemonBoxId = boxes[0]?.id || "box-1";
+    }
+    const pokemonInActiveBox = pokemon
+      .map((poke, index) => ({ poke, index }))
+      .filter(({ poke }) => (poke.box_id || boxes[0]?.id || "box-1") === this._activePokemonBoxId);
+    if (!pokemonInActiveBox.some(({ index }) => index === this._selectedPokemonIndex)) {
+      this._selectedPokemonIndex = pokemonInActiveBox[0]?.index ?? null;
+    }
+
     const inventoryHtml = isTeamLocked ? "" : renderMyPokemonInventory(
       state,
       sessionClient,
       isHost,
       this._activePokemonBoxId,
       this._pokemonCardColors,
-      this._pokemonMoveUiStates
+      this._pokemonMoveUiStates,
+      this._selectedPokemonIndex
     );
     draftContainer.innerHTML = balanceHtml + html + "<br/>" + inventoryHtml;
     this.attachEventListeners(state, sessionClient, isHost);
-
-    pokemonCardState.forEach(({ index, name, isOpen }) => {
-      const pokemon = state.my_data?.pokemon?.[Number(index)];
-      if (!pokemon || pokemon.name !== name) return;
-      const card = draftContainer.querySelector(`.poke-inventory-item[data-poke-idx="${index}"]`);
-      if (!card) return;
-      card.open = isOpen;
-    });
 
     bagItemState.forEach(({ name, isOpen }) => {
       const item = Array.from(draftContainer.querySelectorAll(".bag-item-row"))
@@ -1089,7 +1090,123 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     document.querySelectorAll(".pokemon-box-tab").forEach((button) => {
       button.addEventListener("click", () => {
         this._activePokemonBoxId = button.dataset.pokemonBoxId;
+        const nextBoxPokemon = (state.my_data?.pokemon || [])
+          .map((poke, index) => ({ poke, index }))
+          .find(({ poke }) => (poke.box_id || state.my_data?.pokemon_boxes?.[0]?.id || "box-1") === this._activePokemonBoxId);
+        this._selectedPokemonIndex = nextBoxPokemon?.index ?? null;
         this.renderCurrentStageView(state, sessionClient, isHost);
+      });
+    });
+
+    document.querySelectorAll(".pokemon-box-slot[data-poke-idx]").forEach((slot) => {
+      slot.addEventListener("click", (event) => {
+        if (slot.dataset.dragged === "true") {
+          event.preventDefault();
+          slot.dataset.dragged = "false";
+          return;
+        }
+        this._selectedPokemonIndex = Number(slot.dataset.pokeIdx);
+        this.renderCurrentStageView(state, sessionClient, isHost);
+        if (window.matchMedia("(max-width: 760px)").matches) {
+          document.querySelector(".pokemon-info-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      });
+
+      let holdTimer = null;
+      let dragStarted = false;
+      let startX = 0;
+      let startY = 0;
+      let pointerId = null;
+      let dragGhost = null;
+      const clearDropTargets = () => document.querySelectorAll(".pokemon-box-drop-target")
+        .forEach((target) => target.classList.remove("pokemon-box-drop-target"));
+
+      slot.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        startX = event.clientX;
+        startY = event.clientY;
+        pointerId = event.pointerId;
+        dragStarted = false;
+        holdTimer = window.setTimeout(() => {
+          dragStarted = true;
+          slot.classList.add("pokemon-box-slot--dragging");
+          slot.dataset.dragged = "true";
+          dragGhost = slot.cloneNode(true);
+          dragGhost.classList.add("pokemon-box-drag-ghost");
+          dragGhost.style.left = `${startX}px`;
+          dragGhost.style.top = `${startY}px`;
+          document.body.appendChild(dragGhost);
+          slot.setPointerCapture?.(pointerId);
+        }, 420);
+      });
+
+      slot.addEventListener("pointermove", (event) => {
+        if (!dragStarted && holdTimer && Math.hypot(event.clientX - startX, event.clientY - startY) > 12) {
+          window.clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+        if (!dragStarted) return;
+        event.preventDefault();
+        if (dragGhost) {
+          dragGhost.style.left = `${event.clientX}px`;
+          dragGhost.style.top = `${event.clientY}px`;
+        }
+        clearDropTargets();
+        const target = document.elementFromPoint(event.clientX, event.clientY)
+          ?.closest(".pokemon-box-slot, .pokemon-box-tab");
+        target?.classList.add("pokemon-box-drop-target");
+      });
+
+      const finishDrag = (event) => {
+        if (holdTimer) window.clearTimeout(holdTimer);
+        holdTimer = null;
+        if (!dragStarted) return;
+        event.preventDefault();
+        const sourceIndex = Number(slot.dataset.pokeIdx);
+        const target = document.elementFromPoint(event.clientX, event.clientY)
+          ?.closest(".pokemon-box-slot, .pokemon-box-tab");
+        clearDropTargets();
+        slot.classList.remove("pokemon-box-slot--dragging");
+        dragGhost?.remove();
+        dragGhost = null;
+        const sourcePokemon = state.my_data?.pokemon?.[sourceIndex];
+        if (!sourcePokemon || !target) return;
+
+        this._selectedPokemonIndex = sourceIndex;
+        if (target.classList.contains("pokemon-box-tab")) {
+          const targetBoxId = target.dataset.pokemonBoxId;
+          if (!targetBoxId || targetBoxId === this._activePokemonBoxId) return;
+          this._activePokemonBoxId = targetBoxId;
+          sessionClient.send({ action: "subasta_move_pokemon_box", poke_index: sourceIndex, box_id: targetBoxId });
+          return;
+        }
+
+        const targetPosition = Number(target.dataset.slotPosition);
+        if (Number.isInteger(targetPosition) && targetPosition >= 0) {
+          const boxIndexes = (state.my_data?.pokemon || [])
+            .map((poke, index) => ({ poke, index }))
+            .filter(({ poke }) => (poke.box_id || state.my_data?.pokemon_boxes?.[0]?.id || "box-1") === this._activePokemonBoxId)
+            .map(({ index }) => index);
+          this._selectedPokemonIndex = boxIndexes[Math.min(targetPosition, boxIndexes.length - 1)] ?? sourceIndex;
+          sessionClient.send({
+            action: "subasta_reorder_pokemon",
+            poke_index: sourceIndex,
+            box_id: this._activePokemonBoxId,
+            target_position: targetPosition,
+          });
+        }
+      };
+
+      slot.addEventListener("pointerup", finishDrag);
+      slot.addEventListener("pointercancel", (event) => {
+        if (holdTimer) window.clearTimeout(holdTimer);
+        holdTimer = null;
+        dragStarted = false;
+        slot.classList.remove("pokemon-box-slot--dragging");
+        slot.dataset.dragged = "false";
+        dragGhost?.remove();
+        dragGhost = null;
+        clearDropTargets();
       });
     });
 

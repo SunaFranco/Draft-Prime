@@ -1260,6 +1260,49 @@ class SubastaPokemonMode(BaseGameMode):
             await self._send_subasta_state_to_user(session, manager, username)
             return True
 
+        elif action == "subasta_reorder_pokemon":
+            player = subasta_state["players"].get(username)
+            poke_idx = message.get("poke_index")
+            target_box_id = message.get("box_id")
+            target_position = message.get("target_position")
+            if not player:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No se encontró tu jugador en esta partida."}})
+                return True
+            pokemon = player.get("pokemon", [])
+            if not isinstance(poke_idx, int) or isinstance(poke_idx, bool) or not 0 <= poke_idx < len(pokemon):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un Pokémon válido."}})
+                return True
+            if not isinstance(target_position, int) or isinstance(target_position, bool) or target_position < 0:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona un espacio válido de la caja."}})
+                return True
+
+            boxes = ensure_player_pokemon_boxes(player)
+            valid_box_ids = {box["id"] for box in boxes}
+            if not isinstance(target_box_id, str) or target_box_id not in valid_box_ids:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona una caja válida."}})
+                return True
+
+            default_box_id = boxes[0]["id"]
+            box_indexes = [
+                index for index, poke in enumerate(pokemon)
+                if (poke.get("box_id") or default_box_id) == target_box_id
+            ]
+            if poke_idx not in box_indexes:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "El Pokémon ya no está en esa caja."}})
+                return True
+
+            box_pokemon = [pokemon[index] for index in box_indexes]
+            source_position = box_indexes.index(poke_idx)
+            moved_pokemon = box_pokemon.pop(source_position)
+            insert_position = min(target_position, len(box_pokemon))
+            box_pokemon.insert(insert_position, moved_pokemon)
+            for index, reordered_pokemon in zip(box_indexes, box_pokemon):
+                pokemon[index] = reordered_pokemon
+
+            save_game_session(session_id, self.key, subasta_state)
+            await self._send_subasta_state_to_user(session, manager, username)
+            return True
+
         elif action == "subasta_bid":
             bid_amount = int(message.get("bid_amount", 0))
             auction = subasta_state.get("current_auction")

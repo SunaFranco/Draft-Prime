@@ -1124,6 +1124,29 @@ button.btn-danger:hover {
   margin-top: 1rem;
 }
 
+.pokemon-box-instructions { margin: 0.75rem 0 0; color: var(--text-muted); font-size: 0.9rem; }
+.pokemon-box-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr); align-items: start; gap: 1rem; margin-top: 0.8rem; }
+.pokemon-box-frame { min-width: 0; padding: 0.8rem; border: 2px solid #3478c5; background: linear-gradient(145deg, #154d89, #0c2c54 62%, #092244); box-shadow: 4px 4px 0 #071a30; }
+.pokemon-box-frame-header { display: flex; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.6rem; color: #eff8ff; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
+.pokemon-box-layout .inventory-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: stretch; gap: 4px; margin: 0; }
+.pokemon-box-slot { position: relative; display: grid; place-items: center; min-width: 0; min-height: 54px; aspect-ratio: 1; padding: 2px; overflow: hidden; border: 1px solid #8bb5de; border-radius: 5px; color: #fff; background: rgba(201, 229, 255, 0.2); cursor: pointer; touch-action: none; -webkit-user-select: none; user-select: none; transition: transform 150ms ease, border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease; }
+.pokemon-box-slot img { display: block; width: 100%; max-width: 48px; height: 36px; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+.pokemon-box-slot.is-empty { border-color: rgba(177, 213, 243, 0.25); background: rgba(5, 27, 54, 0.35); cursor: default; }
+.pokemon-box-slot.is-selected { z-index: 1; border: 2px solid #ffe36e; background: rgba(255, 227, 110, 0.27); box-shadow: 0 0 0 2px rgba(255, 227, 110, 0.22); }
+.pokemon-box-slot.is-shiny::after { position: absolute; inset: 0; border: 1px solid rgba(255, 227, 110, 0.8); border-radius: inherit; content: ""; pointer-events: none; }
+.pokemon-box-shiny { position: absolute; top: 0; right: 2px; color: #ffe36e; font-size: 0.75rem; line-height: 1; }
+.pokemon-box-slot--dragging { opacity: 0.25; transform: scale(0.88); }
+.pokemon-box-slot.pokemon-box-drop-target,
+.pokemon-box-tab.pokemon-box-drop-target { z-index: 2; border-color: #ffe36e; background-color: rgba(255, 227, 110, 0.35); box-shadow: 0 0 0 3px rgba(255, 227, 110, 0.32); transform: scale(1.06); }
+.pokemon-box-drag-ghost { position: fixed !important; z-index: 10000 !important; width: 54px; min-height: 54px; opacity: 0.92; pointer-events: none !important; transform: translate(-50%, -50%) scale(1.12); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55); transition: left 45ms linear, top 45ms linear, transform 120ms ease; }
+.pokemon-info-panel { min-width: 0; padding: 0.9rem; border: 2px solid var(--border-bright); background: var(--bg-surface-card); box-shadow: var(--shadow-card); }
+.pokemon-info-panel > h4 { margin: 0 0 0.7rem; color: var(--text-bright); text-transform: uppercase; }
+.pokemon-info-cards { min-width: 0; }
+.pokemon-info-card[hidden] { display: none !important; }
+.pokemon-info-card:not([hidden]) { display: block; }
+.pokemon-info-card .poke-inventory-summary { cursor: default; }
+.pokemon-info-card .poke-inventory-summary::-webkit-details-marker { display: none; }
+
 .pokemon-boxes {
   display: flex;
   align-items: center;
@@ -1963,10 +1986,19 @@ button.btn-danger:hover {
   }
 
   .mode-grid,
-  .auction-grid,
-  .inventory-grid {
+  .auction-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .pokemon-box-layout { grid-template-columns: minmax(0, 1fr); }
+  .pokemon-box-layout .inventory-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+  .pokemon-box-frame { padding: 0.55rem; }
+  .pokemon-box-slot { min-height: 0; }
+  .pokemon-box-slot img { height: clamp(28px, 9vw, 38px); }
+  .pokemon-info-panel { padding: 0.7rem; }
+  .pokemon-boxes { flex-wrap: nowrap; overflow-x: auto; padding: 0.2rem 0.1rem 0.5rem; scrollbar-width: thin; }
+  .pokemon-box-tab { flex: 0 0 auto; min-height: 44px; }
+  .pokemon-boxes > .btn { flex: 0 0 auto; white-space: nowrap; }
 
   .draft-grid {
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
