@@ -1229,6 +1229,10 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
               const entry = activeBoxPokemon[slotPosition];
               if (!entry) return `<div class="pokemon-box-slot is-empty" data-slot-position="${slotPosition}" aria-label="Espacio vacío"></div>`;
               const { poke, pokeIdx } = entry;
+              const slotColorId = POKEMON_CARD_COLORS[pokemonCardColors[pokeIdx]]
+                ? pokemonCardColors[pokeIdx]
+                : "green";
+              const slotColor = POKEMON_CARD_COLORS[slotColorId];
               const spriteId = Number(poke.id) || 0;
               const miniSpriteUrl = spriteId
                 ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/${poke.id}.png`
@@ -1237,7 +1241,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                 ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${spriteId}.png`
                 : (poke.image_url || "");
               return `
-                <button type="button" class="pokemon-box-slot${pokeIdx === visibleSelectedPokemonIndex ? " is-selected" : ""}${poke.is_shiny ? " is-shiny" : ""}" data-poke-idx="${pokeIdx}" data-slot-position="${slotPosition}" aria-label="${poke.name || `Pokémon ${pokeIdx + 1}`}" title="${poke.name || `Pokémon ${pokeIdx + 1}`} — toca para ver datos; mantén pulsado para arrastrar">
+                <button type="button" class="pokemon-box-slot${pokeIdx === visibleSelectedPokemonIndex ? " is-selected" : ""}${poke.is_shiny ? " is-shiny" : ""}" data-poke-idx="${pokeIdx}" data-slot-position="${slotPosition}" aria-label="${poke.name || `Pokémon ${pokeIdx + 1}`}" title="${poke.name || `Pokémon ${pokeIdx + 1}`} — toca para ver datos; mantén pulsado para arrastrar" style="--pokemon-accent: ${slotColor.hex}; --pokemon-accent-rgb: ${slotColor.rgb}">
                   <picture>
                     <source media="(min-width: 769px)" srcset="${fullSpriteUrl}" />
                     <img src="${miniSpriteUrl}" alt="" loading="lazy" onerror="if (!this.dataset.fallback) { this.dataset.fallback = '1'; this.parentElement.querySelector('source')?.remove(); this.src = '${fullSpriteUrl}'; } else if (!this.dataset.artFallback) { this.dataset.artFallback = '1'; this.src = '${poke.image_url || fullSpriteUrl}'; } else { this.style.visibility = 'hidden'; }" />

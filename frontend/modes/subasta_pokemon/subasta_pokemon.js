@@ -565,6 +565,9 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         card.dataset.colorId = colorId;
         card.style.setProperty("--pokemon-accent", color.hex);
         card.style.setProperty("--pokemon-accent-rgb", color.rgb);
+        const pokemonSlot = document.querySelector(`.pokemon-box-slot[data-poke-idx="${card.dataset.pokeIdx}"]`);
+        pokemonSlot?.style.setProperty("--pokemon-accent", color.hex);
+        pokemonSlot?.style.setProperty("--pokemon-accent-rgb", color.rgb);
         card.querySelectorAll(".pokemon-color-option").forEach((option) => {
           option.classList.toggle("is-selected", option.dataset.colorId === colorId);
         });
@@ -1144,7 +1147,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           holdTimer = window.setTimeout(() => {
             holdTimer = null;
             startDrag();
-          }, 260);
+          }, 180);
         }
       });
 
