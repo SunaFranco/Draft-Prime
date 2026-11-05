@@ -1120,6 +1120,18 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       let dragGhost = null;
       const clearDropTargets = () => document.querySelectorAll(".pokemon-box-drop-target")
         .forEach((target) => target.classList.remove("pokemon-box-drop-target"));
+      const startDrag = () => {
+        if (dragStarted) return;
+        dragStarted = true;
+        slot.classList.add("pokemon-box-slot--dragging");
+        slot.dataset.dragged = "true";
+        dragGhost = slot.cloneNode(true);
+        dragGhost.classList.add("pokemon-box-drag-ghost");
+        dragGhost.style.left = `${startX}px`;
+        dragGhost.style.top = `${startY}px`;
+        document.body.appendChild(dragGhost);
+        if (pointerId !== null) slot.setPointerCapture?.(pointerId);
+      };
 
       slot.addEventListener("pointerdown", (event) => {
         if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -1127,21 +1139,20 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         startY = event.clientY;
         pointerId = event.pointerId;
         dragStarted = false;
-        holdTimer = window.setTimeout(() => {
-          dragStarted = true;
-          slot.classList.add("pokemon-box-slot--dragging");
-          slot.dataset.dragged = "true";
-          dragGhost = slot.cloneNode(true);
-          dragGhost.classList.add("pokemon-box-drag-ghost");
-          dragGhost.style.left = `${startX}px`;
-          dragGhost.style.top = `${startY}px`;
-          document.body.appendChild(dragGhost);
+        if (event.pointerType === "mouse") {
           slot.setPointerCapture?.(pointerId);
-        }, 420);
+        } else {
+          holdTimer = window.setTimeout(() => {
+            holdTimer = null;
+            startDrag();
+          }, 260);
+        }
       });
 
       slot.addEventListener("pointermove", (event) => {
-        if (!dragStarted && holdTimer && Math.hypot(event.clientX - startX, event.clientY - startY) > 12) {
+        const distance = Math.hypot(event.clientX - startX, event.clientY - startY);
+        if (!dragStarted && event.pointerType === "mouse" && distance > 5) startDrag();
+        if (!dragStarted && holdTimer && distance > 24) {
           window.clearTimeout(holdTimer);
           holdTimer = null;
         }
