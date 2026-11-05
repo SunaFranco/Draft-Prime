@@ -1740,7 +1740,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       const advanceBtn = document.getElementById("btn-advance-farming");
       if (advanceBtn) {
         advanceBtn.addEventListener("click", () => {
-          sessionClient.send("subasta_admin_advance_from_farming", {});
+          sessionClient.send({ action: "subasta_admin_advance_from_farming" });
         });
       }
 
@@ -1748,7 +1748,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       if (skipBtn) {
         skipBtn.addEventListener("click", () => {
           if (confirm("¿Estás seguro de que deseas saltar esta fase de farmeo?")) {
-            sessionClient.send("subasta_admin_skip_farming", {});
+            sessionClient.send({ action: "subasta_admin_skip_farming" });
           }
         });
       }
@@ -1762,7 +1762,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     const confirmBtn = document.getElementById("btn-confirm-farming");
     if (confirmBtn) {
       confirmBtn.addEventListener("click", () => {
-        sessionClient.send("subasta_confirm_farming", {});
+        sessionClient.send({ action: "subasta_confirm_farming" });
       });
     }
 
@@ -1770,7 +1770,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     if (forceResolveBtn) {
       forceResolveBtn.addEventListener("click", () => {
         if (confirm("¿Forzar la resolución de la fase de farmeo con las asignaciones actuales?")) {
-          sessionClient.send("subasta_admin_force_resolve_farming", {});
+          sessionClient.send({ action: "subasta_admin_force_resolve_farming" });
         }
       });
     }
@@ -1779,7 +1779,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     if (skipBtn) {
       skipBtn.addEventListener("click", () => {
         if (confirm("¿Estás seguro de que deseas saltar esta fase de farmeo?")) {
-          sessionClient.send("subasta_admin_skip_farming", {});
+          sessionClient.send({ action: "subasta_admin_skip_farming" });
         }
       });
     }
@@ -1787,7 +1787,14 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
     if (isConfirmed) return;
 
     const saveAssignments = () => {
-      sessionClient.send("subasta_set_farming_assignment", { assignments: myAssignments });
+      sessionClient.send({
+        action: "subasta_set_farming_assignment",
+        assignments: myAssignments,
+      });
+      // Actualización optimista inmediata para respuesta visual instantánea
+      if (!state.farming_phase) state.farming_phase = {};
+      state.farming_phase.my_assignments = myAssignments;
+      this.renderCurrentStageView(state, sessionClient, isHost);
     };
 
     // Botones para quitar Pokémon de un slot asignado
@@ -1822,7 +1829,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       saveAssignments();
     };
 
-    // Selección por clic (compatible con pantallas táctiles)
+    // Selección por clic (compatible con táctil / mouse)
     let selectedPokeIdx = null;
     const pokeItems = document.querySelectorAll(".farming-poke-item");
     pokeItems.forEach((item) => {
@@ -1839,7 +1846,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
-    document.querySelectorAll(".farming-zone-slot.is-empty, .farming-zone-card").forEach((target) => {
+    document.querySelectorAll(".farming-zone-slot, .farming-zone-card").forEach((target) => {
       target.addEventListener("click", () => {
         if (selectedPokeIdx === null) return;
         const zoneKey = target.dataset.zoneKey || target.closest(".farming-zone-card")?.dataset.zoneKey;
@@ -1888,24 +1895,27 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       item.addEventListener("pointermove", (e) => {
         if (pointerId === null || e.pointerId !== pointerId) return;
         const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
-        if (!dragStarted && dist > 6) startDrag();
+        if (!dragStarted && dist > 5) startDrag();
 
         if (dragStarted && dragGhost) {
           dragGhost.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%) scale(1.08)`;
-          const under = document.elementFromPoint(e.clientX, e.clientY);
-          const zoneCard = under?.closest(".farming-zone-card");
           clearDropTargets();
-          if (zoneCard) zoneCard.classList.add("farming-drop-target");
+          const under = document.elementFromPoint(e.clientX, e.clientY);
+          const zoneTarget = under?.closest("[data-zone-key]");
+          if (zoneTarget) zoneTarget.closest(".farming-zone-card")?.classList.add("farming-drop-target");
         }
       });
 
       const endDrag = (e) => {
         if (pointerId === null || e.pointerId !== pointerId) return;
         if (dragStarted) {
+          try {
+            if (pointerId !== null) item.releasePointerCapture?.(pointerId);
+          } catch (_) {}
           const under = document.elementFromPoint(e.clientX, e.clientY);
-          const zoneCard = under?.closest(".farming-zone-card");
-          if (zoneCard) {
-            const zoneKey = zoneCard.dataset.zoneKey;
+          const zoneTarget = under?.closest("[data-zone-key]");
+          const zoneKey = zoneTarget?.dataset?.zoneKey || zoneTarget?.closest(".farming-zone-card")?.dataset?.zoneKey;
+          if (zoneKey) {
             const pokeIdx = Number(item.dataset.pokeIdx);
             assignPokeToZone(pokeIdx, zoneKey);
           }
@@ -1915,10 +1925,11 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           }
           item.classList.remove("is-dragging");
           clearDropTargets();
+        } else {
+          try {
+            if (pointerId !== null) item.releasePointerCapture?.(pointerId);
+          } catch (_) {}
         }
-        try {
-          if (pointerId !== null) item.releasePointerCapture?.(pointerId);
-        } catch (_) {}
         pointerId = null;
         dragStarted = false;
       };
