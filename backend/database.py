@@ -388,6 +388,54 @@ def get_pokemon_pools_from_db(year: Optional[int] = None, auction_type: Optional
     return []
 
 
+def get_fusion_pokemon_from_db() -> List[dict]:
+    """List Pokémon de pools normales y legendarias con sus tipos persistidos."""
+    if not supabase_client:
+        return []
+
+    candidates: List[dict] = []
+    try:
+        pools = (
+            supabase_client.table("pokemon_pools")
+            .select("auction_type, pokemon_pool_cards(pokemon_name, qty, type1, type2)")
+            .execute()
+        )
+        for pool in pools.data or []:
+            tier = str(pool.get("auction_type", "")).strip().lower()
+            if tier not in ("normal", "legendary"):
+                continue
+            for card in pool.get("pokemon_pool_cards", []) or []:
+                if card.get("pokemon_name"):
+                    candidates.append({
+                        "name": card["pokemon_name"],
+                        "type1": card.get("type1"),
+                        "type2": card.get("type2"),
+                        "tier": tier,
+                    })
+    except Exception as error:
+        print(f"[WARNING] No se pudieron consultar tipos de pokemon_pool_cards: {error}")
+
+    try:
+        legendary = supabase_client.table("legendarios").select("nombre, type1, type2").execute()
+        candidates.extend({
+            "name": row["nombre"],
+            "type1": row.get("type1"),
+            "type2": row.get("type2"),
+            "tier": "legendary",
+        } for row in legendary.data or [] if row.get("nombre"))
+    except Exception as error:
+        print(f"[WARNING] No se pudieron consultar tipos de legendarios: {error}")
+
+    # Una especie puede estar repetida en distintas pools/años. Conservar una entrada.
+    unique = {}
+    for candidate in candidates:
+        key = str(candidate["name"]).casefold()
+        previous = unique.get(key)
+        if previous is None or candidate["tier"] == "legendary":
+            unique[key] = candidate
+    return list(unique.values())
+
+
 def remove_pokemon_from_db(
     pokemon_name: str, year: Optional[int] = None, auction_type: Optional[str] = None
 ) -> bool:

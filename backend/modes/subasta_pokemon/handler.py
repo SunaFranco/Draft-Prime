@@ -10,7 +10,7 @@ import time
 from typing import Dict, List, Any, Optional
 from backend.modes.base import BaseGameMode
 from backend.modes.subasta_pokemon import poke_api, events_data, showdown
-from backend.database import save_game_session, save_full_session, get_game_session
+from backend.database import save_game_session, save_full_session, get_game_session, get_fusion_pokemon_from_db
 from backend.services.session_manager import can_control_room, get_connected_player_order
 
 _PENDING_BID_SAVES: dict[str, dict] = {}
@@ -155,6 +155,7 @@ def get_pokemon_sell_value(pokemon: dict, subasta_state: dict) -> int:
     return int(int(buyout_price) * 0.25)
 
 ITEM_SHOP_PRICES = {
+    "DNA Splicers": 50000,
     "Caja Misteriosa I": 100000,
     "Caja Misteriosa 1": 100000,
     "Regalo del Primo jeque": 250000,
@@ -283,6 +284,7 @@ YEAR_SHOP_ROULETTES = {
 
 YEAR_SHOP_ITEMS = {
     1: [
+        "DNA Splicers",
         "Caja Misteriosa I",
         "Regalo del Primo jeque",
         "Eviolite",
@@ -298,6 +300,7 @@ YEAR_SHOP_ITEMS = {
         
     ],
     2: [
+        "DNA Splicers",
         "Ruleta Plates",
         "Capsula Habilidad",
         "Cambia Formas",
@@ -308,6 +311,7 @@ YEAR_SHOP_ITEMS = {
         "Ruleta Piedras",
     ],
     3: [
+        "DNA Splicers",
         "Life Orb",
         "Assault Vest",
         "Focus Sash",
@@ -360,6 +364,65 @@ def remove_item_from_inventory(player: dict, item_name: str, qty: int = 1):
     else:
         items[item_name] = new_qty
     player["items"] = {k: v for k, v in sorted(items.items()) if v > 0}
+
+
+def build_fusion_preview(pokemon_a: dict, pokemon_b: dict, candidates: List[dict]) -> dict:
+    """Distribuye las probabilidades por combinación y aumenta el peso legendario según los sacrificios."""
+    types_a = list(dict.fromkeys(pokemon_a.get("types") or []))
+    types_b = list(dict.fromkeys(pokemon_b.get("types") or []))
+    legendary_sacrifices = sum(
+        1 for pokemon in (pokemon_a, pokemon_b)
+        if pokemon.get("acquisition_tier") == "legendary"
+    )
+    legendary_chance = {0: 0.05, 1: 0.15, 2: 0.25}[legendary_sacrifices]
+    combinations = sorted({tuple(sorted((a, b))) for a in types_a for b in types_b})
+    available = []
+    for combo in combinations:
+        matching = []
+        for candidate in candidates:
+            one = candidate.get("type1")
+            two = candidate.get("type2")
+            candidate_types = {str(one).casefold()} if one else set()
+            if two:
+                candidate_types.add(str(two).casefold())
+            if candidate_types == {part.casefold() for part in combo}:
+                matching.append(candidate)
+        if matching:
+            available.append((combo, matching))
+
+    if not available:
+        return {"combinations": [], "pokemon": []}
+
+    combo_weight = 1 / len(available)
+    odds = {}
+    for combo, matching in available:
+        normal = [entry for entry in matching if entry.get("tier") != "legendary"]
+        legendary = [entry for entry in matching if entry.get("tier") == "legendary"]
+        normal_weight, legendary_weight = (
+            (1 - legendary_chance, legendary_chance)
+            if normal and legendary
+            else ((1, 0) if normal else (0, 1))
+        )
+        for group, weight in ((normal, normal_weight), (legendary, legendary_weight)):
+            if not group or weight <= 0:
+                continue
+            for candidate in group:
+                key = str(candidate["name"]).casefold()
+                if key not in odds:
+                    odds[key] = {**candidate, "probability": 0.0, "combination": " / ".join(combo)}
+                odds[key]["probability"] += combo_weight * weight / len(group)
+
+    return {
+        "combinations": [{"types": list(combo)} for combo, _ in available],
+        "pokemon": sorted(odds.values(), key=lambda entry: (-entry["probability"], entry["name"].casefold())),
+    }
+
+
+def choose_fusion_candidate(preview: dict) -> Optional[dict]:
+    entries = preview.get("pokemon") or []
+    if not entries:
+        return None
+    return random.choices(entries, weights=[entry["probability"] for entry in entries], k=1)[0]
 
 
 def get_evolution_item_to_consume(required_item: Optional[str], inventory: Dict[str, int]) -> Optional[str]:
@@ -2258,6 +2321,69 @@ class SubastaPokemonMode(BaseGameMode):
 
             save_game_session(session_id, self.key, subasta_state)
             await self._send_subasta_state_to_user(session, manager, username)
+            return True
+
+        elif action in ("subasta_fusion_preview", "subasta_fusion"):
+            if subasta_state.get("current_stage") not in (4, 8, 12):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "La fusión solo está disponible durante la preparación de Showdown."}})
+                return True
+
+            player = subasta_state["players"].get(username)
+            inventory = normalize_item_inventory(player.get("items", {})) if player else {}
+            pokemon = player.get("pokemon", []) if player else []
+            first_idx = message.get("pokemon_index_one")
+            second_idx = message.get("pokemon_index_two")
+            if (
+                not player
+                or not isinstance(first_idx, int)
+                or not isinstance(second_idx, int)
+                or first_idx == second_idx
+                or not 0 <= first_idx < len(pokemon)
+                or not 0 <= second_idx < len(pokemon)
+            ):
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Selecciona dos Pokémon distintos y válidos."}})
+                return True
+            if len(pokemon) < 2:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas al menos dos Pokémon para fusionar."}})
+                return True
+            if action == "subasta_fusion" and inventory.get("DNA Splicers", 0) <= 0:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "Necesitas una DNA Splicers para fusionar."}})
+                return True
+
+            candidates = await asyncio.to_thread(get_fusion_pokemon_from_db)
+            preview = build_fusion_preview(pokemon[first_idx], pokemon[second_idx], candidates)
+            if not preview["pokemon"]:
+                await manager.send_personal(websocket, {"event": "error", "data": {"message": "No hay Pokémon en las pools de la base de datos con esas combinaciones de tipos."}})
+                return True
+
+            if action == "subasta_fusion_preview":
+                await manager.send_personal(websocket, {"event": "subasta_fusion_preview", "data": preview})
+                return True
+
+            chosen = choose_fusion_candidate(preview)
+            sacrificed_names = [pokemon[first_idx].get("name", "Pokémon"), pokemon[second_idx].get("name", "Pokémon")]
+            result = await asyncio.to_thread(
+                poke_api.fetch_pokemon_data,
+                chosen["name"],
+                get_year_level_cap(int(subasta_state.get("current_year", 1))),
+            )
+            result["acquisition_year"] = int(subasta_state.get("current_year", 1))
+            result["acquisition_tier"] = chosen["tier"]
+            result["fusion_types"] = chosen.get("combination")
+            # Devolver los objetos equipados a la mochila antes de sacrificar.
+            for index in sorted((first_idx, second_idx), reverse=True):
+                consumed = pokemon.pop(index)
+                held_item = consumed.get("item") or consumed.get("held_item")
+                if held_item:
+                    add_item_to_inventory(player, held_item)
+            remove_item_from_inventory(player, "DNA Splicers")
+            player.setdefault("pokemon", []).append(result)
+            save_game_session(session_id, self.key, subasta_state)
+            await manager.send_personal(websocket, {
+                "event": "subasta_fusion_result",
+                "data": {"pokemon": result, "sacrificed": sacrificed_names},
+            })
+            await self._broadcast_subasta_state(session, manager)
             return True
 
         elif action == "subasta_shop_buy":

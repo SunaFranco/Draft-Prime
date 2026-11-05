@@ -554,7 +554,18 @@ def get_male_pokemon_slug(name_or_id: str) -> str:
     gendered_species = {"jellicent", "oinkologne", "meowstic", "indeedee"}
     if species_slug in gendered_species:
         return f"{species_slug}-male"
-    return species_slug
+    default_forms = {
+        "basculin": "basculin-red-striped",
+        "deoxys": "deoxys-normal",
+        "keldeo": "keldeo-ordinary",
+        "landorus": "landorus-incarnate",
+        "meloetta": "meloetta-aria",
+        "pumpkaboo": "pumpkaboo-average",
+        "shaymin": "shaymin-land",
+        "thundurus": "thundurus-incarnate",
+        "tornadus": "tornadus-incarnate",
+    }
+    return default_forms.get(species_slug, species_slug)
 
 
 def get_pokemon_all_evolution_options(name_or_id: str, max_level: int = 100) -> list:

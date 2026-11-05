@@ -23,6 +23,7 @@ BERRIES_POOL = [
 
 CABLE_LINK_ITEM = "Cable Link"
 ABILITY_CAPSULE_ITEM = "Capsula Habilidad"
+DNA_SPLICERS_ITEM = "DNA Splicers"
 TM_BOOSTER_PACK_SIZE = 2
 
 EVENTS_YEAR_1 = [
@@ -33,6 +34,14 @@ EVENTS_YEAR_1 = [
         "description": "Encontraste un Cable Link. Puedes usarlo para intercambiar un Pokémon en la fase de preparación.",
         "type": "item_grant",
         "granted_item": CABLE_LINK_ITEM,
+    },
+    {
+        "id": "e1_dna_splicers",
+        "category": "positive",
+        "title": "🧬 DNA Splicers",
+        "description": "Encontraste un DNA Splicers. Puedes fusionar dos Pokémon durante la preparación de Showdown.",
+        "type": "item_grant",
+        "granted_item": DNA_SPLICERS_ITEM,
     },
     {
         "id": "e1_objeto",
@@ -137,6 +146,14 @@ EVENTS_YEAR_1 = [
 
 EVENTS_YEAR_2 = [
     {
+        "id": "e2_dna_splicers",
+        "category": "positive",
+        "title": "🧬 DNA Splicers",
+        "description": "Encontraste un DNA Splicers. Puedes fusionar dos Pokémon durante la preparación de Showdown.",
+        "type": "item_grant",
+        "granted_item": DNA_SPLICERS_ITEM,
+    },
+    {
         "id": "e2_cambio_naturaleza",
         "category": "positive",
         "title": "🌿 Cambio de Naturaleza",
@@ -231,6 +248,14 @@ EVENTS_YEAR_2 = [
 ]
 
 EVENTS_YEAR_3 = [
+    {
+        "id": "e3_dna_splicers",
+        "category": "positive",
+        "title": "🧬 DNA Splicers",
+        "description": "Encontraste un DNA Splicers. Puedes fusionar dos Pokémon durante la preparación de Showdown.",
+        "type": "item_grant",
+        "granted_item": DNA_SPLICERS_ITEM,
+    },
     {
         "id": "e3_cambio_naturaleza",
         "category": "positive",

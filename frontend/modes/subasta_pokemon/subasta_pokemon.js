@@ -299,6 +299,34 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
   }
 
   handleEvent(event, data, context) {
+    if (event === "subasta_fusion_preview") {
+      const container = document.getElementById("fusion-preview-results");
+      if (container) {
+        const entries = Array.isArray(data.pokemon) ? data.pokemon : [];
+        container.replaceChildren();
+        const combinations = document.createElement("p");
+        combinations.textContent = entries.length
+          ? `Combinaciones disponibles: ${(data.combinations || []).map((entry) => entry.types.join(" / ")).join(", ")}`
+          : "No hay resultados disponibles para estas combinaciones.";
+        container.appendChild(combinations);
+        if (entries.length) {
+          const list = document.createElement("ul");
+          entries.forEach((entry) => {
+            const row = document.createElement("li");
+            row.textContent = `${entry.name} — ${((entry.probability || 0) * 100).toFixed(2)}%${entry.tier === "legendary" ? " (legendario)" : ""}`;
+            list.appendChild(row);
+          });
+          container.appendChild(list);
+        }
+      }
+      return true;
+    }
+    if (event === "subasta_fusion_result") {
+      const names = (data.sacrificed || []).join(" y ");
+      const resultName = data.pokemon?.name || "un Pokémon";
+      window.alert(`¡Fusión completada! ${names} se fusionaron en ${resultName}.`);
+      return true;
+    }
     if (event === "subasta_mystery_box_result") {
       playMysteryBoxRoulette(data, () => {
         this._isRouletteSpinning = false;
@@ -1433,6 +1461,31 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
           this._isRouletteSpinning = true;
         }
         sessionClient.send({ action: "subasta_shop_buy", item_name: itemName });
+      });
+    });
+
+    const fusionOne = document.getElementById("fusion-pokemon-one");
+    const fusionTwo = document.getElementById("fusion-pokemon-two");
+    const requestFusionPreview = () => {
+      if (!fusionOne || !fusionTwo || fusionOne.value === fusionTwo.value) return;
+      sessionClient.send({
+        action: "subasta_fusion_preview",
+        pokemon_index_one: parseInt(fusionOne.value, 10),
+        pokemon_index_two: parseInt(fusionTwo.value, 10),
+      });
+    };
+    fusionOne?.addEventListener("change", requestFusionPreview);
+    fusionTwo?.addEventListener("change", requestFusionPreview);
+    if (fusionOne && fusionTwo && fusionOne.value !== fusionTwo.value) requestFusionPreview();
+    const fusionButton = document.getElementById("btn-fuse-pokemon");
+    fusionButton?.addEventListener("click", () => {
+      if (!fusionOne || !fusionTwo || fusionButton.disabled || fusionOne.value === fusionTwo.value) return;
+      if (!window.confirm("La fusión consume una DNA Splicers y sacrifica ambos Pokémon. ¿Continuar?")) return;
+      fusionButton.disabled = true;
+      sessionClient.send({
+        action: "subasta_fusion",
+        pokemon_index_one: parseInt(fusionOne.value, 10),
+        pokemon_index_two: parseInt(fusionTwo.value, 10),
       });
     });
 

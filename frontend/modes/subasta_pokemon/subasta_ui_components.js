@@ -1100,6 +1100,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
   const currentUsername = sessionClient.currentUsername;
   const tradeSession = data.trade_session;
   const preparationStage = [4, 8, 12, 13].includes(Number(data.stage || 0));
+  const fusionStage = [4, 8, 12].includes(Number(data.stage || 0));
   const auctionOrEventStage = [2, 3, 6, 7, 10, 11].includes(Number(data.stage || 0));
   const tradeTargets = Object.keys(data.all_players || {}).filter((username) => username !== currentUsername);
   const levelCap = data.current_year === 1 ? 20 : (data.current_year === 2 ? 40 : 100);
@@ -1121,6 +1122,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
   }));
   const shopCatalogByYear = {
     1: [
+      { name: "DNA Splicers", price: 50000, description: "Fusiona dos Pokémon durante la preparación de Showdown." },
       { name: "Caja Misteriosa I", price: 100000, isBox: true, description: "Oran Berry 75%, MT Earthquake 5%, MT Flamethrower 5%, MT Shadow Ball 5%, Cápsula Hab. 5%, Porygon + Objeto Mejora 3%, Pokémon Shiny 1%, $500K 1%" },
       { name: "Regalo del Primo jeque", price: 250000, isBox: true, description: "Galvantula 25%, Scolipede 25%, Sawk 25%, Gardevoir 25% (con Naturaleza y Habilidad aleatorias)" },
       { name: "Eviolite", price: 100000 },
@@ -1136,6 +1138,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
       { name: "Leaf Stone", price: 100000 },
     ],
     2: [
+      { name: "DNA Splicers", price: 50000, description: "Fusiona dos Pokémon durante la preparación de Showdown." },
       { name: "Ruleta Plates", price: 20000, isRoulette: true, description: "Gana una Plate aleatoria entre las 17 Plates de tipo." },
       { name: "Capsula Habilidad", price: 150000 },
       { name: "Cambia Formas", price: 75000 },
@@ -1146,6 +1149,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
       { name: "Ruleta Piedras", price: 20000, isRoulette: true, description: "Gana una piedra evolutiva aleatoria entre las 10 disponibles." },
     ],
     3: [
+      { name: "DNA Splicers", price: 50000, description: "Fusiona dos Pokémon durante la preparación de Showdown." },
       { name: "Life Orb", price: 100000 },
       { name: "Assault Vest", price: 100000 },
       { name: "Focus Sash", price: 100000 },
@@ -1170,6 +1174,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
     ...currentShopItems.filter((item) => !isPriorityShopItem(item)),
   ];
   const shopTitle = currentYear === 1 ? "Tienda Año 1" : currentYear === 2 ? "Tienda Año 2" : "Tienda Año 3";
+  const canFuse = fusionStage && pokemonList.length >= 2 && (bagItems["DNA Splicers"] || 0) > 0;
 
   return `
     <div class="card inventory-card">
@@ -1471,7 +1476,40 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
             <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="shop-menu" aria-expanded="false">🛒 Tienda</button>
           </div>
         ` : ""}
+        ${fusionStage ? `
+          <div class="backpack-panel">
+            <button type="button" class="btn btn-secondary inventory-menu-toggle" data-menu-target="fusion-menu" aria-expanded="false">🧬 Fusión</button>
+          </div>
+        ` : ""}
       </div>
+
+      ${fusionStage ? `
+        <div class="inventory-modal-overlay" data-modal="fusion-menu" aria-hidden="true">
+          <div class="backpack-menu shop-menu" data-menu="fusion-menu">
+            <div class="backpack-menu-header">
+              <h4>🧬 Fusión Pokémon</h4>
+              <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
+            </div>
+            <p>Elige dos Pokémon para consultar los resultados posibles. La fusión consume una DNA Splicers y ambos Pokémon.</p>
+            <p>DNA Splicers: <strong>x${bagItems["DNA Splicers"] || 0}</strong></p>
+            <div class="fusion-selection">
+              <label>Primer Pokémon
+                <select id="fusion-pokemon-one" ${pokemonList.length < 2 ? "disabled" : ""}>
+                  ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`} — ${(poke.types || []).join(" / ")}</option>`).join("")}
+                </select>
+              </label>
+              <label>Segundo Pokémon
+                <select id="fusion-pokemon-two" ${pokemonList.length < 2 ? "disabled" : ""}>
+                  ${pokemonList.map((poke, idx) => `<option value="${idx}" ${idx === 1 ? "selected" : ""}>${poke.name || `Pokémon ${idx + 1}`} — ${(poke.types || []).join(" / ")}</option>`).join("")}
+                </select>
+              </label>
+            </div>
+            <div id="fusion-preview-results" class="fusion-preview-results" aria-live="polite"><p class="text-muted">Elige dos Pokémon para ver los resultados y sus probabilidades.</p></div>
+            <button type="button" class="btn btn-primary btn-large" id="btn-fuse-pokemon" ${canFuse ? "" : "disabled"}>Fusionar</button>
+            ${!bagItems["DNA Splicers"] ? '<p class="text-muted">Necesitas una DNA Splicers para habilitar la fusión. Puedes comprarla en la tienda por $50K.</p>' : pokemonList.length < 2 ? '<p class="text-muted">Necesitas al menos dos Pokémon.</p>' : ""}
+          </div>
+        </div>
+      ` : ""}
 
       <div class="inventory-modal-overlay" data-modal="backpack-menu" aria-hidden="true">
         <div class="backpack-menu" data-menu="backpack-menu">
