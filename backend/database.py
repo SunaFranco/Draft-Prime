@@ -700,7 +700,22 @@ def save_pokemon_move_to_db(move_data: dict) -> dict:
     si no existía previamente.
     """
     clean_slug = str(move_data.get("slug") or move_data.get("id") or "").strip().lower()
-    record = {
+    effect_keys = (
+        "never_miss", "heal_fraction", "crit_ratio", "multi_hit",
+        "boosts", "self_boosts", "target_status", "volatile_status",
+        "secondary", "weather", "terrain", "pseudo_weather",
+        "side_condition", "hazard_clear", "self_switch", "force_switch",
+        "override_defensive_stat", "override_offensive_stat",
+        "must_recharge", "makes_contact",
+    )
+    effect_data = move_data.get("effect_data") if isinstance(move_data.get("effect_data"), dict) else {}
+    for k in effect_keys:
+        if k in move_data and move_data[k] not in (None, False, 0, 0.0, 1):
+            effect_data[k] = move_data[k]
+        elif k == "crit_ratio" and move_data.get("crit_ratio", 1) > 1:
+            effect_data[k] = move_data["crit_ratio"]
+
+    base_record = {
         "slug": clean_slug,
         "name": str(move_data.get("name", clean_slug.replace("-", " ").title())),
         "type": str(move_data.get("type", "Normal")).capitalize(),
@@ -712,18 +727,24 @@ def save_pokemon_move_to_db(move_data: dict) -> dict:
         "drain_percent": float(move_data.get("drain_percent", 0.0) or 0.0),
         "recoil_percent": float(move_data.get("recoil_percent", 0.0) or 0.0),
     }
+    full_record = {**base_record, "effect_data": effect_data}
 
     if supabase_client:
         try:
-            res = supabase_client.table("pokemon_moves").upsert(record, on_conflict="slug").execute()
+            res = supabase_client.table("pokemon_moves").upsert(full_record, on_conflict="slug").execute()
             if res.data:
-                record = res.data[0]
-        except Exception as e:
-            print(f"[MOVES DB] Tabla 'pokemon_moves' no disponible o error al insertar '{clean_slug}': {e}")
+                full_record = {**full_record, **res.data[0]}
+        except Exception:
+            try:
+                res = supabase_client.table("pokemon_moves").upsert(base_record, on_conflict="slug").execute()
+                if res.data:
+                    full_record = {**res.data[0], "effect_data": effect_data}
+            except Exception as e:
+                print(f"[MOVES DB] Tabla 'pokemon_moves' no disponible o error al insertar '{clean_slug}': {e}")
 
     if len(POKEMON_MOVES_LOCAL) >= MAX_MOVES_LOCAL_CACHE:
         POKEMON_MOVES_LOCAL.pop(next(iter(POKEMON_MOVES_LOCAL)), None)
-    POKEMON_MOVES_LOCAL[clean_slug] = record
-    return record
+    POKEMON_MOVES_LOCAL[clean_slug] = full_record
+    return full_record
 
 

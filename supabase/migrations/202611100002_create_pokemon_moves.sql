@@ -10,8 +10,12 @@ CREATE TABLE IF NOT EXISTS public.pokemon_moves (
     pp INTEGER NOT NULL DEFAULT 15,
     drain_percent REAL NOT NULL DEFAULT 0.0,
     recoil_percent REAL NOT NULL DEFAULT 0.0,
+    effect_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- En caso de que la tabla ya haya sido creada sin effect_data:
+ALTER TABLE public.pokemon_moves ADD COLUMN IF NOT EXISTS effect_data JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- Índice por tipo para consultas rápidas
 CREATE INDEX IF NOT EXISTS idx_pokemon_moves_type ON public.pokemon_moves(type);

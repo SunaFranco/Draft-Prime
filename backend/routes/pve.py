@@ -168,6 +168,22 @@ async def process_pve_turn(req: TurnPVEBattleRequest):
         ai_action=ai_decision.action,
     )
 
+    # Si el Pokémon activo de la IA cayó pero le queda banca, la IA envía su reemplazo automáticamente
+    safety_loops = 0
+    while turn_result.battle_status == "waiting_ai_switch" and safety_loops < 6:
+        safety_loops += 1
+        faint_decision = agent.decide_action(turn_result.new_snapshot)
+        if faint_decision.action.type.upper() != "SWITCH" or faint_decision.action.choice == "none":
+            break
+        faint_res = engine.resolve_turn(
+            snapshot=turn_result.new_snapshot,
+            player_action=Action(type="WAIT", choice="none"),
+            ai_action=faint_decision.action,
+        )
+        turn_result.events.extend(faint_res.events)
+        turn_result.new_snapshot = faint_res.new_snapshot
+        turn_result.battle_status = faint_res.battle_status
+
     # Actualizar estado serializable
     updated_state_dict = turn_result.new_snapshot.to_dict()
     updated_state_dict["difficulty"] = difficulty

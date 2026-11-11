@@ -403,6 +403,150 @@ def test_dynamic_moves_db_population():
     assert get_pokemon_move_from_db("earthquake") is not None
 
 
+def test_showdown_hazards_and_rapid_spin():
+    """Verifica Trampa Rocas, Púas, Púas Tóxicas (absorción por Veneno) y giro rápido (Rapid Spin)."""
+    from backend.engine.pkmn_ai_engine.core.moves_db import resolve_move
+
+    skarmory = PokemonState(
+        id="skarmory", species="Skarmory", types=("Steel", "Flying"),
+        current_hp=140, max_hp=140,
+        stats=StatBlock(hp=140, atk=100, def_=160, spa=60, spd=90, spe=90),
+        moves=[resolve_move("Stealth Rock"), resolve_move("Spikes"), resolve_move("Toxic Spikes")]
+    )
+    excadrill = PokemonState(
+        id="excadrill", species="Excadrill", types=("Ground", "Steel"),
+        current_hp=180, max_hp=180,
+        stats=StatBlock(hp=180, atk=155, def_=80, spa=70, spd=85, spe=110),
+        moves=[resolve_move("Rapid Spin"), resolve_move("Swords Dance")]
+    )
+    charizard = PokemonState(
+        id="charizard", species="Charizard", types=("Fire", "Flying"),
+        current_hp=160, max_hp=160,
+        stats=StatBlock(hp=160, atk=100, def_=90, spa=130, spd=100, spe=120),
+        moves=[resolve_move("Protect")]
+    )
+    venusaur = PokemonState(
+        id="venusaur", species="Venusaur", types=("Grass", "Poison"),
+        current_hp=160, max_hp=160,
+        stats=StatBlock(hp=160, atk=100, def_=100, spa=120, spd=120, spe=100),
+        moves=[resolve_move("Protect")]
+    )
+
+    snapshot = BattleSnapshot(
+        turn=1,
+        player_active=excadrill,
+        player_bench=[charizard, venusaur],
+        ai_active=skarmory,
+    )
+    engine = CombatEngine()
+
+    # Turno 1: Skarmory pone Stealth Rock en el lado del jugador
+    engine.resolve_turn(snapshot, Action("MOVE", "swords-dance"), Action("MOVE", "stealth-rock"))
+    assert snapshot.player_side.stealth_rock is True
+    assert excadrill.boosts.atk == 2
+
+    # Turno 2: Jugador cambia a Charizard (Fire/Flying -> 4x débil a Roca = 50% de vida por Stealth Rock!)
+    # Y Skarmory pone Toxic Spikes
+    engine.resolve_turn(snapshot, Action("SWITCH", "charizard"), Action("MOVE", "toxic-spikes"))
+    assert snapshot.player_active.species == "Charizard"
+    assert snapshot.player_active.current_hp == 80  # Perdió 50% (80 de 160) por Stealth Rock 4x
+    assert snapshot.player_side.toxic_spikes == 1
+    assert excadrill.boosts.atk == 0  # Sus boosts se limpiaron al salir del campo
+
+    # Turno 3: Jugador cambia a Venusaur (tipo Poison en tierra -> absorbe las Toxic Spikes)
+    engine.resolve_turn(snapshot, Action("SWITCH", "venusaur"), Action("MOVE", "spikes"))
+    assert snapshot.player_active.species == "Venusaur"
+    assert snapshot.player_side.toxic_spikes == 0  # Absorbidas por Venusaur
+    assert snapshot.player_side.spikes == 1
+
+    # Turno 4: Jugador vuelve a Excadrill y usa Rapid Spin en el Turno 5 para limpiar todo
+    engine.resolve_turn(snapshot, Action("SWITCH", "excadrill"), Action("MOVE", "spikes"))
+    engine.resolve_turn(snapshot, Action("MOVE", "rapid-spin"), Action("MOVE", "spikes"))
+    assert snapshot.player_side.stealth_rock is False
+    assert excadrill.boosts.spe == 1  # Rapid Spin da +1 Velocidad en Gen 8/9
+
+
+def test_showdown_terrains_weather_and_trick_room():
+    """Verifica bloqueo de prioridad en Campo Psíquico, inversión de velocidad en Trick Room y clima."""
+    from backend.engine.pkmn_ai_engine.core.moves_db import resolve_move
+
+    # Tapu Lele con Psychic Surge (pone Campo Psíquico al entrar)
+    lele = PokemonState(
+        id="tapu-lele", species="Tapu Lele", types=("Psychic", "Fairy"),
+        current_hp=150, max_hp=150, ability="Psychic Surge",
+        stats=StatBlock(hp=150, atk=90, def_=95, spa=150, spd=135, spe=115),
+        moves=[resolve_move("Psychic"), resolve_move("Trick Room")]
+    )
+    scizor = PokemonState(
+        id="scizor", species="Scizor", types=("Bug", "Steel"),
+        current_hp=150, max_hp=150,
+        stats=StatBlock(hp=150, atk=150, def_=120, spa=65, spd=100, spe=75),
+        moves=[resolve_move("Bullet Punch"), resolve_move("X-Scissor")]
+    )
+
+    snapshot = BattleSnapshot(
+        turn=1,
+        player_active=lele,
+        ai_active=scizor,
+        terrain="Psychic",
+        terrain_turns=5,
+    )
+    engine = CombatEngine()
+
+    # Scizor intenta usar Bullet Punch (+1 prioridad) contra Tapu Lele en tierra bajo Campo Psíquico
+    res = engine.resolve_turn(snapshot, Action("MOVE", "psychic"), Action("MOVE", "bullet-punch"))
+    assert lele.current_hp == 150  # Bullet Punch fue bloqueado por Psychic Terrain!
+    assert any("Campo Psíquico" in e.get("text", "") for e in res.events)
+
+    # Activar Trick Room: Scizor (spe 75) ahora debe moverse ANTES que Tapu Lele (spe 115) con ataques de prioridad 0
+    snapshot.trick_room_turns = 4
+    res2 = engine.resolve_turn(snapshot, Action("MOVE", "psychic"), Action("MOVE", "x-scissor"))
+    move_events = [e for e in res2.events if e.get("type") == "MOVE"]
+    assert move_events[0]["pokemon"] == "Scizor"
+
+
+def test_showdown_substitute_protect_and_toxic_escalation():
+    """Verifica Sustituto, Protect, y el daño progresivo de Tóxico (1/16, 2/16, 3/16...)."""
+    from backend.engine.pkmn_ai_engine.core.moves_db import resolve_move
+
+    gliscor = PokemonState(
+        id="gliscor", species="Gliscor", types=("Ground", "Flying"),
+        current_hp=160, max_hp=160,
+        stats=StatBlock(hp=160, atk=115, def_=145, spa=65, spd=95, spe=115),
+        moves=[resolve_move("Substitute"), resolve_move("Protect"), resolve_move("Toxic")]
+    )
+    blissey = PokemonState(
+        id="blissey", species="Blissey", types=("Normal",),
+        current_hp=320, max_hp=320,
+        stats=StatBlock(hp=320, atk=30, def_=40, spa=95, spd=155, spe=75),
+        moves=[resolve_move("Toxic"), resolve_move("Flamethrower")]
+    )
+
+    snapshot = BattleSnapshot(turn=1, player_active=gliscor, ai_active=blissey)
+    engine = CombatEngine()
+
+    # Turno 1: Gliscor (más rápido) usa Substitute (cuesta 40 HP = 25%). Blissey usa Toxic, bloqueado por el Sustituto!
+    engine.resolve_turn(snapshot, Action("MOVE", "substitute"), Action("MOVE", "toxic"))
+    assert gliscor.current_hp == 120
+    assert gliscor.substitute_hp == 40
+    assert gliscor.status is None  # Sustituto bloqueó Toxic
+
+    # Turno 2: Gliscor usa Toxic sobre Blissey (precisión forzada a 1.0 para test determinista)
+    gliscor.moves[2].accuracy = 1.0
+    engine.resolve_turn(snapshot, Action("MOVE", "toxic"), Action("MOVE", "toxic"))
+    assert blissey.status == "TOX"
+    # Fin del turno 2: Blissey recibió 1/16 de 320 = 20 de daño -> 300 HP, y el contador subió a 2
+    assert blissey.current_hp == 300
+    assert blissey.status_counter == 2
+
+    # Turno 3: Gliscor usa Protect, Blissey usa Flamethrower (bloqueado por Protect).
+    # Fin del turno 3: Blissey recibe 2/16 de 320 = 40 de daño -> 260 HP, y el contador sube a 3!
+    engine.resolve_turn(snapshot, Action("MOVE", "protect"), Action("MOVE", "flamethrower"))
+    assert gliscor.substitute_hp == 40  # Intacto gracias a Protect
+    assert blissey.current_hp == 260
+    assert blissey.status_counter == 3
+
+
 if __name__ == "__main__":
     test_type_effectiveness()
     test_damage_calculation()
@@ -415,5 +559,8 @@ if __name__ == "__main__":
     test_adapt_draft_pokemon_conversion()
     test_switch_priority_over_moves()
     test_dynamic_moves_db_population()
-    print("ALL 11 TESTS PASSED SUCCESSFULLY!")
+    test_showdown_hazards_and_rapid_spin()
+    test_showdown_terrains_weather_and_trick_room()
+    test_showdown_substitute_protect_and_toxic_escalation()
+    print("ALL 14 TESTS PASSED SUCCESSFULLY!")
 

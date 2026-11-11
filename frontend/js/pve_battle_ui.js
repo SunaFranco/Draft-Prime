@@ -36,6 +36,7 @@ class PVEBattleController {
       txtTurn: document.getElementById("txt-turn"),
       btnExit: document.getElementById("btn-exit"),
       boxDialog: document.getElementById("box-dialog"),
+      boxFieldBadges: document.getElementById("box-field-badges"),
       // IA
       txtAiName: document.getElementById("txt-ai-name"),
       txtAiLvl: document.getElementById("txt-ai-lvl"),
@@ -43,6 +44,7 @@ class PVEBattleController {
       barAiHp: document.getElementById("bar-ai-hp"),
       txtAiHp: document.getElementById("txt-ai-hp"),
       badgeAiStatus: document.getElementById("badge-ai-status"),
+      boxAiModifiers: document.getElementById("box-ai-modifiers"),
       imgAiSprite: document.getElementById("img-ai-sprite"),
       ballsAiBench: document.getElementById("balls-ai-bench"),
       // Jugador
@@ -52,6 +54,7 @@ class PVEBattleController {
       barPlayerHp: document.getElementById("bar-player-hp"),
       txtPlayerHp: document.getElementById("txt-player-hp"),
       badgePlayerStatus: document.getElementById("badge-player-status"),
+      boxPlayerModifiers: document.getElementById("box-player-modifiers"),
       imgPlayerSprite: document.getElementById("img-player-sprite"),
       ballsPlayerBench: document.getElementById("balls-player-bench"),
       // Controles
@@ -163,6 +166,7 @@ class PVEBattleController {
     if (!this.state) return;
 
     this.dom.txtTurn.textContent = `Turno ${this.state.turn || 1}`;
+    this.renderFieldBadges();
 
     // Renderizar Rival (IA)
     const ai = this.state.ai_active;
@@ -172,6 +176,7 @@ class PVEBattleController {
       this.renderTypes(this.dom.boxAiTypes, ai.types || []);
       this.updateHpBar(this.dom.barAiHp, this.dom.txtAiHp, ai.current_hp, ai.max_hp, true);
       this.renderStatusBadge(this.dom.badgeAiStatus, ai.status);
+      this.renderSideModifiers(this.dom.boxAiModifiers, ai, this.state.ai_side);
       this.dom.imgAiSprite.src = this.getSpriteUrl(ai, false);
       this.dom.imgAiSprite.onerror = () => {
         const slug = (ai.species || "").toLowerCase().replace("mega ", "").replace("-mega", "").replace(" ", "-").trim();
@@ -188,6 +193,7 @@ class PVEBattleController {
       this.renderTypes(this.dom.boxPlayerTypes, player.types || []);
       this.updateHpBar(this.dom.barPlayerHp, this.dom.txtPlayerHp, player.current_hp, player.max_hp, false);
       this.renderStatusBadge(this.dom.badgePlayerStatus, player.status);
+      this.renderSideModifiers(this.dom.boxPlayerModifiers, player, this.state.player_side);
       this.dom.imgPlayerSprite.src = this.getSpriteUrl(player, true);
       this.dom.imgPlayerSprite.onerror = () => {
         const slug = (player.species || "").toLowerCase().replace("mega ", "").replace("-mega", "").replace(" ", "-").trim();
@@ -204,6 +210,90 @@ class PVEBattleController {
     this.dom.btnToggleMega.style.display = canMega ? "flex" : "none";
   }
 
+  renderFieldBadges() {
+    if (!this.dom.boxFieldBadges || !this.state) return;
+    const pills = [];
+    const weatherMap = {
+      Sun: "☀️ Sol",
+      Rain: "🌧️ Lluvia",
+      Sandstorm: "🏜️ Tormenta Arena",
+      Snow: "❄️ Nieve"
+    };
+    const terrainMap = {
+      Electric: "⚡ Campo Eléctrico",
+      Grassy: "🌿 Campo Hierba",
+      Psychic: "🔮 Campo Psíquico",
+      Misty: "🌫️ Campo Niebla"
+    };
+
+    if (this.state.weather) {
+      const label = weatherMap[this.state.weather] || this.state.weather;
+      const turns = this.state.weather_turns ? ` (${this.state.weather_turns}t)` : "";
+      pills.push(`<span class="field-pill">${label}${turns}</span>`);
+    }
+    if (this.state.terrain) {
+      const label = terrainMap[this.state.terrain] || this.state.terrain;
+      const turns = this.state.terrain_turns ? ` (${this.state.terrain_turns}t)` : "";
+      pills.push(`<span class="field-pill">${label}${turns}</span>`);
+    }
+    if (this.state.trick_room_turns > 0) {
+      pills.push(`<span class="field-pill">🌀 Espacio Raro (${this.state.trick_room_turns}t)</span>`);
+    }
+
+    this.dom.boxFieldBadges.innerHTML = pills.join("");
+  }
+
+  renderSideModifiers(container, poke, sideCond) {
+    if (!container) return;
+    const pills = [];
+
+    // 1. Etapas de estadísticas (Boosts / Unboosts)
+    const boosts = poke?.boosts || {};
+    const statLabels = {
+      atk: "Atk", def: "Def", spa: "SpA", spd: "SpD", spe: "Spe", accuracy: "Acc", evasion: "Eva"
+    };
+    Object.entries(statLabels).forEach(([key, label]) => {
+      const stage = Number(boosts[key] || 0);
+      if (stage > 0) {
+        pills.push(`<span class="mod-pill boost-up">+${stage} ${label}</span>`);
+      } else if (stage < 0) {
+        pills.push(`<span class="mod-pill boost-down">${stage} ${label}</span>`);
+      }
+    });
+
+    // 2. Estados volátiles activos
+    const vols = poke?.volatiles || {};
+    if (poke?.substitute_hp > 0 || vols.substitute) {
+      pills.push(`<span class="mod-pill volatile">🛡️ Sustituto</span>`);
+    }
+    if (vols.leech_seed) {
+      pills.push(`<span class="mod-pill volatile">🌱 Drenadoras</span>`);
+    }
+    if (vols.taunt) {
+      pills.push(`<span class="mod-pill volatile">💢 Mofa (${vols.taunt})</span>`);
+    }
+    if (vols.confusion) {
+      pills.push(`<span class="mod-pill volatile">💫 Confuso</span>`);
+    }
+    if (vols.partially_trapped) {
+      pills.push(`<span class="mod-pill volatile">🔥 Atrapado</span>`);
+    }
+
+    // 3. Condiciones del lado (Hazards y Pantallas)
+    if (sideCond) {
+      if (sideCond.stealth_rock) pills.push(`<span class="mod-pill hazard">🪨 Trampa Rocas</span>`);
+      if (sideCond.spikes > 0) pills.push(`<span class="mod-pill hazard">📌 Púas x${sideCond.spikes}</span>`);
+      if (sideCond.toxic_spikes > 0) pills.push(`<span class="mod-pill hazard">☠️ P. Tóxicas x${sideCond.toxic_spikes}</span>`);
+      if (sideCond.sticky_web) pills.push(`<span class="mod-pill hazard">🕸️ Red Viscosa</span>`);
+      if (sideCond.reflect_turns > 0) pills.push(`<span class="mod-pill screen">🛡️ Reflejo (${sideCond.reflect_turns})</span>`);
+      if (sideCond.light_screen_turns > 0) pills.push(`<span class="mod-pill screen">✨ P. Luz (${sideCond.light_screen_turns})</span>`);
+      if (sideCond.aurora_veil_turns > 0) pills.push(`<span class="mod-pill screen">❄️ Velo Aurora (${sideCond.aurora_veil_turns})</span>`);
+      if (sideCond.tailwind_turns > 0) pills.push(`<span class="mod-pill screen">🍃 Viento Afín (${sideCond.tailwind_turns})</span>`);
+    }
+
+    container.innerHTML = pills.join("");
+  }
+
   renderMoves() {
     this.dom.movesGrid.innerHTML = "";
     const player = this.state?.player_active;
@@ -216,11 +306,12 @@ class PVEBattleController {
       btn.style.backgroundColor = color;
       btn.disabled = this.isProcessingTurn;
 
+      const ppText = move.max_pp ? `PP ${move.pp ?? move.max_pp}/${move.max_pp}` : "";
       btn.innerHTML = `
         <span class="move-name">${move.name}</span>
         <div class="move-meta">
-          <span>${move.type}</span>
-          <span>${move.base_power > 0 ? `Poder ${move.base_power}` : "Estado"}</span>
+          <span>${move.type} · ${move.base_power > 0 ? `BP ${move.base_power}` : "Estado"}</span>
+          <span>${ppText}</span>
         </div>
       `;
 
@@ -347,11 +438,19 @@ class PVEBattleController {
     for (const ev of events) {
       if (ev.text) this.setDialog(ev.text);
 
-      if (ev.type === "DAMAGE") {
+      if (["DAMAGE", "HAZARD_DAMAGE", "WEATHER_DAMAGE", "STATUS_DAMAGE"].includes(ev.type)) {
         const targetSprite = ev.side === "ai" ? this.dom.imgAiSprite : this.dom.imgPlayerSprite;
         targetSprite.classList.add("shake");
         setTimeout(() => targetSprite.classList.remove("shake"), 350);
 
+        if (ev.remaining_hp !== undefined && ev.max_hp !== undefined) {
+          if (ev.side === "ai") {
+            this.updateHpBar(this.dom.barAiHp, this.dom.txtAiHp, ev.remaining_hp, ev.max_hp, true);
+          } else {
+            this.updateHpBar(this.dom.barPlayerHp, this.dom.txtPlayerHp, ev.remaining_hp, ev.max_hp, false);
+          }
+        }
+      } else if (ev.type === "HEAL" && ev.remaining_hp !== undefined && ev.max_hp !== undefined) {
         if (ev.side === "ai") {
           this.updateHpBar(this.dom.barAiHp, this.dom.txtAiHp, ev.remaining_hp, ev.max_hp, true);
         } else {

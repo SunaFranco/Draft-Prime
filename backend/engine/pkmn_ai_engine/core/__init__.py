@@ -12,6 +12,7 @@ from .types import (
 from .models import (
     StatBlock,
     StatBoosts,
+    SideConditions,
     MoveState,
     PokemonState,
     Action,
@@ -27,6 +28,8 @@ from .damage import (
     calculate_damage,
     get_effective_speed,
     get_boost_multiplier,
+    get_accuracy_evasion_multiplier,
+    get_crit_chance,
 )
 
 __all__ = [
@@ -37,6 +40,7 @@ __all__ = [
     "normalize_type_name",
     "StatBlock",
     "StatBoosts",
+    "SideConditions",
     "MoveState",
     "PokemonState",
     "Action",
@@ -48,4 +52,6 @@ __all__ = [
     "calculate_damage",
     "get_effective_speed",
     "get_boost_multiplier",
+    "get_accuracy_evasion_multiplier",
+    "get_crit_chance",
 ]
