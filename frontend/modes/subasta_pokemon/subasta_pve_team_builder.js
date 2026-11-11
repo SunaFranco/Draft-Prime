@@ -4,7 +4,17 @@
  * Soporta Drag & Drop (Pointer Events) y selección táctil/clic rápida para móvil y desktop.
  */
 
-import { buildPokemonSpriteMarkup, escapeHtml } from "./subasta_ui_components.js";
+import { buildPokemonSpriteMarkup } from "./subasta_ui_components.js";
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[char]);
+}
 
 const TYPE_COLORS = {
   normal: "#94a3b8", fire: "#f97316", water: "#38bdf8", electric: "#facc15",

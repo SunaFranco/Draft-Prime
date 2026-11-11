@@ -32,7 +32,7 @@ const POKEMON_COLORS = {
   yellow: { label: "Amarillo", hex: "#f8d030" },
 };
 
-function escapeHtml(value) {
+export function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
     "<": "&lt;",
