@@ -44,6 +44,7 @@ class PVEBattleController {
       barAiHp: document.getElementById("bar-ai-hp"),
       txtAiHp: document.getElementById("txt-ai-hp"),
       badgeAiStatus: document.getElementById("badge-ai-status"),
+      boxAiMeta: document.getElementById("box-ai-meta"),
       boxAiModifiers: document.getElementById("box-ai-modifiers"),
       imgAiSprite: document.getElementById("img-ai-sprite"),
       ballsAiBench: document.getElementById("balls-ai-bench"),
@@ -54,6 +55,7 @@ class PVEBattleController {
       barPlayerHp: document.getElementById("bar-player-hp"),
       txtPlayerHp: document.getElementById("txt-player-hp"),
       badgePlayerStatus: document.getElementById("badge-player-status"),
+      boxPlayerMeta: document.getElementById("box-player-meta"),
       boxPlayerModifiers: document.getElementById("box-player-modifiers"),
       imgPlayerSprite: document.getElementById("img-player-sprite"),
       ballsPlayerBench: document.getElementById("balls-player-bench"),
@@ -62,6 +64,7 @@ class PVEBattleController {
       btnToggleMega: document.getElementById("btn-toggle-mega"),
       btnOpenSwitch: document.getElementById("btn-open-switch"),
       btnSurrender: document.getElementById("btn-surrender"),
+      boxBattleLog: document.getElementById("box-battle-log"),
       // Sheet Banca
       sheetSwitch: document.getElementById("sheet-switch"),
       btnCloseSheet: document.getElementById("btn-close-sheet"),
@@ -176,6 +179,7 @@ class PVEBattleController {
       this.renderTypes(this.dom.boxAiTypes, ai.types || []);
       this.updateHpBar(this.dom.barAiHp, this.dom.txtAiHp, ai.current_hp, ai.max_hp, true);
       this.renderStatusBadge(this.dom.badgeAiStatus, ai.status);
+      this.renderPokeMeta(this.dom.boxAiMeta, ai);
       this.renderSideModifiers(this.dom.boxAiModifiers, ai, this.state.ai_side);
       this.dom.imgAiSprite.src = this.getSpriteUrl(ai, false);
       this.dom.imgAiSprite.onerror = () => {
@@ -193,6 +197,7 @@ class PVEBattleController {
       this.renderTypes(this.dom.boxPlayerTypes, player.types || []);
       this.updateHpBar(this.dom.barPlayerHp, this.dom.txtPlayerHp, player.current_hp, player.max_hp, false);
       this.renderStatusBadge(this.dom.badgePlayerStatus, player.status);
+      this.renderPokeMeta(this.dom.boxPlayerMeta, player);
       this.renderSideModifiers(this.dom.boxPlayerModifiers, player, this.state.player_side);
       this.dom.imgPlayerSprite.src = this.getSpriteUrl(player, true);
       this.dom.imgPlayerSprite.onerror = () => {
@@ -230,17 +235,36 @@ class PVEBattleController {
       const label = weatherMap[this.state.weather] || this.state.weather;
       const turns = this.state.weather_turns ? ` (${this.state.weather_turns}t)` : "";
       pills.push(`<span class="field-pill">${label}${turns}</span>`);
+    } else {
+      pills.push(`<span class="field-pill neutral">🌤️ Clima: Despejado</span>`);
     }
     if (this.state.terrain) {
       const label = terrainMap[this.state.terrain] || this.state.terrain;
       const turns = this.state.terrain_turns ? ` (${this.state.terrain_turns}t)` : "";
       pills.push(`<span class="field-pill">${label}${turns}</span>`);
+    } else {
+      pills.push(`<span class="field-pill neutral">🌱 Terreno: Normal</span>`);
     }
     if (this.state.trick_room_turns > 0) {
       pills.push(`<span class="field-pill">🌀 Espacio Raro (${this.state.trick_room_turns}t)</span>`);
     }
 
     this.dom.boxFieldBadges.innerHTML = pills.join("");
+  }
+
+  renderPokeMeta(container, poke) {
+    if (!container || !poke) return;
+    const tags = [];
+    if (poke.ability) {
+      tags.push(`<span class="meta-tag" title="Habilidad">🧬 ${poke.ability}</span>`);
+    }
+    if (poke.item) {
+      tags.push(`<span class="meta-tag" title="Objeto equipado">🎒 ${poke.item}</span>`);
+    }
+    if (poke.stats?.spe) {
+      tags.push(`<span class="meta-tag" title="Velocidad Base">⚡ Spe ${poke.stats.spe}</span>`);
+    }
+    container.innerHTML = tags.join("");
   }
 
   renderSideModifiers(container, poke, sideCond) {
@@ -307,10 +331,15 @@ class PVEBattleController {
       btn.disabled = this.isProcessingTurn;
 
       const ppText = move.max_pp ? `PP ${move.pp ?? move.max_pp}/${move.max_pp}` : "";
+      const catIcon = move.category === "physical" ? "💥 Fís" : (move.category === "special" ? "✨ Esp" : "🛡️ Est");
+      const accText = move.never_miss ? "∞%" : `${Math.round((move.accuracy ?? 1.0) * 100)}%`;
+      const effectSummary = this.describeMoveEffect(move);
+
       btn.innerHTML = `
         <span class="move-name">${move.name}</span>
+        ${effectSummary ? `<span class="move-effect-desc">${effectSummary}</span>` : ""}
         <div class="move-meta">
-          <span>${move.type} · ${move.base_power > 0 ? `BP ${move.base_power}` : "Estado"}</span>
+          <span>${move.type} · ${catIcon} · ${move.base_power > 0 ? `BP ${move.base_power}` : accText}</span>
           <span>${ppText}</span>
         </div>
       `;
@@ -321,6 +350,56 @@ class PVEBattleController {
 
       this.dom.movesGrid.appendChild(btn);
     });
+  }
+
+  describeMoveEffect(move) {
+    const parts = [];
+    if (move.priority && move.priority !== 0) {
+      parts.push(`Prio ${move.priority > 0 ? "+" + move.priority : move.priority}`);
+    }
+    if (move.drain_percent > 0) parts.push(`Drena ${Math.round(move.drain_percent * 100)}%`);
+    if (move.recoil_percent > 0) parts.push(`Retroceso ${Math.round(move.recoil_percent * 100)}%`);
+    if (move.heal_fraction > 0) parts.push(`Cura ${Math.round(move.heal_fraction * 100)}%`);
+    if (move.crit_ratio > 1) parts.push("Crítico alto");
+    if (move.multi_hit) parts.push(`${move.multi_hit[0]}-${move.multi_hit[1]} golpes`);
+    if (move.target_status) parts.push(`Causa ${move.target_status}`);
+    if (move.volatile_status) {
+      const vMap = { protect: "Protección", substitute: "Sustituto (25% HP)", leech_seed: "Drenadoras", taunt: "Mofa (3t)", confusion: "Confusión", partially_trapped: "Atrapa" };
+      parts.push(vMap[move.volatile_status] || move.volatile_status);
+    }
+    if (move.side_condition) {
+      const scMap = { stealth_rock: "Trampa Rocas", spikes: "Púas", toxic_spikes: "Púas Tóxicas", sticky_web: "Red Viscosa", reflect: "Reflejo", light_screen: "Pantalla Luz", aurora_veil: "Velo Aurora", tailwind: "Viento Afín" };
+      parts.push(scMap[move.side_condition] || move.side_condition);
+    }
+    if (move.weather) parts.push(`Clima: ${move.weather}`);
+    if (move.terrain) parts.push(`Campo: ${move.terrain}`);
+    if (move.pseudo_weather === "trick_room") parts.push("Espacio Raro");
+    if (move.hazard_clear) parts.push("Limpia Hazards");
+    if (move.self_switch) parts.push("Cambia tras usar");
+    if (move.force_switch) parts.push("Fuerza cambio rival");
+    if (move.self_boosts) {
+      const bStr = Object.entries(move.self_boosts).map(([k, v]) => `${v > 0 ? "+" + v : v} ${k.toUpperCase()}`).join(" ");
+      parts.push(bStr);
+    }
+    if (move.boosts) {
+      const bStr = Object.entries(move.boosts).map(([k, v]) => `${v > 0 ? "+" + v : v} ${k.toUpperCase()} rival`).join(" ");
+      parts.push(bStr);
+    }
+    if (move.secondary) {
+      const pct = Math.round((move.secondary.chance || 1) * 100);
+      if (move.secondary.status) parts.push(`${pct}% ${move.secondary.status}`);
+      if (move.secondary.flinch) parts.push(`${pct}% Retroceso`);
+      if (move.secondary.volatile_status) parts.push(`${pct}% Confusión`);
+      if (move.secondary.boosts) {
+        const sb = Object.entries(move.secondary.boosts).map(([k, v]) => `${v} ${k.toUpperCase()}`).join("");
+        parts.push(`${pct}% ${sb}`);
+      }
+      if (move.secondary.self_boosts) {
+        const sb = Object.entries(move.secondary.self_boosts).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join("");
+        parts.push(`${pct}% ${sb}`);
+      }
+    }
+    return parts.slice(0, 2).join(" · ");
   }
 
   renderTypes(container, types) {
@@ -435,8 +514,18 @@ class PVEBattleController {
   }
 
   async playEvents(events) {
+    if (this.dom.boxBattleLog && this.state?.turn) {
+      const turnHeader = document.createElement("div");
+      turnHeader.className = "log-turn-header";
+      turnHeader.textContent = `=== Turno ${this.state.turn} ===`;
+      this.dom.boxBattleLog.appendChild(turnHeader);
+    }
+
     for (const ev of events) {
-      if (ev.text) this.setDialog(ev.text);
+      if (ev.text) {
+        this.setDialog(ev.text);
+        this.appendBattleLog(ev);
+      }
 
       if (["DAMAGE", "HAZARD_DAMAGE", "WEATHER_DAMAGE", "STATUS_DAMAGE"].includes(ev.type)) {
         const targetSprite = ev.side === "ai" ? this.dom.imgAiSprite : this.dom.imgPlayerSprite;
@@ -505,6 +594,20 @@ class PVEBattleController {
 
   setDialog(msg) {
     this.dom.boxDialog.textContent = msg;
+  }
+
+  appendBattleLog(ev) {
+    if (!this.dom.boxBattleLog || !ev?.text) return;
+    const line = document.createElement("div");
+    let cls = "log-entry";
+    if (["DAMAGE", "HAZARD_DAMAGE", "WEATHER_DAMAGE", "STATUS_DAMAGE", "FAINT"].includes(ev.type)) cls += " dmg";
+    else if (ev.type === "HEAL") cls += " heal";
+    else if (["BOOST", "UNBOOST", "MEGA_EVOLVE"].includes(ev.type)) cls += " boost";
+    else if (["WEATHER", "TERRAIN", "FIELD", "SIDE_CONDITION"].includes(ev.type)) cls += " field";
+    line.className = cls;
+    line.textContent = `• ${ev.text}`;
+    this.dom.boxBattleLog.appendChild(line);
+    this.dom.boxBattleLog.scrollTop = this.dom.boxBattleLog.scrollHeight;
   }
 
   showEndModal(isWon, msg) {
