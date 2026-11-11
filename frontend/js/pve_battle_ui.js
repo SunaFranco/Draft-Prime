@@ -443,12 +443,14 @@ class PVEBattleController {
 
       btn.title = moveDescEs ? `${moveNameEs} (${move.name}): ${moveDescEs}` : moveNameEs;
       btn.innerHTML = `
-        <span class="move-name">${moveNameEs}</span>
-        ${moveDescEs ? `<span class="move-flavor-desc">${moveDescEs}</span>` : ""}
-        ${effectFallback ? `<span class="move-effect-desc">${effectFallback}</span>` : ""}
+        <div class="move-header-row">
+          <span class="move-name">${moveNameEs}</span>
+          <span class="move-pp-badge">${ppText}</span>
+        </div>
+        ${moveDescEs ? `<div class="move-flavor-desc" title="${moveDescEs.replace(/"/g, '&quot;')}">${moveDescEs}</div>` : (effectFallback ? `<div class="move-flavor-desc">${effectFallback}</div>` : "")}
         <div class="move-meta">
-          <span>${typeEs} · ${catIcon} · ${move.base_power > 0 ? `Pot ${move.base_power} · Prec ${accText}` : `Prec ${accText}`}</span>
-          <span>${ppText}</span>
+          <span>${typeEs} · ${catIcon}</span>
+          <span>${move.base_power > 0 ? `Pot ${move.base_power}` : "—"} · ${accText}</span>
         </div>
       `;
 

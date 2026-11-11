@@ -1474,7 +1474,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                   ${displayedMoves.length
                     ? displayedMoves.map((moveName) => {
                         const mvInfo = getMoveTextEs(moveName);
-                        return `<span class="move-pill" title="${escapeHtml(mvInfo.desc || mvInfo.en)}"><strong>${escapeHtml(mvInfo.es)}</strong>${mvInfo.desc ? `<small style="display:block;font-size:0.68rem;opacity:0.88;font-weight:normal;margin-top:2px;">${escapeHtml(mvInfo.desc)}</small>` : ""}</span>`;
+                        return `<span class="move-pill" title="${escapeHtml(mvInfo.desc || mvInfo.en)}"><strong>${escapeHtml(mvInfo.es)}</strong></span>`;
                       }).join("")
                     : '<span class="text-muted">Sin movimientos seleccionados</span>'}
                 </div>

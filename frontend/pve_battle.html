@@ -85,25 +85,26 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      max-width: 600px;
+      max-width: 540px;
       width: 100%;
       margin: 0 auto;
-      padding: 10px;
-      gap: 10px;
+      padding: 8px;
+      gap: 8px;
+      box-sizing: border-box;
     }
 
     /* Escenario de combate */
     .battle-arena {
       background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
       border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 12px;
+      border-radius: 14px;
+      padding: 8px 10px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 8px;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.5);
     }
 
     /* Zonas de combate (Rival y Jugador) */
@@ -111,7 +112,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
     }
 
     .side-zone.ai-side {
@@ -121,10 +122,10 @@
     .poke-info-card {
       background: rgba(15, 23, 42, 0.75);
       border: 1px solid var(--border-color);
-      padding: 8px 12px;
-      border-radius: 12px;
+      padding: 6px 10px;
+      border-radius: 10px;
       flex: 1;
-      min-width: 150px;
+      min-width: 0;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
     }
 
@@ -132,34 +133,38 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 4px;
+      gap: 6px;
+      margin-bottom: 2px;
     }
 
     .poke-name {
       font-weight: 800;
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       color: white;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 120px;
+      flex: 1;
+      min-width: 0;
     }
 
     .poke-level {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
       font-weight: 700;
+      flex-shrink: 0;
     }
 
     .type-tags {
       display: flex;
-      gap: 4px;
-      margin-bottom: 6px;
+      gap: 3px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
     }
 
     .type-badge {
-      font-size: 0.65rem;
-      padding: 1px 6px;
+      font-size: 0.6rem;
+      padding: 1px 5px;
       border-radius: 4px;
       font-weight: 800;
       text-transform: uppercase;
@@ -169,7 +174,7 @@
 
     .hp-bar-outer {
       background: rgba(0, 0, 0, 0.5);
-      height: 8px;
+      height: 7px;
       border-radius: 4px;
       overflow: hidden;
       position: relative;
@@ -185,20 +190,20 @@
     }
 
     .hp-text {
-      font-size: 0.75rem;
+      font-size: 0.68rem;
       font-weight: 700;
       text-align: right;
-      margin-top: 3px;
+      margin-top: 2px;
       color: var(--text-muted);
     }
 
     .status-badge {
       display: inline-block;
-      font-size: 0.65rem;
-      padding: 1px 5px;
+      font-size: 0.62rem;
+      padding: 1px 4px;
       border-radius: 4px;
       font-weight: 800;
-      margin-left: 6px;
+      margin-left: 4px;
     }
     .status-BRN { background: #ea580c; color: white; }
     .status-PAR { background: #ca8a04; color: white; }
@@ -211,18 +216,18 @@
     .field-badges-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 4px;
       justify-content: space-between;
       align-items: center;
       background: rgba(15, 23, 42, 0.65);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      padding: 5px 10px;
+      border-radius: 8px;
+      padding: 4px 8px;
     }
     .field-pill {
-      font-size: 0.68rem;
+      font-size: 0.64rem;
       font-weight: 800;
-      padding: 2px 8px;
+      padding: 1px 6px;
       border-radius: 999px;
       background: rgba(59, 130, 246, 0.25);
       border: 1px solid rgba(147, 197, 253, 0.45);
@@ -237,48 +242,52 @@
     .poke-meta-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px;
-      margin-top: 4px;
-      font-size: 0.65rem;
+      gap: 3px;
+      margin-top: 3px;
+      font-size: 0.6rem;
       color: #cbd5e1;
     }
     .meta-tag {
       background: rgba(255, 255, 255, 0.07);
       border: 1px solid rgba(255, 255, 255, 0.12);
-      padding: 1px 5px;
-      border-radius: 4px;
+      padding: 1px 4px;
+      border-radius: 3px;
       font-weight: 700;
     }
     .ability-desc-line {
       width: 100%;
-      font-size: 0.62rem;
-      line-height: 1.25;
+      font-size: 0.6rem;
+      line-height: 1.2;
       color: #93c5fd;
       margin-top: 2px;
       font-weight: 600;
     }
     .move-flavor-desc {
-      font-size: 0.63rem;
-      line-height: 1.25;
-      color: rgba(255, 255, 255, 0.92);
-      margin: 2px 0 4px 0;
+      font-size: 0.6rem;
+      line-height: 1.2;
+      color: rgba(255, 255, 255, 0.88);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      margin: 1px 0;
       font-weight: 500;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
     }
     .modifiers-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px;
-      margin-top: 5px;
+      gap: 3px;
+      margin-top: 3px;
     }
     .modifiers-row:empty {
       display: none;
     }
     .mod-pill {
-      font-size: 0.62rem;
+      font-size: 0.58rem;
       font-weight: 800;
-      padding: 1px 5px;
-      border-radius: 4px;
+      padding: 1px 4px;
+      border-radius: 3px;
       line-height: 1.2;
     }
     .mod-pill.boost-up {
@@ -314,20 +323,34 @@
       width: fit-content;
     }
 
-    /* Registro de Combate estilo Showdown */
-    .battle-log-panel {
-      background: rgba(15, 23, 42, 0.9);
+    .battle-log-details {
+      background: rgba(15, 23, 42, 0.85);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 10px 12px;
-      max-height: 150px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    .battle-log-summary {
+      padding: 5px 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #94a3b8;
+      cursor: pointer;
+      user-select: none;
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .battle-log-panel {
+      background: transparent;
+      padding: 6px 8px;
+      max-height: 110px;
       overflow-y: auto;
-      font-size: 0.78rem;
-      line-height: 1.45;
+      font-size: 0.7rem;
+      line-height: 1.4;
       color: #cbd5e1;
       display: flex;
       flex-direction: column;
       gap: 3px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
     .log-turn-header {
       color: #60a5fa;
@@ -344,22 +367,24 @@
     .log-entry.boost { color: #fde047; }
     .log-entry.field { color: #93c5fd; }
 
-    /* Barra de Equipos 6v6 con Minisprites (debajo de los movimientos) */
+    /* Barra de Equipos 6v6 con Minisprites (debajo de los movimientos) - 100% Mobile First */
     .teams-overview-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 4px;
       background: rgba(15, 23, 42, 0.85);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 8px 10px;
+      border-radius: 10px;
+      padding: 6px 8px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .team-minis-side {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
       flex: 1;
       min-width: 0;
     }
@@ -369,7 +394,7 @@
     }
 
     .team-minis-label {
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -379,71 +404,76 @@
     .team-minis-row {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
       flex-wrap: nowrap;
     }
 
     .team-mini-slot {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
+      width: 25px;
+      height: 25px;
+      border-radius: 6px;
       background: rgba(30, 41, 59, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.1);
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
+      flex-shrink: 0;
       transition: transform 0.2s ease, border-color 0.2s ease, filter 0.25s ease;
     }
 
     .team-mini-slot.active-slot {
       border-color: #3b82f6;
-      box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
-      background: rgba(59, 130, 246, 0.16);
+      box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+      background: rgba(59, 130, 246, 0.2);
     }
 
     .team-mini-slot.fainted {
-      filter: grayscale(100%) brightness(0.55);
-      opacity: 0.5;
+      filter: grayscale(100%) brightness(0.45);
+      opacity: 0.45;
       border-color: rgba(255, 255, 255, 0.05);
       box-shadow: none;
     }
 
     .team-mini-img {
-      width: 30px;
-      height: 30px;
+      width: 22px;
+      height: 22px;
       object-fit: contain;
     }
 
     .team-mini-img.pokeball-unrevealed {
-      width: 22px;
-      height: 22px;
-      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+      width: 15px;
+      height: 15px;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
     }
 
     .team-minis-divider {
-      font-size: 0.7rem;
+      font-size: 0.64rem;
       font-weight: 900;
       color: #64748b;
-      padding: 0 2px;
+      padding: 0 4px;
       user-select: none;
+      flex-shrink: 0;
     }
 
     /* Sprites y Animaciones de Cambio / Estadísticas */
     .sprite-container {
-      width: 96px;
-      height: 96px;
+      width: 74px;
+      height: 74px;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
+      flex-shrink: 0;
     }
 
     .poke-sprite {
-      width: 90px;
-      height: 90px;
+      width: 100%;
+      height: 100%;
+      max-width: 70px;
+      max-height: 70px;
       object-fit: contain;
-      filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4));
+      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
       transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
     }
 
@@ -518,50 +548,54 @@
       100% { transform: translateY(0) scale(1); filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4)); }
     }
 
-    /* Caja de Diálogo y Eventos */
+    /* Caja de Diálogo y Eventos - Compacta y centrada */
     .dialog-box {
       background: rgba(15, 23, 42, 0.95);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 12px;
-      min-height: 65px;
-      font-size: 0.9rem;
+      border-radius: 10px;
+      padding: 8px 12px;
+      min-height: 48px;
+      font-size: 0.82rem;
       font-weight: 600;
-      line-height: 1.4;
+      line-height: 1.35;
       display: flex;
       align-items: center;
       color: #e2e8f0;
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+      box-sizing: border-box;
     }
 
     /* Panel de Controles / Movimientos */
     .controls-panel {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
+      width: 100%;
     }
 
     .moves-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 6px;
+      width: 100%;
     }
 
     .btn-move {
       border: none;
-      padding: 12px 10px;
-      border-radius: 12px;
+      padding: 7px 9px;
+      border-radius: 10px;
       color: white;
       text-align: left;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 65px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.25);
+      min-height: 52px;
+      box-shadow: 0 3px 6px -1px rgba(0,0,0,0.3);
       transition: transform 0.1s ease, filter 0.15s ease;
       position: relative;
       overflow: hidden;
+      box-sizing: border-box;
     }
 
     .btn-move:active {
@@ -574,31 +608,97 @@
       transform: none;
     }
 
+    .move-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4px;
+      width: 100%;
+    }
+
     .move-name {
       font-weight: 800;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .move-pp-badge {
+      font-size: 0.64rem;
+      font-weight: 700;
+      opacity: 0.88;
+      flex-shrink: 0;
     }
 
     .move-meta {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.7rem;
+      font-size: 0.66rem;
       font-weight: 700;
-      opacity: 0.9;
+      opacity: 0.95;
+      width: 100%;
     }
 
     /* Acciones secundarias (Mega, Switch, Surrender) */
     .action-bar {
       display: flex;
-      gap: 8px;
-      margin-top: 2px;
+      gap: 6px;
+      margin-top: 1px;
+      width: 100%;
     }
 
     .btn-action {
       flex: 1;
-      padding: 12px 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-height: 38px;
+      transition: background 0.15s ease;
+      box-sizing: border-box;
+    }
+
+    /* Ajustes para pantallas con más espacio (tablets / desktop) */
+    @media (min-width: 480px) {
+      .sprite-container {
+        width: 86px;
+        height: 86px;
+      }
+      .poke-sprite {
+        max-width: 82px;
+        max-height: 82px;
+      }
+      .team-mini-slot {
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+      }
+      .team-mini-img {
+        width: 26px;
+        height: 26px;
+      }
+      .team-mini-img.pokeball-unrevealed {
+        width: 18px;
+        height: 18px;
+      }
+      .btn-move {
+        min-height: 56px;
+        padding: 8px 10px;
+      }
+    }
       border-radius: 10px;
       border: 1px solid var(--border-color);
       background: rgba(255, 255, 255, 0.08);
@@ -874,10 +974,13 @@
         </div>
       </div>
 
-      <!-- Registro de Combate estilo Pokémon Showdown -->
-      <div id="box-battle-log" class="battle-log-panel">
-        <div class="log-turn-header">📋 Registro de Combate (Showdown Sim)</div>
-      </div>
+      <!-- Registro de Combate estilo Pokémon Showdown (Plegable en móvil) -->
+      <details class="battle-log-details" id="details-battle-log">
+        <summary class="battle-log-summary">📋 Registro de Combate (Toca para expandir)</summary>
+        <div id="box-battle-log" class="battle-log-panel">
+          <div class="log-turn-header">📋 Registro de Combate (Showdown Sim)</div>
+        </div>
+      </details>
     </section>
   </main>
 
