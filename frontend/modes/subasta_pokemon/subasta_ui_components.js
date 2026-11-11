@@ -2,6 +2,8 @@
  * frontend/modes/subasta_pokemon/subasta_ui_components.js - Componentes de renderizado UI para Subasta Pokémon
  */
 
+import { getMoveTextEs, getAbilityTextEs, getItemTextEs } from "../../js/showdown_text_es.js";
+
 const POKEMON_TYPES = [
   "Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison",
   "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark",
@@ -630,8 +632,9 @@ export function renderAuctionView(data, sessionClient, isHost) {
       (isPubliclyRevealed || (!auction.reveal_hold_until || revealCountdownMs <= 5000))
     )
   );
-  const hintAbility = hints.ability && !String(hints.ability).includes("🔒")
-    ? `<a href="${buildWikidexUrl(hints.ability)}" target="_blank" rel="noopener noreferrer" class="badge-link">${hints.ability}</a>`
+  const hintAbInfo = hints.ability && !String(hints.ability).includes("🔒") ? getAbilityTextEs(hints.ability) : null;
+  const hintAbility = hintAbInfo
+    ? `<a href="${buildWikidexUrl(hintAbInfo.es)}" target="_blank" rel="noopener noreferrer" class="badge-link" title="${escapeHtml(hintAbInfo.desc)}">${escapeHtml(hintAbInfo.es)}</a>${hintAbInfo.desc ? `<div style="font-size:0.75rem;color:#93c5fd;margin-top:2px;">ℹ️ ${escapeHtml(hintAbInfo.desc)}</div>` : ""}`
     : hints.ability || "🔒 Incógnito (4.0x)";
   const colorHint = hints.color;
   const pokemonColor = colorHint && Object.prototype.hasOwnProperty.call(POKEMON_COLORS, colorHint)
@@ -1323,11 +1326,16 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
             ></button>
           `).join("");
           const normalizeWikidexName = (name) => encodeURI(String(name).trim().replace(/\s+/g, "_").replace(/[()]/g, ""));
-          const abilityHtml = abilityName !== 'Desconocida'
-            ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(abilityName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${abilityName}</a>`
+          const abilityInfo = abilityName !== 'Desconocida' ? getAbilityTextEs(abilityName) : null;
+          const abilityHtml = abilityInfo
+            ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(abilityInfo.es)}" target="_blank" rel="noopener noreferrer" class="badge-link" title="${escapeHtml(abilityInfo.desc)}">${escapeHtml(abilityInfo.es)}</a>`
             : abilityName;
-          const itemHtml = itemName && itemName !== 'Sin ítem' && itemName !== 'Sin item'
-            ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(itemName)}" target="_blank" rel="noopener noreferrer" class="badge-link">${itemName}</a>`
+          const abilityDescHtml = abilityInfo?.desc
+            ? `<div class="ability-desc-box" style="font-size:0.74rem;color:#93c5fd;margin-top:4px;line-height:1.3;">🧬 <strong>${escapeHtml(abilityInfo.es)}:</strong> ${escapeHtml(abilityInfo.desc)}</div>`
+            : "";
+          const itemInfo = itemName && itemName !== 'Sin ítem' && itemName !== 'Sin item' ? getItemTextEs(itemName) : null;
+          const itemHtml = itemInfo
+            ? `<a href="https://www.wikidex.net/wiki/${normalizeWikidexName(itemInfo.es)}" target="_blank" rel="noopener noreferrer" class="badge-link" title="${escapeHtml(itemInfo.desc)}">${escapeHtml(itemInfo.es)}</a>`
             : itemName;
           const evolutionOptions = isMega ? [] : (Array.isArray(poke.evolution_options) && poke.evolution_options.length > 0
             ? poke.evolution_options
@@ -1436,6 +1444,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                   ${poke.is_shiny ? '<span class="badge badge-shiny">✨ SHINY</span>' : ''}
                   <span class="badge badge-green">Habilidad: ${abilityHtml}</span>
                   <span class="badge">Naturaleza: ${natureName}</span>
+                  ${abilityDescHtml}
                 </div>
               </div>
 
@@ -1463,7 +1472,10 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
               <div class="moves-selector-box" data-poke-idx="${pokeIdx}" data-mode="${movesPanelMode}">
                 <div class="saved-moves-list">
                   ${displayedMoves.length
-                    ? displayedMoves.map((moveName) => `<span class="move-pill">${escapeHtml(moveName)}</span>`).join("")
+                    ? displayedMoves.map((moveName) => {
+                        const mvInfo = getMoveTextEs(moveName);
+                        return `<span class="move-pill" title="${escapeHtml(mvInfo.desc || mvInfo.en)}"><strong>${escapeHtml(mvInfo.es)}</strong>${mvInfo.desc ? `<small style="display:block;font-size:0.68rem;opacity:0.88;font-weight:normal;margin-top:2px;">${escapeHtml(mvInfo.desc)}</small>` : ""}</span>`;
+                      }).join("")
                     : '<span class="text-muted">Sin movimientos seleccionados</span>'}
                 </div>
                 <button type="button" class="btn btn-small btn-secondary btn-open-moves" data-poke-idx="${pokeIdx}">Movimientos</button>
@@ -1480,9 +1492,10 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                     ${levelUpMoves.map((m) => {
                       const isSelected = displayedMoves.includes(m.name);
                       const isInitiallySelected = selectedMoves.includes(m.name);
-                      const moveUrl = buildWikidexUrl(m.name);
+                      const mvInfo = getMoveTextEs(m.name);
+                      const moveUrl = buildWikidexUrl(mvInfo.es);
                       return `
-                        <a href="${moveUrl}" target="_blank" rel="noopener noreferrer" class="move-link${isSelected ? " is-selected" : ""}" data-poke-idx="${pokeIdx}" data-move-name="${escapeHtml(m.name)}" data-initially-selected="${isInitiallySelected ? "true" : "false"}">${escapeHtml(m.name)}</a>
+                        <a href="${moveUrl}" target="_blank" rel="noopener noreferrer" class="move-link${isSelected ? " is-selected" : ""}" data-poke-idx="${pokeIdx}" data-move-name="${escapeHtml(m.name)}" data-initially-selected="${isInitiallySelected ? "true" : "false"}" title="${escapeHtml(mvInfo.desc || m.name)}"><strong>${escapeHtml(mvInfo.es)}</strong>${mvInfo.desc ? `<span style="display:block;font-size:0.68rem;opacity:0.85;font-weight:normal;margin-top:2px;">${escapeHtml(mvInfo.desc)}</span>` : ""}</a>
                       `;
                     }).join("")}
                   </div>
@@ -1579,20 +1592,26 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
             <button type="button" class="btn-close-menu" aria-label="Cerrar">✕</button>
           </div>
           <div class="backpack-menu-body">
-            ${bagEntries.length ? bagEntries.map(([itemName, qty]) => `
+            ${bagEntries.length ? bagEntries.map(([itemName, qty]) => {
+              const itEs = getItemTextEs(itemName);
+              return `
               <details class="bag-item-row" data-item-name="${itemName}">
                 <summary class="bag-item-summary">
                   <img src="${buildItemSpriteUrl(itemName)}" class="item-sprite" alt="" onerror="this.style.display='none'" />
-                  <span class="bag-item-name">${getItemWikiName(itemName)}</span>
+                  <span class="bag-item-name" title="${escapeHtml(itEs.desc || itemName)}">${escapeHtml(itEs.es || getItemWikiName(itemName))}</span>
                   <span class="bag-item-chevron" aria-hidden="true">▾</span>
                 </summary>
                 <div class="bag-item-actions">
+                ${itEs.desc ? `<div style="width:100%;font-size:0.74rem;color:#93c5fd;margin-bottom:4px;">ℹ️ ${escapeHtml(itEs.desc)}</div>` : ""}
                 <span class="item-qty">x${qty}</span>
                 ${pokemonList.length && itemName === "Capsula Habilidad" ? `<select class="ability-capsule-pokemon-select" data-item-name="${itemName}">
                   ${pokemonList.map((poke, idx) => `<option value="${idx}">${poke.name || `Pokémon ${idx + 1}`}</option>`).join("")}
                 </select>
                 <select class="ability-capsule-select" data-poke-idx="0">
-                  ${(pokemonList[0]?.abilities || []).filter((ability) => ability !== pokemonList[0]?.ability).map((ability) => `<option value="${ability}">${ability}</option>`).join("")}
+                  ${(pokemonList[0]?.abilities || []).filter((ability) => ability !== pokemonList[0]?.ability).map((ability) => {
+                    const abEs = getAbilityTextEs(ability);
+                    return `<option value="${ability}">${escapeHtml(abEs.es)}${abEs.desc ? ` — ${escapeHtml(abEs.desc)}` : ""}</option>`;
+                  }).join("")}
                 </select>
                 <button class="btn btn-small btn-secondary btn-use-ability-capsule" data-item-name="${itemName}">Usar</button>` : pokemonList.length && itemName.endsWith(" Mint") ? (() => {
                   const mintNature = itemName.slice(0, -5);
@@ -1682,7 +1701,8 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                 })() : ""}
               </div>
               </details>
-            `).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
+            `;
+            }).join("") : '<p class="text-muted">No tienes items en la mochila.</p>'}
           </div>
         </div>
       </div>

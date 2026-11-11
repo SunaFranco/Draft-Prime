@@ -4,6 +4,7 @@
 
 import { BaseGameModeUI } from "../base_mode.js";
 import { showScreen } from "../../js/core/ui.js";
+import { getMoveTextEs, getAbilityTextEs } from "../../js/showdown_text_es.js";
 import {
   renderConfigForm,
   readConfigForm,
@@ -580,9 +581,19 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       const selectedMovesList = panel.querySelector(".saved-moves-list");
       if (selectedMovesList) {
         const movePills = selectedMoves.map((moveName) => {
+          const mvInfo = getMoveTextEs(moveName);
           const pill = document.createElement("span");
           pill.className = "move-pill";
-          pill.textContent = moveName;
+          pill.title = mvInfo.desc || mvInfo.en;
+          const strong = document.createElement("strong");
+          strong.textContent = mvInfo.es;
+          pill.appendChild(strong);
+          if (mvInfo.desc) {
+            const small = document.createElement("small");
+            small.style.cssText = "display:block;font-size:0.68rem;opacity:0.88;font-weight:normal;margin-top:2px;";
+            small.textContent = mvInfo.desc;
+            pill.appendChild(small);
+          }
           return pill;
         });
         if (!movePills.length) {
@@ -1008,8 +1019,10 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         }
 
         const presetId = document.getElementById("select-pve-preset")?.value || "brock-rock";
+        const currentYear = state.current_year || (state.current_stage <= 5 ? 1 : (state.current_stage <= 9 ? 2 : 3));
         const setup = {
           preset_id: presetId,
+          year: currentYear,
           player_team: myPokemon,
           return_url: window.location.href,
         };
@@ -1396,7 +1409,10 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         abilitySelect.dataset.pokeIdx = pokemonSelect.value;
         abilitySelect.innerHTML = (poke?.abilities || [])
           .filter((ability) => ability !== poke?.ability)
-          .map((ability) => `<option value="${ability}">${ability}</option>`)
+          .map((ability) => {
+            const abEs = getAbilityTextEs(ability);
+            return `<option value="${ability}">${abEs.es}${abEs.desc ? ` — ${abEs.desc}` : ""}</option>`;
+          })
           .join("");
       };
       pokemonSelect.addEventListener("change", updateAbilities);

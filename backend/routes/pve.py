@@ -39,7 +39,44 @@ class PlayerActionSchema(BaseModel):
 class StartPVEBattleRequest(BaseModel):
     preset_id: str = Field(..., description="ID del rival prefabricado (ej: 'brock-rock', 'cynthia-sinnoh')")
     player_team: List[Dict[str, Any]] = Field(..., description="Lista de hasta 6 Pokémon del jugador")
+    year: Optional[int] = Field(None, description="Año actual de la subasta (1 -> Lv.20, 2 -> Lv.40, 3 -> Lv.100)")
     user_id: Optional[str] = None
+
+
+def _resolve_ai_target_level(year: Optional[int], player_team: List[Dict[str, Any]]) -> int:
+    """
+    Determina el nivel que deben tener los Pokémon de la IA según el año de la subasta
+    (Año 1 = Lv. 20, Año 2 = Lv. 40, Año 3 = Lv. 100) o el nivel del equipo del jugador.
+    """
+    if year is not None:
+        if year <= 1:
+            return 20
+        if year == 2:
+            return 40
+        return 100
+
+    # Si el frontend no envió 'year', inferirlo de los niveles o acquisition_year del equipo del jugador
+    player_levels = [int(p.get("level", 0) or 0) for p in player_team if p.get("level")]
+    if player_levels:
+        max_lvl = max(player_levels)
+        if max_lvl <= 20:
+            return 20
+        if max_lvl <= 40:
+            return 40
+        if max_lvl >= 60:
+            return 100
+        return max_lvl
+
+    acq_years = [int(p.get("acquisition_year", 0) or 0) for p in player_team if p.get("acquisition_year")]
+    if acq_years:
+        max_y = max(acq_years)
+        if max_y <= 1:
+            return 20
+        if max_y == 2:
+            return 40
+        return 100
+
+    return 50
 
 
 class TurnPVEBattleRequest(BaseModel):
@@ -78,11 +115,15 @@ async def start_pve_battle(req: StartPVEBattleRequest):
     if not req.player_team:
         raise HTTPException(status_code=400, detail="El equipo del jugador no puede estar vacío.")
 
+    target_ai_level = _resolve_ai_target_level(req.year, req.player_team)
+
     # Convertir Pokémon del jugador usando el adaptador inteligente
     parsed_player_team: List[PokemonState] = [adapt_draft_pokemon(p) for p in req.player_team[:6]]
 
-    # Convertir Pokémon de la IA usando el adaptador inteligente
-    parsed_ai_team: List[PokemonState] = [adapt_draft_pokemon(p) for p in preset["team"][:6]]
+    # Convertir Pokémon de la IA escalando sus niveles y estadísticas al año actual
+    parsed_ai_team: List[PokemonState] = [
+        adapt_draft_pokemon(p, override_level=target_ai_level) for p in preset["team"][:6]
+    ]
 
     player_active = parsed_player_team[0]
     player_bench = parsed_player_team[1:]

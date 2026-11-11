@@ -706,7 +706,7 @@ def save_pokemon_move_to_db(move_data: dict) -> dict:
         "secondary", "weather", "terrain", "pseudo_weather",
         "side_condition", "hazard_clear", "self_switch", "force_switch",
         "override_defensive_stat", "override_offensive_stat",
-        "must_recharge", "makes_contact",
+        "must_recharge", "makes_contact", "name_es", "desc_es",
     )
     effect_data = move_data.get("effect_data") if isinstance(move_data.get("effect_data"), dict) else {}
     for k in effect_keys:

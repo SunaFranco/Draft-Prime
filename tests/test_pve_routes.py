@@ -82,6 +82,41 @@ def test_pve_full_lifecycle():
     assert surrender_res.status_code == 200
     assert surrender_res.json()["status"] == "surrendered"
 
+    # 6. Verificar escalado de nivel de la IA según el año de la subasta
+    for year, expected_level in [(1, 20), (2, 40), (3, 100)]:
+        yr_res = client.post("/api/pve/start", json={
+            "preset_id": "brock-rock",
+            "player_team": player_team,
+            "year": year,
+        })
+        assert yr_res.status_code == 200
+        yr_state = yr_res.json()["state"]
+        assert yr_state["ai_active"]["level"] == expected_level
+        for bench_poke in yr_state["ai_bench"]:
+            assert bench_poke["level"] == expected_level
+
+    # 7. Verificar inferencia automática cuando no se envía 'year' pero el equipo es nivel 20
+    inferred_res = client.post("/api/pve/start", json={
+        "preset_id": "brock-rock",
+        "player_team": [{**player_team[0], "level": 20}],
+    })
+    assert inferred_res.status_code == 200
+    inferred_state = inferred_res.json()["state"]
+    assert inferred_state["ai_active"]["level"] == 20
+    for bench_poke in inferred_state["ai_bench"]:
+        assert bench_poke["level"] == 20
+
+    # 8. Verificar localización al Español (estilo Showdown TL) en movimientos y habilidades
+    assert inferred_state["ai_active"]["ability_es"] != ""
+    assert inferred_state["ai_active"]["ability_desc"] != ""
+    p_moves = start_data["state"]["player_active"]["moves"]
+    assert p_moves[0]["name"] == "Waterfall"
+    assert p_moves[0]["name_es"] == "Cascada"
+    assert len(p_moves[0]["desc_es"]) > 10
+    assert p_moves[1]["name"] == "Earthquake"
+    assert p_moves[1]["name_es"] == "Terremoto"
+    assert len(p_moves[1]["desc_es"]) > 10
+
     print("ALL PVE API ROUTE TESTS PASSED SUCCESSFULLY!")
 
 

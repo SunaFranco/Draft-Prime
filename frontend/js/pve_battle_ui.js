@@ -3,6 +3,8 @@
  * Controlador de combate PVE Mobile-First para Draft Prime.
  */
 
+import { getMoveTextEs, getAbilityTextEs, getItemTextEs } from "./showdown_text_es.js";
+
 // Paleta oficial de colores para los tipos de Pokémon
 const TYPE_COLORS = {
   Normal: "#94a3b8", Fire: "#ea580c", Water: "#0284c7", Grass: "#16a34a",
@@ -10,6 +12,14 @@ const TYPE_COLORS = {
   Ground: "#d97706", Flying: "#7c3aed", Psychic: "#db2777", Bug: "#65a30d",
   Rock: "#78716c", Ghost: "#6b21a8", Dragon: "#4f46e5", Steel: "#64748b",
   Dark: "#334155", Fairy: "#e11d48"
+};
+
+const TYPE_LABELS_ES = {
+  Normal: "Normal", Fire: "Fuego", Water: "Agua", Grass: "Planta",
+  Electric: "Eléctrico", Ice: "Hielo", Fighting: "Lucha", Poison: "Veneno",
+  Ground: "Tierra", Flying: "Volador", Psychic: "Psíquico", Bug: "Bicho",
+  Rock: "Roca", Ghost: "Fantasma", Dragon: "Dragón", Steel: "Acero",
+  Dark: "Siniestro", Fairy: "Hada", Stellar: "Astral"
 };
 
 // Mapeo básico de especies a IDs de PokeAPI para sprites
@@ -146,6 +156,7 @@ class PVEBattleController {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           preset_id: setup.preset_id || "brock-rock",
+          year: setup.year || null,
           player_team: setup.player_team || []
         })
       });
@@ -255,14 +266,24 @@ class PVEBattleController {
   renderPokeMeta(container, poke) {
     if (!container || !poke) return;
     const tags = [];
+    let abilityDesc = "";
     if (poke.ability) {
-      tags.push(`<span class="meta-tag" title="Habilidad">🧬 ${poke.ability}</span>`);
+      const abInfo = getAbilityTextEs(poke.ability);
+      const abNameEs = poke.ability_es || abInfo.es || poke.ability;
+      abilityDesc = poke.ability_desc || abInfo.desc || "";
+      tags.push(`<span class="meta-tag" title="${abilityDesc || 'Habilidad'}">🧬 ${abNameEs}</span>`);
     }
     if (poke.item) {
-      tags.push(`<span class="meta-tag" title="Objeto equipado">🎒 ${poke.item}</span>`);
+      const itInfo = getItemTextEs(poke.item);
+      const itNameEs = poke.item_es || itInfo.es || poke.item;
+      const itDesc = poke.item_desc || itInfo.desc || "Objeto equipado";
+      tags.push(`<span class="meta-tag" title="${itDesc}">🎒 ${itNameEs}</span>`);
     }
     if (poke.stats?.spe) {
-      tags.push(`<span class="meta-tag" title="Velocidad Base">⚡ Spe ${poke.stats.spe}</span>`);
+      tags.push(`<span class="meta-tag" title="Velocidad Base">⚡ Vel ${poke.stats.spe}</span>`);
+    }
+    if (abilityDesc) {
+      tags.push(`<div class="ability-desc-line">ℹ️ ${abilityDesc}</div>`);
     }
     container.innerHTML = tags.join("");
   }
@@ -330,16 +351,23 @@ class PVEBattleController {
       btn.style.backgroundColor = color;
       btn.disabled = this.isProcessingTurn;
 
+      const mvInfo = getMoveTextEs(move.name || move.id);
+      const moveNameEs = move.name_es || mvInfo.es || move.name;
+      const moveDescEs = move.desc_es || mvInfo.desc || "";
+      const typeEs = TYPE_LABELS_ES[move.type] || move.type;
+
       const ppText = move.max_pp ? `PP ${move.pp ?? move.max_pp}/${move.max_pp}` : "";
       const catIcon = move.category === "physical" ? "💥 Fís" : (move.category === "special" ? "✨ Esp" : "🛡️ Est");
       const accText = move.never_miss ? "∞%" : `${Math.round((move.accuracy ?? 1.0) * 100)}%`;
       const effectSummary = this.describeMoveEffect(move);
 
+      btn.title = moveDescEs ? `${moveNameEs} (${move.name}): ${moveDescEs}` : moveNameEs;
       btn.innerHTML = `
-        <span class="move-name">${move.name}</span>
+        <span class="move-name">${moveNameEs}</span>
+        ${moveDescEs ? `<span class="move-flavor-desc">${moveDescEs}</span>` : ""}
         ${effectSummary ? `<span class="move-effect-desc">${effectSummary}</span>` : ""}
         <div class="move-meta">
-          <span>${move.type} · ${catIcon} · ${move.base_power > 0 ? `BP ${move.base_power}` : accText}</span>
+          <span>${typeEs} · ${catIcon} · ${move.base_power > 0 ? `Pot ${move.base_power}` : accText}</span>
           <span>${ppText}</span>
         </div>
       `;
@@ -405,7 +433,8 @@ class PVEBattleController {
   renderTypes(container, types) {
     container.innerHTML = types.map(t => {
       const bg = TYPE_COLORS[t] || "#64748b";
-      return `<span class="type-badge" style="background-color: ${bg};">${t}</span>`;
+      const label = TYPE_LABELS_ES[t] || t;
+      return `<span class="type-badge" style="background-color: ${bg};">${label}</span>`;
     }).join("");
   }
 
@@ -560,11 +589,18 @@ class PVEBattleController {
       const card = document.createElement("div");
       card.className = `bench-card ${isDead ? 'fainted' : ''}`;
 
+      const abInfo = poke.ability ? getAbilityTextEs(poke.ability) : null;
+      const abNameEs = poke.ability_es || abInfo?.es || poke.ability || "";
+      const abDescEs = poke.ability_desc || abInfo?.desc || "";
+      const movesEs = (poke.moves || []).map(m => m.name_es || getMoveTextEs(m.name || m.id).es).join(" · ");
+
       card.innerHTML = `
-        <img class="bench-sprite" src="${this.getSpriteUrl(poke.species, true)}" alt="${poke.species}">
+        <img class="bench-sprite" src="${this.getSpriteUrl(poke, true)}" alt="${poke.species}">
         <div class="bench-details">
           <div style="font-weight: 800; color: white;">${poke.species} (Lv. ${poke.level})</div>
           <div style="font-size: 0.75rem; color: var(--text-muted);">${poke.current_hp} / ${poke.max_hp} HP</div>
+          ${abNameEs ? `<div style="font-size: 0.7rem; color: #93c5fd; margin-top: 2px;">🧬 <strong>${abNameEs}</strong>${abDescEs ? `: ${abDescEs}` : ""}</div>` : ""}
+          ${movesEs ? `<div style="font-size: 0.68rem; color: #cbd5e1; margin-top: 2px;">⚔️ ${movesEs}</div>` : ""}
         </div>
       `;
 

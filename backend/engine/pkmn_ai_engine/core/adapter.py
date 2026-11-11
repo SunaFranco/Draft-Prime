@@ -176,16 +176,18 @@ def normalize_stats(raw_stats: Any, level: int = 50) -> tuple[StatBlock, int]:
     ), max_hp
 
 
-def adapt_draft_pokemon(data: Dict[str, Any]) -> PokemonState:
+def adapt_draft_pokemon(data: Dict[str, Any], override_level: Optional[int] = None) -> PokemonState:
     """
     Convierte un Pokémon de la subasta draft en un PokemonState listo para combate PVE.
     Garantiza que siempre tenga 4 movimientos con poder y stats coherentes.
+    Si se especifica override_level (ej. 20 en Año 1, 40 en Año 2, 100 en Año 3),
+    escala el nivel, HP y estadísticas del Pokémon a ese nivel.
     """
     raw_name = data.get("name") or data.get("species") or "Pikachu"
     species = str(raw_name).strip()
     slug = species.lower().replace(" ", "-")
 
-    level = int(data.get("level", 50))
+    level = int(override_level) if override_level is not None else int(data.get("level", 50))
 
     # 1. Normalizar tipos
     raw_types = data.get("types") or [data.get("primary_type", "Normal")]
@@ -202,8 +204,12 @@ def adapt_draft_pokemon(data: Dict[str, Any]) -> PokemonState:
 
     # 2. Normalizar estadísticas y HP
     stat_block, calculated_hp = normalize_stats(data.get("stats"), level=level)
-    max_hp = int(data.get("max_hp", calculated_hp))
-    current_hp = int(data.get("current_hp", max_hp))
+    if override_level is not None:
+        max_hp = calculated_hp
+        current_hp = calculated_hp
+    else:
+        max_hp = int(data.get("max_hp", calculated_hp))
+        current_hp = int(data.get("current_hp", max_hp))
 
     # 3. Normalizar Movimientos (selected_moves de la subasta)
     raw_moves = data.get("selected_moves") or data.get("moves") or []

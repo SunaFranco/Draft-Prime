@@ -6,6 +6,11 @@ Optimizado con slots=True para bajo consumo de RAM.
 
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Tuple
+from backend.engine.pkmn_ai_engine.core.text_es import (
+    get_move_text_es,
+    get_ability_text_es,
+    get_item_text_es,
+)
 
 
 @dataclass(slots=True)
@@ -211,11 +216,16 @@ class MoveState:
     override_offensive_stat: Optional[str] = None     # "def" para Body Press
     must_recharge: bool = False                       # True para Hyper Beam, Giga Impact
     makes_contact: bool = False                       # True para movimientos de contacto
+    name_es: str = ""                                 # Nombre oficial en español (Showdown data/text/es/moves.ts)
+    desc_es: str = ""                                 # Descripción en español
 
     def to_dict(self) -> dict:
+        es_info = get_move_text_es(self.name or self.id)
         d = {
             "id": self.id,
             "name": self.name,
+            "name_es": self.name_es or es_info["es"],
+            "desc_es": self.desc_es or es_info["desc"],
             "type": self.type,
             "category": self.category,
             "base_power": self.base_power,
@@ -301,6 +311,8 @@ class MoveState:
             override_offensive_stat=data.get("override_offensive_stat"),
             must_recharge=bool(data.get("must_recharge", False)),
             makes_contact=bool(data.get("makes_contact", False)),
+            name_es=str(data.get("name_es") or ""),
+            desc_es=str(data.get("desc_es") or ""),
         )
 
 
@@ -357,6 +369,8 @@ class PokemonState:
             self.status_counter = 1
 
     def to_dict(self) -> dict:
+        ab_es = get_ability_text_es(self.ability)
+        it_es = get_item_text_es(self.item)
         return {
             "id": self.id,
             "species": self.species,
@@ -375,7 +389,11 @@ class PokemonState:
             "protect_counter": self.protect_counter,
             "active_turns": self.active_turns,
             "item": self.item,
+            "item_es": it_es["es"],
+            "item_desc": it_es["desc"],
             "ability": self.ability,
+            "ability_es": ab_es["es"],
+            "ability_desc": ab_es["desc"],
             "moves": [m.to_dict() for m in self.moves],
             "is_fainted": self.is_fainted or self.current_hp <= 0,
             "is_mega": self.is_mega,

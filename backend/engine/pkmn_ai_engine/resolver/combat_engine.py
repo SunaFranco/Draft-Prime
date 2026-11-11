@@ -26,6 +26,7 @@ from ..core.damage import (
 )
 from ..core.types import get_type_effectiveness
 from ..core.megas import check_can_mega, trigger_mega_evolution
+from ..core.text_es import get_move_text_es
 from ..ai.tracker import OpponentTracker
 from .turn_order import determine_turn_order, get_effective_priority
 
@@ -415,12 +416,14 @@ class CombatEngine:
         if side == "player":
             self.tracker.record_move_used(actor.species, move.name)
 
+        move_es = move.name_es or get_move_text_es(move.name)["es"]
         events.append({
             "type": "MOVE",
             "side": side,
             "pokemon": actor.species,
             "move": move.name,
-            "text": f"¡{actor.species} usó {move.name}!",
+            "move_es": move_es,
+            "text": f"¡{actor.species} usó {move_es}!",
         })
 
         # Fake Out / First Impression solo funcionan en el primer turno activo del Pokémon en el campo

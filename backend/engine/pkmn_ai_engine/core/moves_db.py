@@ -821,15 +821,26 @@ def fetch_move_from_pokeapi(slug: str) -> Optional[dict]:
                             secondary["boosts"] = parsed_boosts
 
             display_name = clean_slug.replace("-", " ").title()
+            name_es = ""
+            desc_es = ""
             for n_entry in data.get("names", []):
                 lang = (n_entry.get("language") or {}).get("name")
                 if lang == "en" and n_entry.get("name"):
                     display_name = n_entry["name"]
+                elif lang == "es" and n_entry.get("name"):
+                    name_es = n_entry["name"]
+
+            for f_entry in reversed(data.get("flavor_text_entries", [])):
+                lang = (f_entry.get("language") or {}).get("name")
+                if lang == "es" and f_entry.get("flavor_text"):
+                    desc_es = " ".join(str(f_entry["flavor_text"]).replace("\n", " ").replace("\f", " ").split())
                     break
 
             result = {
                 "slug": clean_slug,
                 "name": display_name,
+                "name_es": name_es,
+                "desc_es": desc_es,
                 "type": move_type,
                 "category": category,
                 "base_power": power,
@@ -887,12 +898,18 @@ def _build_inferred_move_dict(slug: str, clean_name: str, fallback_type: str = "
 
 def _merge_popular_and_effect_data(base_dict: dict, slug: str) -> dict:
     """Combina los datos base de la DB con effect_data y con POPULAR_MOVES para preservar todos los efectos."""
+    from backend.engine.pkmn_ai_engine.core.text_es import get_move_text_es
     merged = dict(POPULAR_MOVES.get(slug, {}))
     merged.update(base_dict)
     effect_data = base_dict.get("effect_data")
     if isinstance(effect_data, dict):
         merged.update(effect_data)
     merged["id"] = base_dict.get("slug") or base_dict.get("id") or slug
+    es_info = get_move_text_es(merged.get("name") or slug)
+    if not merged.get("name_es"):
+        merged["name_es"] = es_info["es"]
+    if not merged.get("desc_es"):
+        merged["desc_es"] = es_info["desc"]
     return merged
 
 
@@ -950,6 +967,13 @@ def ensure_move_in_db(
 
     if not move_dict:
         move_dict = _build_inferred_move_dict(slug, clean_name, fallback_type)
+
+    from backend.engine.pkmn_ai_engine.core.text_es import get_move_text_es
+    es_info = get_move_text_es(move_dict.get("name") or slug)
+    if not move_dict.get("name_es"):
+        move_dict["name_es"] = es_info["es"]
+    if not move_dict.get("desc_es"):
+        move_dict["desc_es"] = es_info["desc"]
 
     # 3. Guardar el nuevo movimiento en la tabla 'pokemon_moves' de Supabase
     if sync_db:
