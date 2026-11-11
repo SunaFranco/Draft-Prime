@@ -180,7 +180,7 @@
       height: 100%;
       width: 100%;
       background: var(--hp-green);
-      transition: width 0.4s ease, background-color 0.4s ease;
+      transition: width 0.7s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.45s ease;
       border-radius: 4px;
     }
 
@@ -448,31 +448,31 @@
     }
 
     .poke-sprite.shake {
-      animation: shake 0.35s cubic-bezier(.36,.07,.19,.97) both;
+      animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
     }
 
     .poke-sprite.switch-out-player {
-      animation: switchOutPlayer 0.32s ease-in forwards;
+      animation: switchOutPlayer 0.42s ease-in forwards;
     }
 
     .poke-sprite.switch-out-ai {
-      animation: switchOutAi 0.32s ease-in forwards;
+      animation: switchOutAi 0.42s ease-in forwards;
     }
 
     .poke-sprite.switch-in-player {
-      animation: switchInPlayer 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: switchInPlayer 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
     .poke-sprite.switch-in-ai {
-      animation: switchInAi 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: switchInAi 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
 
     .poke-sprite.boost-glow {
-      animation: boostGlow 0.45s ease-out;
+      animation: boostGlow 0.55s ease-out;
     }
 
     .poke-sprite.unboost-glow {
-      animation: unboostGlow 0.45s ease-out;
+      animation: unboostGlow 0.55s ease-out;
     }
 
     @keyframes shake {

@@ -5,6 +5,7 @@
 import { BaseGameModeUI } from "../base_mode.js";
 import { showScreen } from "../../js/core/ui.js";
 import { getMoveTextEs, getAbilityTextEs } from "../../js/showdown_text_es.js";
+import { openPveTeamBuilderModal } from "./subasta_pve_team_builder.js";
 import {
   renderConfigForm,
   readConfigForm,
@@ -1007,7 +1008,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
-    // Desafío PVE contra IA
+    // Desafío PVE contra IA: abrir mini-caja 2x3 para elegir equipo de 6
     const btnLaunchPve = document.getElementById("btn-launch-pve");
     if (btnLaunchPve) {
       btnLaunchPve.addEventListener("click", () => {
@@ -1019,22 +1020,7 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
         }
 
         const presetId = document.getElementById("select-pve-preset")?.value || "brock-rock";
-        const currentYear = state.current_year || (state.current_stage <= 5 ? 1 : (state.current_stage <= 9 ? 2 : 3));
-        const setup = {
-          preset_id: presetId,
-          year: currentYear,
-          player_team: myPokemon,
-          return_url: window.location.href,
-        };
-
-        try {
-          sessionStorage.setItem("pve_setup", JSON.stringify(setup));
-        } catch (e) {
-          console.warn("Error guardando pve_setup:", e);
-        }
-
-        // Salto directo a la página dedicada y responsive de combate
-        window.location.href = "pve_battle.html";
+        openPveTeamBuilderModal(state, presetId);
       });
     }
 

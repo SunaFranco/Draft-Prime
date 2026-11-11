@@ -626,7 +626,7 @@ class PVEBattleController {
         // Fase 1: Sale el Pokémon actual
         spriteEl.classList.remove(inClass, "shake");
         spriteEl.classList.add(outClass);
-        await this.sleep(320);
+        await this.sleep(420);
 
         // Fase 2: Actualizar el Pokémon activo en estado local y HUD inmediatamente
         if (this.state) {
@@ -654,11 +654,16 @@ class PVEBattleController {
           }
         }
 
+        await this.sleep(220);
+
         // Fase 3: Entra el nuevo Pokémon
         spriteEl.classList.remove(outClass);
         spriteEl.classList.add(inClass);
-        await this.sleep(390);
+        await this.sleep(480);
         spriteEl.classList.remove(inClass);
+
+        // Pausa de lectura para asimilar la entrada del nuevo Pokémon
+        await this.sleep(1250);
         continue;
       }
 
@@ -666,7 +671,7 @@ class PVEBattleController {
       if (["DAMAGE", "HAZARD_DAMAGE", "WEATHER_DAMAGE", "STATUS_DAMAGE"].includes(ev.type)) {
         const targetSprite = ev.side === "ai" ? this.dom.imgAiSprite : this.dom.imgPlayerSprite;
         targetSprite.classList.add("shake");
-        setTimeout(() => targetSprite.classList.remove("shake"), 350);
+        setTimeout(() => targetSprite.classList.remove("shake"), 400);
 
         if (ev.remaining_hp !== undefined && ev.max_hp !== undefined) {
           if (ev.side === "ai") {
@@ -677,6 +682,8 @@ class PVEBattleController {
             this.updateHpBar(this.dom.barPlayerHp, this.dom.txtPlayerHp, ev.remaining_hp, ev.max_hp, false);
           }
         }
+        await this.sleep(1250);
+        continue;
       } else if (ev.type === "HEAL" && ev.remaining_hp !== undefined && ev.max_hp !== undefined) {
         if (ev.side === "ai") {
           if (this.state?.ai_active) this.state.ai_active.current_hp = ev.remaining_hp;
@@ -685,6 +692,8 @@ class PVEBattleController {
           if (this.state?.player_active) this.state.player_active.current_hp = ev.remaining_hp;
           this.updateHpBar(this.dom.barPlayerHp, this.dom.txtPlayerHp, ev.remaining_hp, ev.max_hp, false);
         }
+        await this.sleep(1200);
+        continue;
       } else if (ev.type === "BOOST" || ev.type === "UNBOOST") {
         // 3. Visualización inmediata de cambios de estadísticas (positivos y negativos)
         const isAi = ev.side === "ai";
@@ -708,7 +717,9 @@ class PVEBattleController {
         targetSprite.classList.remove("boost-glow", "unboost-glow");
         void targetSprite.offsetWidth;
         targetSprite.classList.add(glowClass);
-        setTimeout(() => targetSprite.classList.remove(glowClass), 460);
+        setTimeout(() => targetSprite.classList.remove(glowClass), 550);
+        await this.sleep(1300);
+        continue;
       } else if (ev.type === "CLEAR_BOOST") {
         if (ev.side === "both") {
           if (this.state?.player_active) {
@@ -729,12 +740,16 @@ class PVEBattleController {
             this.renderSideModifiers(targetBox, targetPoke, targetSideCond);
           }
         }
+        await this.sleep(1250);
+        continue;
       } else if (ev.type === "STATUS") {
         const isAi = ev.side === "ai";
         const targetPoke = isAi ? this.state?.ai_active : this.state?.player_active;
         const badgeEl = isAi ? this.dom.badgeAiStatus : this.dom.badgePlayerStatus;
         if (targetPoke) targetPoke.status = ev.status;
         this.renderStatusBadge(badgeEl, ev.status);
+        await this.sleep(1300);
+        continue;
       } else if (ev.type === "FAINT") {
         const isAi = ev.side === "ai";
         const targetPoke = isAi ? this.state?.ai_active : this.state?.player_active;
@@ -743,9 +758,17 @@ class PVEBattleController {
           targetPoke.current_hp = 0;
         }
         this.renderTeamsOverview();
+        await this.sleep(1500);
+        continue;
+      } else if (ev.type === "MOVE") {
+        // Pausa para leer el movimiento anunciado
+        await this.sleep(1350);
+        continue;
       }
 
-      await this.sleep(650);
+      // Eventos narrativos o de estado con texto (efectividades, climas, campos, etc.)
+      const textDelay = ev.text ? Math.max(1250, Math.min(2400, ev.text.length * 40)) : 1000;
+      await this.sleep(textDelay);
     }
   }
 
