@@ -206,23 +206,55 @@
     .status-SLP { background: #64748b; color: white; }
     .status-FRZ { background: #06b6d4; color: white; }
 
-    /* Indicador de Pokeballs de la banca */
+    /* Indicador claro y descriptivo de la banca */
     .bench-balls {
-      display: flex;
-      gap: 3px;
-      margin-top: 4px;
+      margin-top: 6px;
     }
 
-    .ball-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #ef4444;
-      border: 1px solid rgba(0,0,0,0.4);
+    .bench-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
     }
-    .ball-dot.fainted {
-      background: #475569;
-      opacity: 0.5;
+
+    .bench-label {
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.5px;
+    }
+
+    .bench-dots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .pokeball-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid #1e293b;
+      background: linear-gradient(180deg, #ef4444 0%, #ef4444 48%, #0f172a 49%, #0f172a 51%, #f8fafc 52%, #f8fafc 100%);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      position: relative;
+      display: inline-block;
+    }
+
+    .pokeball-dot.fainted {
+      background: #334155;
+      border-color: #1e293b;
+      opacity: 0.35;
+      box-shadow: none;
+    }
+
+    .bench-count {
+      color: #94a3b8;
+      font-weight: 800;
+      font-size: 0.72rem;
+      margin-left: 2px;
     }
 
     /* Sprites */

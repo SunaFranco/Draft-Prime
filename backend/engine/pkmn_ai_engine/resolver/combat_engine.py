@@ -69,52 +69,86 @@ class CombatEngine:
                 battle_status=self._check_battle_status(snapshot),
             )
 
-        # 2. Resolución de Megaevoluciones (ocurren antes de que los Pokémon actúen)
-        if player_action.mega and not snapshot.player_mega_used and not player_poke.is_mega:
-            stone = check_can_mega(player_poke)
-            if stone and trigger_mega_evolution(player_poke, stone):
+        # 2. FASE DE CAMBIOS (SWITCHES) — Prioridad absoluta sobre cualquier movimiento (+6)
+        player_switched = False
+        ai_switched = False
+
+        if player_action.type.upper() == "SWITCH":
+            self._handle_switch("player", player_action.choice, snapshot, events)
+            player_switched = True
+
+        if ai_action.type.upper() == "SWITCH":
+            self._handle_switch("ai", ai_action.choice, snapshot, events)
+            ai_switched = True
+
+        # Si ambos cambiaron de Pokémon en el mismo turno, se concluye la fase de cambios
+        if player_switched and ai_switched:
+            self._apply_end_of_turn_effects(snapshot, events)
+            snapshot.turn += 1
+            return TurnResult(
+                events=events,
+                new_snapshot=snapshot,
+                battle_status=self._check_battle_status(snapshot),
+            )
+
+        # Obtener los Pokémon actualmente activos tras posibles cambios
+        current_player = snapshot.player_active
+        current_ai = snapshot.ai_active
+
+        # 3. Resolución de Megaevoluciones (ocurren antes de que los Pokémon ataquen)
+        if not player_switched and player_action.mega and not snapshot.player_mega_used and not current_player.is_mega:
+            stone = check_can_mega(current_player)
+            if stone and trigger_mega_evolution(current_player, stone):
                 snapshot.player_mega_used = True
                 events.append({
                     "type": "MEGA_EVOLVE",
                     "side": "player",
-                    "pokemon": player_poke.species,
-                    "text": f"¡La Mega Piedra de {player_poke.species} reacciona! ¡Ha Megaevolucionado!",
+                    "pokemon": current_player.species,
+                    "text": f"¡La Mega Piedra de {current_player.species} reacciona! ¡Ha Megaevolucionado!",
                 })
 
-        if ai_action.mega and not snapshot.ai_mega_used and not ai_poke.is_mega:
-            stone = check_can_mega(ai_poke)
-            if stone and trigger_mega_evolution(ai_poke, stone):
+        if not ai_switched and ai_action.mega and not snapshot.ai_mega_used and not current_ai.is_mega:
+            stone = check_can_mega(current_ai)
+            if stone and trigger_mega_evolution(current_ai, stone):
                 snapshot.ai_mega_used = True
                 events.append({
                     "type": "MEGA_EVOLVE",
                     "side": "ai",
-                    "pokemon": ai_poke.species,
-                    "text": f"¡La Mega Piedra de {ai_poke.species} rival reacciona! ¡Ha Megaevolucionado!",
+                    "pokemon": current_ai.species,
+                    "text": f"¡La Mega Piedra de {current_ai.species} rival reacciona! ¡Ha Megaevolucionado!",
                 })
 
-        # 3. Obtener movimientos elegidos
-        p_move = self._find_move(player_poke, player_action.choice)
-        ai_move = self._find_move(ai_poke, ai_action.choice)
+        # 4. FASE DE ATAQUES
+        # Caso A: El jugador cambió y la IA ataca (la IA ataca al Pokémon que acaba de entrar)
+        if player_switched and not ai_switched:
+            ai_move = self._find_move(current_ai, ai_action.choice)
+            self._execute_action("ai", current_ai, ai_action, ai_move, current_player, "player", snapshot, events)
 
-        # 4. Determinar orden de turno
-        first_side, second_side = determine_turn_order(
-            player_action, player_poke, p_move,
-            ai_action, ai_poke, ai_move
-        )
+        # Caso B: La IA cambió y el jugador ataca (el jugador ataca al Pokémon que acaba de entrar)
+        elif ai_switched and not player_switched:
+            p_move = self._find_move(current_player, player_action.choice)
+            self._execute_action("player", current_player, player_action, p_move, current_ai, "ai", snapshot, events)
 
-        sides_map = {
-            "player": (player_poke, player_action, p_move, ai_poke, "ai"),
-            "ai": (ai_poke, ai_action, ai_move, player_poke, "player"),
-        }
+        # Caso C: Ambos usan MOVE (se determina orden por prioridad de movimiento y velocidad)
+        elif not player_switched and not ai_switched:
+            p_move = self._find_move(current_player, player_action.choice)
+            ai_move = self._find_move(current_ai, ai_action.choice)
 
-        # 5. Ejecutar la primera acción
-        actor, action, move, target, def_side = sides_map[first_side]
-        self._execute_action(first_side, actor, action, move, target, def_side, snapshot, events)
+            first_side, second_side = determine_turn_order(
+                player_action, current_player, p_move,
+                ai_action, current_ai, ai_move
+            )
 
-        # 6. Ejecutar la segunda acción SOLO si el segundo actor sigue con vida y no fainted
-        sec_actor, sec_action, sec_move, sec_target, sec_def_side = sides_map[second_side]
-        if not sec_actor.is_fainted and sec_actor.current_hp > 0:
-            self._execute_action(second_side, sec_actor, sec_action, sec_move, sec_target, sec_def_side, snapshot, events)
+            if first_side == "player":
+                self._execute_action("player", current_player, player_action, p_move, current_ai, "ai", snapshot, events)
+                # El segundo solo ataca si sigue con vida tras el primer golpe
+                if not current_ai.is_fainted and current_ai.current_hp > 0:
+                    self._execute_action("ai", current_ai, ai_action, ai_move, current_player, "player", snapshot, events)
+            else:
+                self._execute_action("ai", current_ai, ai_action, ai_move, current_player, "player", snapshot, events)
+                # El segundo solo ataca si sigue con vida tras el primer golpe
+                if not current_player.is_fainted and current_player.current_hp > 0:
+                    self._execute_action("player", current_player, player_action, p_move, current_ai, "ai", snapshot, events)
 
         # 7. Efectos de fin de turno (Daño residual por Quemadura / Veneno)
         self._apply_end_of_turn_effects(snapshot, events)

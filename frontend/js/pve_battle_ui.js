@@ -172,7 +172,11 @@ class PVEBattleController {
       this.renderTypes(this.dom.boxAiTypes, ai.types || []);
       this.updateHpBar(this.dom.barAiHp, this.dom.txtAiHp, ai.current_hp, ai.max_hp, true);
       this.renderStatusBadge(this.dom.badgeAiStatus, ai.status);
-      this.dom.imgAiSprite.src = this.getSpriteUrl(ai.species, false);
+      this.dom.imgAiSprite.src = this.getSpriteUrl(ai, false);
+      this.dom.imgAiSprite.onerror = () => {
+        const slug = (ai.species || "").toLowerCase().replace("mega ", "").replace("-mega", "").replace(" ", "-").trim();
+        this.dom.imgAiSprite.src = `https://play.pokemonshowdown.com/sprites/dex/${slug}.png`;
+      };
     }
     this.renderBenchBalls(this.dom.ballsAiBench, this.state.ai_bench || []);
 
@@ -184,7 +188,11 @@ class PVEBattleController {
       this.renderTypes(this.dom.boxPlayerTypes, player.types || []);
       this.updateHpBar(this.dom.barPlayerHp, this.dom.txtPlayerHp, player.current_hp, player.max_hp, false);
       this.renderStatusBadge(this.dom.badgePlayerStatus, player.status);
-      this.dom.imgPlayerSprite.src = this.getSpriteUrl(player.species, true);
+      this.dom.imgPlayerSprite.src = this.getSpriteUrl(player, true);
+      this.dom.imgPlayerSprite.onerror = () => {
+        const slug = (player.species || "").toLowerCase().replace("mega ", "").replace("-mega", "").replace(" ", "-").trim();
+        this.dom.imgPlayerSprite.src = `https://play.pokemonshowdown.com/sprites/dex/${slug}.png`;
+      };
     }
     this.renderBenchBalls(this.dom.ballsPlayerBench, this.state.player_bench || []);
 
@@ -257,16 +265,36 @@ class PVEBattleController {
   }
 
   renderBenchBalls(container, bench) {
-    container.innerHTML = bench.map(p => {
-      const isFainted = p.is_fainted || p.current_hp <= 0;
-      return `<div class="ball-dot ${isFainted ? 'fainted' : ''}"></div>`;
-    }).join("");
+    if (!bench || bench.length === 0) {
+      container.innerHTML = `<span style="font-size: 0.7rem; color: var(--text-muted);">Sin banca</span>`;
+      return;
+    }
+    const aliveCount = bench.filter(p => !p.is_fainted && p.current_hp > 0).length;
+    container.innerHTML = `
+      <div class="bench-indicator">
+        <span class="bench-label">Banca:</span>
+        <div class="bench-dots">
+          ${bench.map(p => {
+            const isFainted = p.is_fainted || p.current_hp <= 0;
+            return `<span class="pokeball-dot ${isFainted ? 'fainted' : 'alive'}" title="${p.species} (${p.current_hp}/${p.max_hp} HP)"></span>`;
+          }).join("")}
+        </div>
+        <span class="bench-count">${aliveCount}/${bench.length}</span>
+      </div>
+    `;
   }
 
-  getSpriteUrl(species, isPlayer) {
-    const slug = (species || "").toLowerCase().replace("mega ", "").replace("-mega", "").replace(" ", "-").trim();
-    const id = POKE_SPRITE_IDS[slug] || 25; // Fallback a Pikachu si no se encuentra
-    return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+  getSpriteUrl(poke, isPlayer) {
+    if (poke && typeof poke === "object") {
+      if (poke.image_url) return poke.image_url;
+      var name = poke.species || poke.name || "";
+    } else {
+      var name = String(poke || "");
+    }
+
+    const clean = name.toLowerCase().replace("mega ", "").replace("-mega", "").replace(" ", "-").trim();
+    // Pokédex sprite oficial de Showdown (reconoce a todos los Pokémon de todas las generaciones por nombre)
+    return `https://play.pokemonshowdown.com/sprites/gen5/${clean}.png`;
   }
 
   async sendAction(type, choice, isMega = false) {

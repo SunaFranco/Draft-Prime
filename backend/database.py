@@ -661,3 +661,69 @@ def update_pve_battle(battle_id: str, state: dict, status: str, turn_number: int
 
     return False
 
+
+# ==============================================================================
+# CATÁLOGO DINÁMICO DE MOVIMIENTOS: Tabla 'pokemon_moves' en Supabase
+# ==============================================================================
+
+POKEMON_MOVES_LOCAL: Dict[str, dict] = {}
+MAX_MOVES_LOCAL_CACHE = 400
+
+
+def get_pokemon_move_from_db(slug: str) -> Optional[dict]:
+    """
+    Verifica si un movimiento ya existe en la tabla 'pokemon_moves' de Supabase
+    (usando caché ligera en memoria para evitar consultas repetidas).
+    """
+    clean_slug = slug.strip().lower()
+    if clean_slug in POKEMON_MOVES_LOCAL:
+        return POKEMON_MOVES_LOCAL[clean_slug]
+
+    if supabase_client:
+        try:
+            res = supabase_client.table("pokemon_moves").select("*").eq("slug", clean_slug).limit(1).execute()
+            if res.data:
+                record = res.data[0]
+                if len(POKEMON_MOVES_LOCAL) >= MAX_MOVES_LOCAL_CACHE:
+                    POKEMON_MOVES_LOCAL.pop(next(iter(POKEMON_MOVES_LOCAL)), None)
+                POKEMON_MOVES_LOCAL[clean_slug] = record
+                return record
+        except Exception as e:
+            print(f"[MOVES DB] Error consultando 'pokemon_moves' para '{clean_slug}': {e}")
+
+    return None
+
+
+def save_pokemon_move_to_db(move_data: dict) -> dict:
+    """
+    Agrega un movimiento con sus datos de combate a la tabla 'pokemon_moves' en Supabase
+    si no existía previamente.
+    """
+    clean_slug = str(move_data.get("slug") or move_data.get("id") or "").strip().lower()
+    record = {
+        "slug": clean_slug,
+        "name": str(move_data.get("name", clean_slug.replace("-", " ").title())),
+        "type": str(move_data.get("type", "Normal")).capitalize(),
+        "category": str(move_data.get("category", "physical")).lower(),
+        "base_power": int(move_data.get("base_power", 0) or 0),
+        "accuracy": float(move_data.get("accuracy", 1.0) if move_data.get("accuracy") is not None else 1.0),
+        "priority": int(move_data.get("priority", 0) or 0),
+        "pp": int(move_data.get("pp", 15) or 15),
+        "drain_percent": float(move_data.get("drain_percent", 0.0) or 0.0),
+        "recoil_percent": float(move_data.get("recoil_percent", 0.0) or 0.0),
+    }
+
+    if supabase_client:
+        try:
+            res = supabase_client.table("pokemon_moves").upsert(record, on_conflict="slug").execute()
+            if res.data:
+                record = res.data[0]
+        except Exception as e:
+            print(f"[MOVES DB] Tabla 'pokemon_moves' no disponible o error al insertar '{clean_slug}': {e}")
+
+    if len(POKEMON_MOVES_LOCAL) >= MAX_MOVES_LOCAL_CACHE:
+        POKEMON_MOVES_LOCAL.pop(next(iter(POKEMON_MOVES_LOCAL)), None)
+    POKEMON_MOVES_LOCAL[clean_slug] = record
+    return record
+
+

@@ -272,6 +272,137 @@ def test_presets_loaded():
     assert aero["can_mega"] is True
 
 
+def test_adapt_draft_pokemon_conversion():
+    from backend.engine.pkmn_ai_engine.core.adapter import adapt_draft_pokemon
+
+    # Simular exactamente el dict que genera la subasta para un Pokémon
+    raw_subasta_poke = {
+        "name": "Charizard",
+        "level": 35,
+        "types": ["Fire", "Flying"],
+        "stats": {
+            "hp": 78,
+            "attack": 84,
+            "defense": 78,
+            "special-attack": 109,
+            "special-defense": 85,
+            "speed": 100
+        },
+        "selected_moves": ["Flamethrower", "Air Slash", "Dragon Claw", "Protect"],
+        "item": "Charizardite X",
+        "image_url": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png"
+    }
+
+    adapted = adapt_draft_pokemon(raw_subasta_poke)
+    assert adapted.species == "Charizard"
+    assert adapted.level == 35
+    assert adapted.types == ("Fire", "Flying")
+    assert adapted.max_hp > 100  # HP calculado a nivel 35
+    assert adapted.current_hp == adapted.max_hp
+    assert adapted.can_mega is True
+    assert adapted.mega_stone == "Charizardite X"
+    assert adapted.image_url == "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png"
+
+    # Verificar que los movimientos sean MoveState reales con poder y tipo
+    assert len(adapted.moves) == 4
+    flamethrower = [m for m in adapted.moves if m.name == "Flamethrower"][0]
+    assert flamethrower.type == "Fire"
+    assert flamethrower.category == "special"
+    assert flamethrower.base_power == 90
+
+    # Caso borde: Pokémon sin selected_moves (debe rellenar con 4 movimientos por defecto)
+    empty_poke = {"name": "Blastoise", "types": ["Water"], "level": 20}
+    adapted_empty = adapt_draft_pokemon(empty_poke)
+    assert len(adapted_empty.moves) == 4
+    assert any(m.type == "Water" for m in adapted_empty.moves)
+
+
+def test_switch_priority_over_moves():
+    """Verifica que cambiar de Pokémon (SWITCH) tiene prioridad máxima (+6) sobre cualquier ataque."""
+    pikachu = PokemonState(
+        id="pikachu",
+        species="Pikachu",
+        types=("Electric",),
+        current_hp=100, max_hp=100,
+        stats=StatBlock(hp=100, atk=80, def_=60, spa=80, spd=70, spe=130),
+        moves=[MoveState(id="thunderbolt", name="Thunderbolt", type="Electric", category="special", base_power=90)]
+    )
+
+    charizard = PokemonState(
+        id="charizard",
+        species="Charizard",
+        types=("Fire", "Flying"),
+        current_hp=150, max_hp=150,
+        stats=StatBlock(hp=150, atk=100, def_=90, spa=130, spd=100, spe=120),
+        moves=[MoveState(id="flamethrower", name="Flamethrower", type="Fire", category="special", base_power=90)]
+    )
+
+    squirtle = PokemonState(
+        id="squirtle",
+        species="Squirtle",
+        types=("Water",),
+        current_hp=100, max_hp=100,
+        stats=StatBlock(hp=100, atk=70, def_=90, spa=70, spd=90, spe=60),
+        moves=[MoveState(id="water-gun", name="Water Gun", type="Water", category="special", base_power=40)]
+    )
+
+    snapshot = BattleSnapshot(
+        turn=1,
+        player_active=pikachu,
+        player_bench=[charizard],
+        ai_active=squirtle,
+    )
+
+    engine = CombatEngine()
+    # Jugador cambia a Charizard, la IA intenta atacar con Water Gun
+    player_act = Action(type="SWITCH", choice="charizard")
+    ai_act = Action(type="MOVE", choice="water-gun")
+
+    result = engine.resolve_turn(snapshot, player_act, ai_act)
+
+    # 1. El primer evento DEBE ser el cambio de Pokémon
+    assert result.events[0]["type"] == "SWITCH"
+    assert result.events[0]["pokemon"] == "Charizard"
+
+    # 2. El nuevo Pokémon activo debe ser Charizard
+    assert result.new_snapshot.player_active.species == "Charizard"
+
+    # 3. El ataque de la IA debe golpear al Pokémon recién entrado (Charizard)
+    dmg_events = [e for e in result.events if e.get("type") == "DAMAGE"]
+    assert len(dmg_events) == 1
+    assert dmg_events[0]["pokemon"] == "Charizard"
+    assert dmg_events[0]["side"] == "player"
+
+
+def test_dynamic_moves_db_population():
+    """Verifica que al asignar un movimiento a un Pokémon, se verifique y agregue a la tabla de datos."""
+    from backend.engine.pkmn_ai_engine.core.moves_db import ensure_move_in_db, ensure_moves_registered
+    from backend.database import POKEMON_MOVES_LOCAL, get_pokemon_move_from_db
+
+    # Limpiamos un movimiento específico de la caché local para simular que no estaba
+    POKEMON_MOVES_LOCAL.pop("flamethrower", None)
+
+    move_state = ensure_move_in_db("Flamethrower", fallback_type="Fire")
+    assert move_state.id == "flamethrower"
+    assert move_state.type == "Fire"
+    assert move_state.category == "special"
+    assert move_state.base_power == 90
+
+    # Debe haber quedado guardado en la base de datos / tabla pokemon_moves
+    stored = get_pokemon_move_from_db("flamethrower")
+    assert stored is not None
+    assert stored["slug"] == "flamethrower"
+    assert stored["base_power"] == 90
+    assert stored["category"] == "special"
+
+    # Probar con una lista de movimientos asignados a un Pokémon
+    registered = ensure_moves_registered(["Thunderbolt", "Ice Beam", "Earthquake"], fallback_type="Electric")
+    assert len(registered) == 3
+    assert get_pokemon_move_from_db("thunderbolt") is not None
+    assert get_pokemon_move_from_db("ice-beam") is not None
+    assert get_pokemon_move_from_db("earthquake") is not None
+
+
 if __name__ == "__main__":
     test_type_effectiveness()
     test_damage_calculation()
@@ -281,5 +412,8 @@ if __name__ == "__main__":
     test_ai_agent_switch_decision()
     test_combat_engine_resolution()
     test_presets_loaded()
-    print("ALL 8 TESTS PASSED SUCCESSFULLY!")
+    test_adapt_draft_pokemon_conversion()
+    test_switch_priority_over_moves()
+    test_dynamic_moves_db_population()
+    print("ALL 11 TESTS PASSED SUCCESSFULLY!")
 

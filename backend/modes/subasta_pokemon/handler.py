@@ -604,7 +604,7 @@ def get_evolution_item_to_consume(required_item: Optional[str], inventory: Dict[
 
 
 def add_tm_to_pokemon(pokemon: dict, move_name: str) -> bool:
-    """Añade permanentemente una MT al movepool del Pokémon."""
+    """Añade permanentemente una MT al movepool del Pokémon y registra el movimiento en la BD."""
     learned_tm_moves = pokemon.setdefault("learned_tm_moves", [])
     selected_moves = pokemon.get("selected_moves") or []
     if move_name in learned_tm_moves or move_name in selected_moves:
@@ -616,6 +616,13 @@ def add_tm_to_pokemon(pokemon: dict, move_name: str) -> bool:
     level_up_moves = pokemon.setdefault("level_up_moves", [])
     if not any(move.get("name") == move_name for move in level_up_moves):
         level_up_moves.append({"name": move_name, "level": 0, "source": "tm"})
+
+    try:
+        from backend.engine.pkmn_ai_engine.core.moves_db import ensure_move_in_db
+        ensure_move_in_db(move_name, fallback_type=pokemon.get("primary_type", "Normal"))
+    except Exception as e:
+        print(f"[MOVES DB] Error registrando movimiento MT '{move_name}': {e}")
+
     return True
 
 
@@ -2914,6 +2921,15 @@ class SubastaPokemonMode(BaseGameMode):
                 valid_moves = [m for m in selected_moves if m in allowed_moves][:4]
                 if valid_moves:
                     poke["selected_moves"] = valid_moves
+                    try:
+                        from backend.engine.pkmn_ai_engine.core.moves_db import ensure_moves_registered
+                        await asyncio.to_thread(
+                            ensure_moves_registered,
+                            valid_moves,
+                            poke.get("primary_type", "Normal"),
+                        )
+                    except Exception as e:
+                        print(f"[MOVES DB] Error registrando movimientos seleccionados: {e}")
 
                 save_game_session(session_id, self.key, subasta_state)
                 await self._send_subasta_state_to_user(session, manager, username)

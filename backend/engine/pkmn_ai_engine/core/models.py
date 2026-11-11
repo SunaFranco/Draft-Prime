@@ -136,6 +136,7 @@ class PokemonState:
     is_mega: bool = False
     can_mega: bool = False
     mega_stone: Optional[str] = None
+    image_url: Optional[str] = None
 
     @property
     def hp_percent(self) -> float:
@@ -162,6 +163,7 @@ class PokemonState:
             "is_mega": self.is_mega,
             "can_mega": self.can_mega,
             "mega_stone": self.mega_stone,
+            "image_url": self.image_url,
         }
 
     @classmethod
@@ -180,7 +182,7 @@ class PokemonState:
         max_hp = int(data.get("max_hp", 100))
 
         return cls(
-            id=str(data.get("id", data.get("species", "pikachu"))),
+            id=str(data.get("id", data.get("species", data.get("name", "pikachu")))),
             species=str(data.get("species", data.get("name", "Pikachu"))),
             types=types_tuple,
             level=int(data.get("level", 50)),
@@ -189,13 +191,14 @@ class PokemonState:
             stats=StatBlock.from_dict(data.get("stats")),
             boosts=StatBoosts.from_dict(data.get("boosts")),
             status=data.get("status"),
-            item=data.get("item"),
+            item=data.get("item") or data.get("held_item"),
             ability=data.get("ability"),
             moves=raw_moves,
             is_fainted=data.get("is_fainted", cur_hp <= 0),
             is_mega=bool(data.get("is_mega", False)),
             can_mega=bool(data.get("can_mega", False)),
             mega_stone=data.get("mega_stone"),
+            image_url=data.get("image_url"),
         )
 
 

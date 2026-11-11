@@ -25,6 +25,7 @@ from backend.engine.pkmn_ai_engine import (
     PVE_PRESETS,
     get_preset_by_id,
 )
+from backend.engine.pkmn_ai_engine.core.adapter import adapt_draft_pokemon
 
 router = APIRouter()
 
@@ -77,15 +78,11 @@ async def start_pve_battle(req: StartPVEBattleRequest):
     if not req.player_team:
         raise HTTPException(status_code=400, detail="El equipo del jugador no puede estar vacío.")
 
-    # Convertir Pokémon del jugador a PokemonState
-    parsed_player_team: List[PokemonState] = []
-    for p_data in req.player_team[:6]:
-        parsed_player_team.append(PokemonState.from_dict(p_data))
+    # Convertir Pokémon del jugador usando el adaptador inteligente
+    parsed_player_team: List[PokemonState] = [adapt_draft_pokemon(p) for p in req.player_team[:6]]
 
-    # Convertir Pokémon de la IA a PokemonState
-    parsed_ai_team: List[PokemonState] = []
-    for p_data in preset["team"][:6]:
-        parsed_ai_team.append(PokemonState.from_dict(p_data))
+    # Convertir Pokémon de la IA usando el adaptador inteligente
+    parsed_ai_team: List[PokemonState] = [adapt_draft_pokemon(p) for p in preset["team"][:6]]
 
     player_active = parsed_player_team[0]
     player_bench = parsed_player_team[1:]
