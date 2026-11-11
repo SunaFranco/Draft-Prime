@@ -974,9 +974,18 @@ def ensure_moves_registered(move_names: List[Any], fallback_type: str = "Normal"
     return results
 
 
-def resolve_move(move_name_or_dict: Any, fallback_type: str = "Normal") -> MoveState:
+def resolve_move(move_name_or_dict: Any, fallback_type: str = "Normal", sync_db: bool = False) -> MoveState:
     """
-    Convierte cualquier nombre de movimiento (string o dict) en un MoveState completo
-    y garantiza que esté registrado en la tabla de datos de movimientos.
+    Convierte cualquier nombre de movimiento (string o dict) en un MoveState completo.
+    Si ya viene como diccionario completo o está en POPULAR_MOVES, resuelve en memoria
+    sin bloquear el event loop; si es un nombre desconocido, consulta Supabase/PokeAPI y lo registra.
     """
-    return ensure_move_in_db(move_name_or_dict, fallback_type=fallback_type, sync_db=True)
+    if isinstance(move_name_or_dict, dict):
+        if "base_power" in move_name_or_dict or "category" in move_name_or_dict:
+            return ensure_move_in_db(move_name_or_dict, fallback_type=fallback_type, sync_db=sync_db)
+        raw_name = move_name_or_dict.get("id") or move_name_or_dict.get("slug") or move_name_or_dict.get("name") or ""
+    else:
+        raw_name = str(move_name_or_dict or "")
+    clean_slug = raw_name.replace("MT ", "").replace("MO ", "").strip().lower().replace(" ", "-")
+    should_sync = sync_db or (clean_slug not in POPULAR_MOVES)
+    return ensure_move_in_db(move_name_or_dict, fallback_type=fallback_type, sync_db=should_sync)
