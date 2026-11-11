@@ -996,6 +996,35 @@ export class SubastaPokemonModeUI extends BaseGameModeUI {
       });
     });
 
+    // Desafío PVE contra IA
+    const btnLaunchPve = document.getElementById("btn-launch-pve");
+    if (btnLaunchPve) {
+      btnLaunchPve.addEventListener("click", () => {
+        const myData = state.my_data || {};
+        const myPokemon = myData.pokemon || [];
+        if (!myPokemon || myPokemon.length === 0) {
+          alert("No tienes Pokémon en tu equipo para combatir.");
+          return;
+        }
+
+        const presetId = document.getElementById("select-pve-preset")?.value || "brock-rock";
+        const setup = {
+          preset_id: presetId,
+          player_team: myPokemon,
+          return_url: window.location.href,
+        };
+
+        try {
+          sessionStorage.setItem("pve_setup", JSON.stringify(setup));
+        } catch (e) {
+          console.warn("Error guardando pve_setup:", e);
+        }
+
+        // Salto directo a la página dedicada y responsive de combate
+        window.location.href = "pve_battle.html";
+      });
+    }
+
     // Copiar Showdown Text
     const btnCopyShowdown = document.getElementById("btn-copy-showdown");
     if (btnCopyShowdown) {

@@ -977,6 +977,28 @@ export function renderExportView(data, sessionClient, isHost, lockedText = null,
         }
       </div>`}
 
+      ${teamLocked ? "" : `
+        <div class="pve-challenge-box" style="margin-top: 16px; padding: 14px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <strong style="color: #93c5fd; font-size: 0.95rem;">⚔️ Desafío PVE contra la IA</strong>
+            <span class="badge" style="background: #2563eb; color: white; padding: 2px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;">Mobile Friendly</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #cbd5e1; margin: 0; line-height: 1.4;">
+            Pon a prueba tu equipo del draft en una pantalla de combate dedicada contra un Líder o Campeón.
+          </p>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <select id="select-pve-preset" style="flex: 1; min-width: 170px; padding: 8px 10px; border-radius: 8px; background: #0f172a; color: white; border: 1px solid #475569; font-size: 0.85rem;">
+              <option value="brock-rock">Líder Brock (Roca · Fácil)</option>
+              <option value="cynthia-sinnoh">Campeona Cynthia (Balanceado · Difícil)</option>
+              <option value="red-kanto">Entrenador Red (Kanto · Difícil)</option>
+            </select>
+            <button id="btn-launch-pve" class="btn btn-warning" style="font-weight: 800; padding: 8px 16px; font-size: 0.9rem;">
+              ⚔️ ¡Combatir!
+            </button>
+          </div>
+        </div>
+      `}
+
       ${isHost ? `
         <div class="admin-match-box">
           <div class="solvency-status">

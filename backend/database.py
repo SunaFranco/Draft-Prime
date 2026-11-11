@@ -594,3 +594,70 @@ def get_items_by_zone_from_db(zone: str) -> List[str]:
     except Exception as e:
         print(f"[WARNING] Error consultando items de la zona '{zone}' en Supabase: {e}")
         return []
+
+
+# ==============================================================================
+# MÓDULO PVE: Persistencia de Batallas en Supabase (con fallback local)
+# ==============================================================================
+
+PVE_BATTLES_LOCAL: Dict[str, dict] = {}
+
+
+def create_pve_battle(battle_id: str, user_id: Optional[str], preset_id: str, state: dict) -> dict:
+    """Crea una nueva partida PVE en Supabase (tabla 'pve_battles') o memoria local."""
+    record = {
+        "id": battle_id,
+        "user_id": user_id,
+        "preset_id": preset_id,
+        "status": "in_progress",
+        "turn_number": 1,
+        "state": state,
+    }
+
+    if supabase_client:
+        try:
+            res = supabase_client.table("pve_battles").insert(record).execute()
+            if res.data:
+                return res.data[0]
+        except Exception as e:
+            print(f"[PVE SUPABASE] Tabla 'pve_battles' no encontrada o error al insertar ({e}). Usando fallback en memoria.")
+
+    PVE_BATTLES_LOCAL[battle_id] = record
+    return record
+
+
+def get_pve_battle(battle_id: str) -> Optional[dict]:
+    """Obtiene el estado de una batalla PVE por su ID."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("pve_battles").select("*").eq("id", battle_id).execute()
+            if res.data:
+                return res.data[0]
+        except Exception as e:
+            print(f"[PVE SUPABASE] Error consultando 'pve_battles' ({e}). Usando fallback en memoria.")
+
+    return PVE_BATTLES_LOCAL.get(battle_id)
+
+
+def update_pve_battle(battle_id: str, state: dict, status: str, turn_number: int) -> bool:
+    """Actualiza el estado JSONB y turno de una batalla PVE."""
+    update_data = {
+        "state": state,
+        "status": status,
+        "turn_number": turn_number,
+    }
+
+    if supabase_client:
+        try:
+            res = supabase_client.table("pve_battles").update(update_data).eq("id", battle_id).execute()
+            if res.data:
+                return True
+        except Exception as e:
+            print(f"[PVE SUPABASE] Error actualizando 'pve_battles' ({e}). Usando fallback en memoria.")
+
+    if battle_id in PVE_BATTLES_LOCAL:
+        PVE_BATTLES_LOCAL[battle_id].update(update_data)
+        return True
+
+    return False
+

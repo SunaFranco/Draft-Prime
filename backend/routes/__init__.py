@@ -1,6 +1,7 @@
 """
-routes/__init__.py
-
-Marca la carpeta 'routes' como paquete Python.
-Permite importar con: from routes import session
+backend/routes/__init__.py
 """
+
+from . import auth, session, cubes, pve
+
+__all__ = ["auth", "session", "cubes", "pve"]

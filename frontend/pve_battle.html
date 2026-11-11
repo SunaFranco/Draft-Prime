@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Battle Arena PVE — Draft Prime</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.95);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --hp-green: #22c55e;
+      --hp-yellow: #eab308;
+      --hp-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: radial-gradient(circle at top, #1e293b, #0f172a);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header superior móvil */
+    .battle-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .btn-back {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .battle-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #93c5fd;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .turn-badge {
+      background: #3b82f6;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    /* Contenedor principal de la batalla (Mobile First) */
+    .battle-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 10px;
+      gap: 10px;
+    }
+
+    /* Escenario de combate */
+    .battle-arena {
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Zonas de combate (Rival y Jugador) */
+    .side-zone {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .side-zone.ai-side {
+      flex-direction: row-reverse;
+    }
+
+    .poke-info-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--border-color);
+      padding: 8px 12px;
+      border-radius: 12px;
+      flex: 1;
+      min-width: 150px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    .poke-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .poke-name {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: white;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+    }
+
+    .poke-level {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .type-tags {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .type-badge {
+      font-size: 0.65rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    }
+
+    .hp-bar-outer {
+      background: rgba(0, 0, 0, 0.5);
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .hp-bar-inner {
+      height: 100%;
+      width: 100%;
+      background: var(--hp-green);
+      transition: width 0.4s ease, background-color 0.4s ease;
+      border-radius: 4px;
+    }
+
+    .hp-text {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-align: right;
+      margin-top: 3px;
+      color: var(--text-muted);
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 800;
+      margin-left: 6px;
+    }
+    .status-BRN { background: #ea580c; color: white; }
+    .status-PAR { background: #ca8a04; color: white; }
+    .status-PSN { background: #9333ea; color: white; }
+    .status-SLP { background: #64748b; color: white; }
+    .status-FRZ { background: #06b6d4; color: white; }
+
+    /* Indicador de Pokeballs de la banca */
+    .bench-balls {
+      display: flex;
+      gap: 3px;
+      margin-top: 4px;
+    }
+
+    .ball-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      border: 1px solid rgba(0,0,0,0.4);
+    }
+    .ball-dot.fainted {
+      background: #475569;
+      opacity: 0.5;
+    }
+
+    /* Sprites */
+    .sprite-container {
+      width: 96px;
+      height: 96px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .poke-sprite {
+      width: 90px;
+      height: 90px;
+      object-fit: contain;
+      filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4));
+      transition: transform 0.2s ease;
+    }
+
+    .poke-sprite.shake {
+      animation: shake 0.35s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-3px, 0, 0); }
+      20%, 80% { transform: translate3d(5px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-5px, 0, 0); }
+      40%, 60% { transform: translate3d(5px, 0, 0); }
+    }
+
+    /* Caja de Diálogo y Eventos */
+    .dialog-box {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 65px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      line-height: 1.4;
+      display: flex;
+      align-items: center;
+      color: #e2e8f0;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    /* Panel de Controles / Movimientos */
+    .controls-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .moves-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-move {
+      border: none;
+      padding: 12px 10px;
+      border-radius: 12px;
+      color: white;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 65px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.25);
+      transition: transform 0.1s ease, filter 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-move:active {
+      transform: scale(0.97);
+    }
+
+    .btn-move:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .move-name {
+      font-weight: 800;
+      font-size: 0.85rem;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+    }
+
+    .move-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      opacity: 0.9;
+    }
+
+    /* Acciones secundarias (Mega, Switch, Surrender) */
+    .action-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .btn-action {
+      flex: 1;
+      padding: 12px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-mega {
+      background: linear-gradient(135deg, #ec4899, #8b5cf6);
+      border: none;
+      box-shadow: 0 0 12px rgba(236, 72, 153, 0.4);
+    }
+
+    .btn-mega.active {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+    }
+
+    /* Modal / Bottom Sheet para cambiar Pokémon */
+    .bottom-sheet {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .bottom-sheet.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .sheet-content {
+      background: #1e293b;
+      border-top: 1px solid var(--border-color);
+      border-radius: 20px 20px 0 0;
+      padding: 16px;
+      max-height: 80vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .sheet-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: white;
+    }
+
+    .btn-close-sheet {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+    }
+
+    .bench-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bench-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      padding: 8px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .bench-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .bench-card.fainted {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .bench-sprite {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+
+    .bench-details {
+      flex: 1;
+    }
+
+    /* Modal Fin de Batalla */
+    .end-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .end-modal.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .end-card {
+      background: #1e293b;
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+    }
+
+    .end-title {
+      font-size: 1.6rem;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+    .end-title.won { color: #22c55e; }
+    .end-title.lost { color: #ef4444; }
+
+    .btn-return {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 16px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Fijo Superior -->
+  <header class="battle-header">
+    <button id="btn-exit" class="btn-back">← Salir</button>
+    <div class="battle-title">
+      <span>⚔️</span>
+      <span id="txt-trainer-name">Entrenador Rival</span>
+    </div>
+    <div id="txt-turn" class="turn-badge">Turno 1</div>
+  </header>
+
+  <main class="battle-container">
+    <!-- Escenario de Combate -->
+    <section class="battle-arena">
+
+      <!-- Zona del Rival (Arriba) -->
+      <div class="side-zone ai-side">
+        <div class="sprite-container">
+          <img id="img-ai-sprite" class="poke-sprite" src="" alt="Rival">
+        </div>
+        <div class="poke-info-card">
+          <div class="poke-header">
+            <span id="txt-ai-name" class="poke-name">---</span>
+            <span id="txt-ai-lvl" class="poke-level">Lv. 50</span>
+          </div>
+          <div id="box-ai-types" class="type-tags"></div>
+          <div class="hp-bar-outer">
+            <div id="bar-ai-hp" class="hp-bar-inner"></div>
+          </div>
+          <div class="hp-text">
+            <span id="txt-ai-hp">100%</span>
+            <span id="badge-ai-status"></span>
+          </div>
+          <div id="balls-ai-bench" class="bench-balls"></div>
+        </div>
+      </div>
+
+      <!-- Zona del Jugador (Abajo) -->
+      <div class="side-zone player-side">
+        <div class="sprite-container">
+          <img id="img-player-sprite" class="poke-sprite" src="" alt="Jugador">
+        </div>
+        <div class="poke-info-card">
+          <div class="poke-header">
+            <span id="txt-player-name" class="poke-name">---</span>
+            <span id="txt-player-lvl" class="poke-level">Lv. 50</span>
+          </div>
+          <div id="box-player-types" class="type-tags"></div>
+          <div class="hp-bar-outer">
+            <div id="bar-player-hp" class="hp-bar-inner"></div>
+          </div>
+          <div class="hp-text">
+            <span id="txt-player-hp">--- / ---</span>
+            <span id="badge-player-status"></span>
+          </div>
+          <div id="balls-player-bench" class="bench-balls"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Caja de Diálogo / Narrador -->
+    <div id="box-dialog" class="dialog-box">
+      ¡Comienza el combate! Elige tu movimiento.
+    </div>
+
+    <!-- Panel de Controles -->
+    <section class="controls-panel">
+      <!-- 4 Movimientos en Grid 2x2 -->
+      <div id="moves-grid" class="moves-grid"></div>
+
+      <!-- Acciones de Soporte -->
+      <div class="action-bar">
+        <button id="btn-toggle-mega" class="btn-action btn-mega" style="display: none;">
+          ⚡ Megaevolución
+        </button>
+        <button id="btn-open-switch" class="btn-action">
+          🔄 Cambiar (Banca)
+        </button>
+        <button id="btn-surrender" class="btn-action" style="max-width: 90px; color: #f87171;">
+          Rendirse
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Sheet para Cambiar Pokémon -->
+  <div id="sheet-switch" class="bottom-sheet">
+    <div class="sheet-content">
+      <div class="sheet-header">
+        <span class="sheet-title">Seleccionar Pokémon de Banca</span>
+        <button id="btn-close-sheet" class="btn-close-sheet">&times;</button>
+      </div>
+      <div id="box-bench-list" class="bench-list"></div>
+    </div>
+  </div>
+
+  <!-- Modal Fin de Batalla -->
+  <div id="modal-end" class="end-modal">
+    <div class="end-card">
+      <h2 id="end-title" class="end-title">¡VICTORIA!</h2>
+      <p id="end-msg">Has derrotado al entrenador rival.</p>
+      <button id="btn-modal-return" class="btn-return">Volver a la Subasta</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="js/pve_battle_ui.js"></script>
+</body>
+</html>
