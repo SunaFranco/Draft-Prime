@@ -281,8 +281,23 @@
       border-radius: 4px;
       line-height: 1.2;
     }
-    .mod-pill.boost-up { background: rgba(34, 197, 94, 0.22); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.45); }
-    .mod-pill.boost-down { background: rgba(239, 68, 68, 0.22); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); }
+    .mod-pill.boost-up {
+      background: rgba(34, 197, 94, 0.25);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.55);
+      animation: modPop 0.3s ease-out;
+    }
+    .mod-pill.boost-down {
+      background: rgba(239, 68, 68, 0.25);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.55);
+      animation: modPop 0.3s ease-out;
+    }
+    @keyframes modPop {
+      0% { transform: scale(0.75); opacity: 0.4; }
+      60% { transform: scale(1.12); }
+      100% { transform: scale(1); opacity: 1; }
+    }
     .mod-pill.volatile { background: rgba(168, 85, 247, 0.25); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.45); }
     .mod-pill.hazard { background: rgba(245, 158, 11, 0.22); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.45); }
     .mod-pill.screen { background: rgba(6, 182, 212, 0.22); color: #a5f3fc; border: 1px solid rgba(6, 182, 212, 0.45); }
@@ -329,58 +344,92 @@
     .log-entry.boost { color: #fde047; }
     .log-entry.field { color: #93c5fd; }
 
-    /* Indicador claro y descriptivo de la banca */
-    .bench-balls {
-      margin-top: 6px;
-    }
-
-    .bench-indicator {
+    /* Barra de Equipos 6v6 con Minisprites (debajo de los movimientos) */
+    .teams-overview-bar {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 0.72rem;
+      justify-content: space-between;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 8px 10px;
     }
 
-    .bench-label {
-      color: var(--text-muted);
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 0.65rem;
-      letter-spacing: 0.5px;
-    }
-
-    .bench-dots {
+    .team-minis-side {
       display: flex;
+      flex-direction: column;
       gap: 4px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .team-minis-side.ai-team-minis {
+      align-items: flex-end;
+    }
+
+    .team-minis-label {
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .team-minis-row {
+      display: flex;
       align-items: center;
+      gap: 4px;
+      flex-wrap: nowrap;
     }
 
-    .pokeball-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      border: 1px solid #1e293b;
-      background: linear-gradient(180deg, #ef4444 0%, #ef4444 48%, #0f172a 49%, #0f172a 51%, #f8fafc 52%, #f8fafc 100%);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    .team-mini-slot {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       position: relative;
-      display: inline-block;
+      transition: transform 0.2s ease, border-color 0.2s ease, filter 0.25s ease;
     }
 
-    .pokeball-dot.fainted {
-      background: #334155;
-      border-color: #1e293b;
-      opacity: 0.35;
+    .team-mini-slot.active-slot {
+      border-color: #3b82f6;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+      background: rgba(59, 130, 246, 0.16);
+    }
+
+    .team-mini-slot.fainted {
+      filter: grayscale(100%) brightness(0.55);
+      opacity: 0.5;
+      border-color: rgba(255, 255, 255, 0.05);
       box-shadow: none;
     }
 
-    .bench-count {
-      color: #94a3b8;
-      font-weight: 800;
-      font-size: 0.72rem;
-      margin-left: 2px;
+    .team-mini-img {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
     }
 
-    /* Sprites */
+    .team-mini-img.pokeball-unrevealed {
+      width: 22px;
+      height: 22px;
+      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+    }
+
+    .team-minis-divider {
+      font-size: 0.7rem;
+      font-weight: 900;
+      color: #64748b;
+      padding: 0 2px;
+      user-select: none;
+    }
+
+    /* Sprites y Animaciones de Cambio / Estadísticas */
     .sprite-container {
       width: 96px;
       height: 96px;
@@ -395,11 +444,35 @@
       height: 90px;
       object-fit: contain;
       filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4));
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
     }
 
     .poke-sprite.shake {
       animation: shake 0.35s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    .poke-sprite.switch-out-player {
+      animation: switchOutPlayer 0.32s ease-in forwards;
+    }
+
+    .poke-sprite.switch-out-ai {
+      animation: switchOutAi 0.32s ease-in forwards;
+    }
+
+    .poke-sprite.switch-in-player {
+      animation: switchInPlayer 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .poke-sprite.switch-in-ai {
+      animation: switchInAi 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .poke-sprite.boost-glow {
+      animation: boostGlow 0.45s ease-out;
+    }
+
+    .poke-sprite.unboost-glow {
+      animation: unboostGlow 0.45s ease-out;
     }
 
     @keyframes shake {
@@ -407,6 +480,42 @@
       20%, 80% { transform: translate3d(5px, 0, 0); }
       30%, 50%, 70% { transform: translate3d(-5px, 0, 0); }
       40%, 60% { transform: translate3d(5px, 0, 0); }
+    }
+
+    @keyframes switchOutPlayer {
+      0% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; filter: brightness(1); }
+      40% { filter: brightness(2) sepia(1) hue-rotate(-50deg) saturate(5); }
+      100% { transform: translate3d(-45px, 18px, 0) scale(0.15); opacity: 0; filter: brightness(2.5) sepia(1) hue-rotate(-50deg) saturate(6); }
+    }
+
+    @keyframes switchOutAi {
+      0% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; filter: brightness(1); }
+      40% { filter: brightness(2) sepia(1) hue-rotate(-50deg) saturate(5); }
+      100% { transform: translate3d(45px, -18px, 0) scale(0.15); opacity: 0; filter: brightness(2.5) sepia(1) hue-rotate(-50deg) saturate(6); }
+    }
+
+    @keyframes switchInPlayer {
+      0% { transform: translate3d(-40px, 15px, 0) scale(0.15); opacity: 0; filter: brightness(2.8); }
+      65% { transform: translate3d(4px, -3px, 0) scale(1.08); opacity: 1; filter: brightness(1.4); }
+      100% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4)); }
+    }
+
+    @keyframes switchInAi {
+      0% { transform: translate3d(40px, -15px, 0) scale(0.15); opacity: 0; filter: brightness(2.8); }
+      65% { transform: translate3d(-4px, 3px, 0) scale(1.08); opacity: 1; filter: brightness(1.4); }
+      100% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4)); }
+    }
+
+    @keyframes boostGlow {
+      0% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 0px #22c55e); }
+      50% { transform: translateY(-6px) scale(1.06); filter: drop-shadow(0 0 14px #22c55e) brightness(1.25); }
+      100% { transform: translateY(0) scale(1); filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4)); }
+    }
+
+    @keyframes unboostGlow {
+      0% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 0px #ef4444); }
+      50% { transform: translateY(4px) scale(0.95); filter: drop-shadow(0 0 14px #ef4444) brightness(0.85); }
+      100% { transform: translateY(0) scale(1); filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.4)); }
     }
 
     /* Caja de Diálogo y Eventos */
@@ -701,7 +810,6 @@
           </div>
           <div id="box-ai-meta" class="poke-meta-row"></div>
           <div id="box-ai-modifiers" class="modifiers-row"></div>
-          <div id="balls-ai-bench" class="bench-balls"></div>
         </div>
       </div>
 
@@ -725,7 +833,6 @@
           </div>
           <div id="box-player-meta" class="poke-meta-row"></div>
           <div id="box-player-modifiers" class="modifiers-row"></div>
-          <div id="balls-player-bench" class="bench-balls"></div>
         </div>
       </div>
 
@@ -752,6 +859,19 @@
         <button id="btn-surrender" class="btn-action" style="max-width: 90px; color: #f87171;">
           Rendirse
         </button>
+      </div>
+
+      <!-- Vista de Equipos 6v6 (Minisprites Jugador a la izquierda y Rival a la derecha) -->
+      <div id="box-teams-overview" class="teams-overview-bar">
+        <div class="team-minis-side player-team-minis">
+          <span class="team-minis-label">Tu Equipo</span>
+          <div id="team-icons-player" class="team-minis-row"></div>
+        </div>
+        <div class="team-minis-divider">VS</div>
+        <div class="team-minis-side ai-team-minis">
+          <span class="team-minis-label">Equipo Rival</span>
+          <div id="team-icons-ai" class="team-minis-row"></div>
+        </div>
       </div>
 
       <!-- Registro de Combate estilo Pokémon Showdown -->
@@ -781,7 +901,7 @@
     </div>
   </div>
 
-  <script src="config.js?v=20261110_sd4"></script>
-  <script type="module" src="js/pve_battle_ui.js?v=20261110_sd4"></script>
+  <script src="config.js?v=20261111_sd5"></script>
+  <script type="module" src="js/pve_battle_ui.js?v=20261111_sd5"></script>
 </body>
 </html>

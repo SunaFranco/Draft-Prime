@@ -224,8 +224,8 @@ class MoveState:
         d = {
             "id": self.id,
             "name": self.name,
-            "name_es": self.name_es or es_info["es"],
-            "desc_es": self.desc_es or es_info["desc"],
+            "name_es": es_info["es"] if es_info.get("es") else (self.name_es or self.name),
+            "desc_es": es_info["desc"] if es_info.get("desc") else self.desc_es,
             "type": self.type,
             "category": self.category,
             "base_power": self.base_power,
@@ -341,6 +341,8 @@ class PokemonState:
     can_mega: bool = False
     mega_stone: Optional[str] = None
     image_url: Optional[str] = None
+    revealed: bool = False
+    slot_index: int = 0
 
     @property
     def hp_percent(self) -> float:
@@ -400,6 +402,8 @@ class PokemonState:
             "can_mega": self.can_mega,
             "mega_stone": self.mega_stone,
             "image_url": self.image_url,
+            "revealed": self.revealed,
+            "slot_index": self.slot_index,
         }
 
     @classmethod
@@ -441,6 +445,8 @@ class PokemonState:
             can_mega=bool(data.get("can_mega", False)),
             mega_stone=data.get("mega_stone"),
             image_url=data.get("image_url"),
+            revealed=bool(data.get("revealed", False)),
+            slot_index=int(data.get("slot_index", 0)),
         )
 
 

@@ -75,6 +75,9 @@ class CombatEngine:
                 battle_status="error",
             )
 
+        player_poke.revealed = True
+        ai_poke.revealed = True
+
         # 1. Reemplazos obligatorios tras debilitarse en el turno previo (Faint Switches)
         if player_poke.is_fainted and player_action.type.upper() == "SWITCH":
             self._handle_switch("player", player_action.choice, snapshot, events)
@@ -505,6 +508,19 @@ class CombatEngine:
         # MOVIMIENTOS DE DAÑO (Físicos / Especiales, incluyendo Multi-Hit)
         # =====================================================================
         defender_side = snapshot.player_side if def_side == "player" else snapshot.ai_side
+
+        # Demolición (Brick Break) y Psicocolmillo (Psychic Fangs): destruyen pantallas antes de calcular el daño (salvo inmunidad)
+        if move.id in ("brick-break", "brickbreak", "psychic-fangs", "psychicfangs"):
+            eff_check = get_type_effectiveness(move.type, defender.types)
+            if eff_check > 0.0:
+                cleared_scr = defender_side.clear_screens()
+                if cleared_scr:
+                    events.append({
+                        "type": "FIELD",
+                        "side": def_side,
+                        "text": f"¡{actor.species} destruyó las barreras ({', '.join(cleared_scr)}) del campo rival!",
+                    })
+
         num_hits = self._determine_num_hits(actor, move)
 
         total_damage_dealt = 0
@@ -711,6 +727,17 @@ class CombatEngine:
                     "text": f"¡{actor.species} eliminó {', '.join(cleared)} de su campo!",
                 })
 
+        # Niebla Clara (Clear Smog): elimina todos los cambios de características del objetivo al golpear
+        if move.id in ("clear-smog", "clearsmog") and hit_count_actual > 0 and not defender.is_fainted and not hit_substitute:
+            defender.boosts.reset()
+            events.append({
+                "type": "CLEAR_BOOST",
+                "side": def_side,
+                "pokemon": defender.species,
+                "boosts": defender.boosts.to_dict(),
+                "text": f"¡Se eliminaron todos los cambios de características de {defender.species}!",
+            })
+
         # Cambios de estadísticas propios tras golpear (Close Combat, Draco Meteor, Flame Charge, Rapid Spin)
         if move.self_boosts and not actor.is_fainted:
             self._apply_stat_boosts(side, actor, move.self_boosts, events)
@@ -755,6 +782,69 @@ class CombatEngine:
     ) -> None:
         own_side = snapshot.player_side if side == "player" else snapshot.ai_side
         opp_side = snapshot.player_side if def_side == "player" else snapshot.ai_side
+
+        # 0. Movimientos especiales de estado (Curse, Belly Drum, Haze)
+        if move.id == "curse":
+            if "Ghost" in actor.types:
+                if defender.volatiles.get("curse") or defender.is_fainted:
+                    events.append({"type": "MESSAGE", "text": "¡Pero falló!"})
+                    return
+                cost = max(1, math.floor(actor.max_hp / 2.0))
+                actor.current_hp = max(0, actor.current_hp - cost)
+                defender.volatiles["curse"] = True
+                events.append({
+                    "type": "DAMAGE",
+                    "side": side,
+                    "pokemon": actor.species,
+                    "damage": cost,
+                    "remaining_hp": actor.current_hp,
+                    "max_hp": actor.max_hp,
+                    "hp_percent": round(actor.hp_percent, 3),
+                    "text": f"¡{actor.species} redujo sus PS a la mitad y maldijo a {defender.species}!",
+                })
+                events.append({
+                    "type": "VOLATILE",
+                    "side": def_side,
+                    "pokemon": defender.species,
+                    "volatile": "curse",
+                    "text": f"¡{defender.species} está bajo los efectos de una Maldición!",
+                })
+                self._check_and_emit_faint(side, actor, events)
+                return
+            else:
+                self._apply_stat_boosts(side, actor, {"spe": -1, "atk": 1, "def": 1}, events)
+                return
+
+        if move.id in ("belly-drum", "bellydrum"):
+            cost = math.floor(actor.max_hp / 2.0)
+            if actor.current_hp <= cost or actor.boosts.atk >= 6:
+                events.append({"type": "MESSAGE", "text": "¡Pero no tiene suficientes PS para usar Tambor!"})
+                return
+            actor.current_hp -= cost
+            events.append({
+                "type": "DAMAGE",
+                "side": side,
+                "pokemon": actor.species,
+                "damage": cost,
+                "remaining_hp": actor.current_hp,
+                "max_hp": actor.max_hp,
+                "hp_percent": round(actor.hp_percent, 3),
+                "text": f"¡{actor.species} redujo sus PS a la mitad y maximizó su Ataque!",
+            })
+            self._apply_stat_boosts(side, actor, {"atk": 12}, events)
+            return
+
+        if move.id == "haze":
+            actor.boosts.reset()
+            defender.boosts.reset()
+            events.append({
+                "type": "CLEAR_BOOST",
+                "side": "both",
+                "player_boosts": snapshot.player_active.boosts.to_dict() if snapshot.player_active else {},
+                "ai_boosts": snapshot.ai_active.boosts.to_dict() if snapshot.ai_active else {},
+                "text": "¡Se han eliminado todos los cambios de características en el combate!",
+            })
+            return
 
         # 1. Clima (Sunny Day, Rain Dance, Sandstorm, Snowscape)
         if move.weather:
@@ -953,9 +1043,12 @@ class CombatEngine:
                 if not applied:
                     events.append({"type": "MESSAGE", "text": f"¡No afectó a {defender.species}!"})
 
-        # 10. Boosts propios (Swords Dance, Dragon Dance, Calm Mind, Nasty Plot, Quiver Dance, Bulk Up, Shell Smash)
+        # 10. Boosts propios (Swords Dance, Dragon Dance, Calm Mind, Nasty Plot, Quiver Dance, Bulk Up, Shell Smash, Growth)
         if move.self_boosts:
-            self._apply_stat_boosts(side, actor, move.self_boosts, events)
+            boosts_to_apply = dict(move.self_boosts)
+            if move.id == "growth" and snapshot.weather == "Sun":
+                boosts_to_apply = {"atk": 2, "spa": 2}
+            self._apply_stat_boosts(side, actor, boosts_to_apply, events)
 
         # 11. Boosts / drops al objetivo (Defog, Parting Shot, Charm, Scary Face)
         if move.boosts:
@@ -996,6 +1089,7 @@ class CombatEngine:
             events.append({"type": "MESSAGE", "text": f"Cambio inválido: {choice_id} no está disponible."})
             return
 
+        prev_species = active.species if active else None
         new_active = bench.pop(found_idx)
         if active:
             # Habilidades al salir del campo (Regenerator / Natural Cure)
@@ -1013,12 +1107,15 @@ class CombatEngine:
             bench.append(active)
 
         new_active.active_turns = 0
+        new_active.revealed = True
         if side == "player":
             snapshot.player_active = new_active
             events.append({
                 "type": "SWITCH",
                 "side": "player",
                 "pokemon": new_active.species,
+                "previous_pokemon": prev_species,
+                "pokemon_state": new_active.to_dict(),
                 "text": f"¡Adelante, {new_active.species}!",
             })
         else:
@@ -1027,6 +1124,8 @@ class CombatEngine:
                 "type": "SWITCH",
                 "side": "ai",
                 "pokemon": new_active.species,
+                "previous_pokemon": prev_species,
+                "pokemon_state": new_active.to_dict(),
                 "text": f"¡El rival envió a {new_active.species}!",
             })
 
@@ -1429,6 +1528,23 @@ class CombatEngine:
                 if self._check_and_emit_faint(side, poke, events):
                     continue
 
+            # 6f2. Daño por Maldición de tipo Fantasma (Curse: 1/4 max HP)
+            if poke.volatiles.get("curse") and ability != "magic guard":
+                curse_dmg = max(1, math.floor(poke.max_hp / 4.0))
+                poke.current_hp = max(0, poke.current_hp - curse_dmg)
+                events.append({
+                    "type": "DAMAGE",
+                    "side": side,
+                    "pokemon": poke.species,
+                    "damage": curse_dmg,
+                    "remaining_hp": poke.current_hp,
+                    "max_hp": poke.max_hp,
+                    "hp_percent": round(poke.hp_percent, 3),
+                    "text": f"¡La maldición resta salud a {poke.species} (-{curse_dmg} PS)!",
+                })
+                if self._check_and_emit_faint(side, poke, events):
+                    continue
+
             # 6g. Contador de Mofa (Taunt)
             if "taunt" in poke.volatiles:
                 poke.volatiles["taunt"] = int(poke.volatiles["taunt"]) - 1
@@ -1516,6 +1632,7 @@ class CombatEngine:
             effective_changes = {k: -v for k, v in effective_changes.items()}
 
         applied = target.boosts.apply_boosts(effective_changes)
+        current_boosts = target.boosts.to_dict()
         for stat_key, delta in applied.items():
             stat_label = STAT_LABELS_ES.get(stat_key, stat_key.upper())
             if delta > 0:
@@ -1526,7 +1643,8 @@ class CombatEngine:
                     "pokemon": target.species,
                     "stat": stat_key,
                     "stages": delta,
-                    "text": f"¡{stat_label} de {target.species} subió {adverb}!".replace("  ", " "),
+                    "boosts": dict(current_boosts),
+                    "text": f"¡{stat_label} de {target.species} subió {adverb}!".replace("  ", " ").replace(" !", "!"),
                 })
             elif delta < 0:
                 adverb = "drásticamente" if delta <= -2 else ""
@@ -1536,8 +1654,19 @@ class CombatEngine:
                     "pokemon": target.species,
                     "stat": stat_key,
                     "stages": delta,
-                    "text": f"¡{stat_label} de {target.species} bajó {adverb}!".replace("  ", " "),
+                    "boosts": dict(current_boosts),
+                    "text": f"¡{stat_label} de {target.species} bajó {adverb}!".replace("  ", " ").replace(" !", "!"),
                 })
+            else:
+                req_delta = effective_changes.get(stat_key, 0)
+                if req_delta != 0:
+                    verb = "subir" if req_delta > 0 else "bajar"
+                    events.append({
+                        "type": "MESSAGE",
+                        "side": side,
+                        "pokemon": target.species,
+                        "text": f"¡{stat_label} de {target.species} ya no puede {verb} más!",
+                    })
 
     def _try_inflict_status(
         self,

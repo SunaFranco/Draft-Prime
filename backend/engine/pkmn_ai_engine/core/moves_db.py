@@ -699,6 +699,252 @@ POPULAR_MOVES: Dict[str, dict] = {
         "name": "Whirlwind", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "priority": -6, "pp": 20,
         "force_switch": True, "never_miss": True,
     },
+
+    # =========================================================================
+    # CAMBIOS DE ESTADÍSTICAS Y SOPORTE COMPETITIVO (Showdown Boosts & Utility)
+    # =========================================================================
+    "curse": {
+        "name": "Curse", "type": "Ghost", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"spe": -1, "atk": 1, "def": 1},
+    },
+    "brick-break": {
+        "name": "Brick Break", "type": "Fighting", "category": "physical", "base_power": 75, "accuracy": 1.0, "pp": 15,
+        "makes_contact": True,
+    },
+    "psychic-fangs": {
+        "name": "Psychic Fangs", "type": "Psychic", "category": "physical", "base_power": 85, "accuracy": 1.0, "pp": 10,
+        "makes_contact": True,
+    },
+    "clear-smog": {
+        "name": "Clear Smog", "type": "Poison", "category": "special", "base_power": 50, "accuracy": 1.0, "never_miss": True, "pp": 15,
+    },
+    "haze": {
+        "name": "Haze", "type": "Ice", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 30,
+    },
+    "howl": {
+        "name": "Howl", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 40,
+        "self_boosts": {"atk": 1},
+    },
+    "growth": {
+        "name": "Growth", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"atk": 1, "spa": 1},
+    },
+    "work-up": {
+        "name": "Work Up", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 30,
+        "self_boosts": {"atk": 1, "spa": 1},
+    },
+    "hone-claws": {
+        "name": "Hone Claws", "type": "Dark", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 15,
+        "self_boosts": {"atk": 1, "accuracy": 1},
+    },
+    "coil": {
+        "name": "Coil", "type": "Poison", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"atk": 1, "def": 1, "accuracy": 1},
+    },
+    "cosmic-power": {
+        "name": "Cosmic Power", "type": "Psychic", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"def": 1, "spd": 1},
+    },
+    "defend-order": {
+        "name": "Defend Order", "type": "Bug", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"def": 1, "spd": 1},
+    },
+    "stockpile": {
+        "name": "Stockpile", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"def": 1, "spd": 1},
+    },
+    "amnesia": {
+        "name": "Amnesia", "type": "Psychic", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"spd": 2},
+    },
+    "acid-armor": {
+        "name": "Acid Armor", "type": "Poison", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"def": 2},
+    },
+    "barrier": {
+        "name": "Barrier", "type": "Psychic", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"def": 2},
+    },
+    "cotton-guard": {
+        "name": "Cotton Guard", "type": "Grass", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"def": 3},
+    },
+    "tail-glow": {
+        "name": "Tail Glow", "type": "Bug", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"spa": 3},
+    },
+    "rock-polish": {
+        "name": "Rock Polish", "type": "Rock", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"spe": 2},
+    },
+    "autotomize": {
+        "name": "Autotomize", "type": "Steel", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 15,
+        "self_boosts": {"spe": 2},
+    },
+    "shift-gear": {
+        "name": "Shift Gear", "type": "Steel", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"atk": 1, "spe": 2},
+    },
+    "victory-dance": {
+        "name": "Victory Dance", "type": "Fighting", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"atk": 1, "def": 1, "spe": 1},
+    },
+    "tidy-up": {
+        "name": "Tidy Up", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"atk": 1, "spe": 1}, "hazard_clear": "rapid_spin",
+    },
+    "take-heart": {
+        "name": "Take Heart", "type": "Psychic", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 15,
+        "self_boosts": {"spa": 1, "spd": 1},
+    },
+    "no-retreat": {
+        "name": "No Retreat", "type": "Fighting", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 5,
+        "self_boosts": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+    },
+    "clangorous-soul": {
+        "name": "Clangorous Soul", "type": "Dragon", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 5,
+        "self_boosts": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1},
+    },
+    "fillet-away": {
+        "name": "Fillet Away", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"atk": 2, "spa": 2, "spe": 2},
+    },
+    "belly-drum": {
+        "name": "Belly Drum", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"atk": 6},
+    },
+    "harden": {
+        "name": "Harden", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 30,
+        "self_boosts": {"def": 1},
+    },
+    "withdraw": {
+        "name": "Withdraw", "type": "Water", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 40,
+        "self_boosts": {"def": 1},
+    },
+    "defense-curl": {
+        "name": "Defense Curl", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 40,
+        "self_boosts": {"def": 1},
+    },
+    "meditate": {
+        "name": "Meditate", "type": "Psychic", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 40,
+        "self_boosts": {"atk": 1},
+    },
+    "sharpen": {
+        "name": "Sharpen", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 30,
+        "self_boosts": {"atk": 1},
+    },
+    "double-team": {
+        "name": "Double Team", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 15,
+        "self_boosts": {"evasion": 1},
+    },
+    "minimize": {
+        "name": "Minimize", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"evasion": 2},
+    },
+    "charge": {
+        "name": "Charge", "type": "Electric", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "self_boosts": {"spd": 1},
+    },
+    "trailblaze": {
+        "name": "Trailblaze", "type": "Grass", "category": "physical", "base_power": 50, "accuracy": 1.0, "pp": 20,
+        "makes_contact": True, "self_boosts": {"spe": 1},
+    },
+    "aqua-step": {
+        "name": "Aqua Step", "type": "Water", "category": "physical", "base_power": 80, "accuracy": 1.0, "pp": 10,
+        "makes_contact": True, "self_boosts": {"spe": 1},
+    },
+    "torch-song": {
+        "name": "Torch Song", "type": "Fire", "category": "special", "base_power": 80, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"spa": 1},
+    },
+    "power-up-punch": {
+        "name": "Power-Up Punch", "type": "Fighting", "category": "physical", "base_power": 40, "accuracy": 1.0, "pp": 20,
+        "makes_contact": True, "self_boosts": {"atk": 1},
+    },
+    "esper-wing": {
+        "name": "Esper Wing", "type": "Psychic", "category": "special", "base_power": 80, "accuracy": 1.0, "pp": 10,
+        "crit_ratio": 2, "self_boosts": {"spe": 1},
+    },
+    "aura-wheel": {
+        "name": "Aura Wheel", "type": "Electric", "category": "physical", "base_power": 110, "accuracy": 1.0, "pp": 10,
+        "self_boosts": {"spe": 1},
+    },
+    "charge-beam": {
+        "name": "Charge Beam", "type": "Electric", "category": "special", "base_power": 50, "accuracy": 0.90, "pp": 10,
+        "secondary": {"chance": 0.70, "self_boosts": {"spa": 1}},
+    },
+    "fiery-dance": {
+        "name": "Fiery Dance", "type": "Fire", "category": "special", "base_power": 80, "accuracy": 1.0, "pp": 10,
+        "secondary": {"chance": 0.50, "self_boosts": {"spa": 1}},
+    },
+    "diamond-storm": {
+        "name": "Diamond Storm", "type": "Rock", "category": "physical", "base_power": 100, "accuracy": 0.95, "pp": 5,
+        "secondary": {"chance": 0.50, "self_boosts": {"def": 2}},
+    },
+    "ancient-power": {
+        "name": "Ancient Power", "type": "Rock", "category": "special", "base_power": 60, "accuracy": 1.0, "pp": 5,
+        "secondary": {"chance": 0.10, "self_boosts": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1}},
+    },
+    "silver-wind": {
+        "name": "Silver Wind", "type": "Bug", "category": "special", "base_power": 60, "accuracy": 1.0, "pp": 5,
+        "secondary": {"chance": 0.10, "self_boosts": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1}},
+    },
+    "ominous-wind": {
+        "name": "Ominous Wind", "type": "Ghost", "category": "special", "base_power": 60, "accuracy": 1.0, "pp": 5,
+        "secondary": {"chance": 0.10, "self_boosts": {"atk": 1, "def": 1, "spa": 1, "spd": 1, "spe": 1}},
+    },
+    "metal-claw": {
+        "name": "Metal Claw", "type": "Steel", "category": "physical", "base_power": 50, "accuracy": 0.95, "pp": 35,
+        "makes_contact": True, "secondary": {"chance": 0.10, "self_boosts": {"atk": 1}},
+    },
+    "steel-wing": {
+        "name": "Steel Wing", "type": "Steel", "category": "physical", "base_power": 70, "accuracy": 0.90, "pp": 25,
+        "makes_contact": True, "secondary": {"chance": 0.10, "self_boosts": {"def": 1}},
+    },
+    "charm": {
+        "name": "Charm", "type": "Fairy", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "boosts": {"atk": -2},
+    },
+    "feather-dance": {
+        "name": "Feather Dance", "type": "Flying", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 15,
+        "boosts": {"atk": -2},
+    },
+    "scary-face": {
+        "name": "Scary Face", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 10,
+        "boosts": {"spe": -2},
+    },
+    "fake-tears": {
+        "name": "Fake Tears", "type": "Dark", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 20,
+        "boosts": {"spd": -2},
+    },
+    "metal-sound": {
+        "name": "Metal Sound", "type": "Steel", "category": "status", "base_power": 0, "accuracy": 0.85, "pp": 40,
+        "boosts": {"spd": -2},
+    },
+    "screech": {
+        "name": "Screech", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 0.85, "pp": 40,
+        "boosts": {"def": -2},
+    },
+    "leer": {
+        "name": "Leer", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 30,
+        "boosts": {"def": -1},
+    },
+    "tail-whip": {
+        "name": "Tail Whip", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 30,
+        "boosts": {"def": -1},
+    },
+    "growl": {
+        "name": "Growl", "type": "Normal", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 40,
+        "boosts": {"atk": -1},
+    },
+    "string-shot": {
+        "name": "String Shot", "type": "Bug", "category": "status", "base_power": 0, "accuracy": 0.95, "pp": 40,
+        "boosts": {"spe": -2},
+    },
+    "cotton-spore": {
+        "name": "Cotton Spore", "type": "Grass", "category": "status", "base_power": 0, "accuracy": 1.0, "pp": 40,
+        "boosts": {"spe": -2},
+    },
 }
 
 _AILMENT_TO_STATUS = {
@@ -755,6 +1001,7 @@ def fetch_move_from_pokeapi(slug: str) -> Optional[dict]:
             target_name = ((data.get("target") or {}).get("name") or "selected-pokemon").lower()
 
             meta = data.get("meta") or {}
+            meta_cat = ((meta.get("category") or {}).get("name") or "").lower()
             drain = int(meta.get("drain") or 0)
             drain_pct = drain / 100.0 if drain > 0 else 0.0
             recoil_pct = abs(drain) / 100.0 if drain < 0 else 0.0
@@ -787,13 +1034,18 @@ def fetch_move_from_pokeapi(slug: str) -> Optional[dict]:
             self_boosts = None
             secondary: Dict[str, Any] = {}
 
+            is_self_target = target_name in (
+                "user", "users-field", "user-and-allies", "user-or-ally", "all-allies", "specific-move"
+            )
+            has_positive_boosts = any(v > 0 for v in parsed_boosts.values())
+
             if category == "status":
                 if ailment_name in _AILMENT_TO_STATUS:
                     target_status = _AILMENT_TO_STATUS[ailment_name]
                 elif ailment_name in _AILMENT_TO_VOLATILE:
                     volatile_status = _AILMENT_TO_VOLATILE[ailment_name]
                 if parsed_boosts:
-                    if target_name in ("user", "users-field", "user-and-allies"):
+                    if is_self_target or (has_positive_boosts and clean_slug not in ("swagger", "flatter", "decorate")):
                         self_boosts = parsed_boosts
                     else:
                         boosts = parsed_boosts
@@ -811,11 +1063,12 @@ def fetch_move_from_pokeapi(slug: str) -> Optional[dict]:
                     secondary["flinch"] = True
 
                 if parsed_boosts:
-                    if stat_chance in (0, 100) and target_name == "user":
+                    affects_self = is_self_target or meta_cat == "damage+raise" or has_positive_boosts
+                    if stat_chance in (0, 100) and affects_self:
                         self_boosts = parsed_boosts
                     elif stat_chance > 0:
                         secondary["chance"] = max(secondary.get("chance", 0.0), stat_chance / 100.0)
-                        if target_name == "user":
+                        if affects_self:
                             secondary["self_boosts"] = parsed_boosts
                         else:
                             secondary["boosts"] = parsed_boosts
@@ -899,16 +1152,33 @@ def _build_inferred_move_dict(slug: str, clean_name: str, fallback_type: str = "
 def _merge_popular_and_effect_data(base_dict: dict, slug: str) -> dict:
     """Combina los datos base de la DB con effect_data y con POPULAR_MOVES para preservar todos los efectos."""
     from backend.engine.pkmn_ai_engine.core.text_es import get_move_text_es
-    merged = dict(POPULAR_MOVES.get(slug, {}))
-    merged.update(base_dict)
+    popular = dict(POPULAR_MOVES.get(slug, {}))
+    merged = dict(popular)
+    for k, v in base_dict.items():
+        if v is not None and k != "effect_data":
+            merged[k] = v
     effect_data = base_dict.get("effect_data")
     if isinstance(effect_data, dict):
-        merged.update(effect_data)
+        for k, v in effect_data.items():
+            if v is not None:
+                merged[k] = v
+    # Garantizar que los efectos clave de POPULAR_MOVES nunca se pierdan si effect_data estaba vacío
+    for eff_key in (
+        "self_boosts", "boosts", "secondary", "target_status", "volatile_status",
+        "weather", "terrain", "pseudo_weather", "side_condition", "hazard_clear",
+        "self_switch", "force_switch", "heal_fraction", "crit_ratio", "multi_hit",
+    ):
+        if not merged.get(eff_key) and popular.get(eff_key):
+            merged[eff_key] = popular[eff_key]
+
     merged["id"] = base_dict.get("slug") or base_dict.get("id") or slug
     es_info = get_move_text_es(merged.get("name") or slug)
-    if not merged.get("name_es"):
+    if es_info.get("es"):
         merged["name_es"] = es_info["es"]
-    if not merged.get("desc_es"):
+    elif not merged.get("name_es"):
+        merged["name_es"] = merged.get("name") or slug
+    # Priorizar siempre la descripción competitiva shortDesc de Pokémon Showdown
+    if es_info.get("desc"):
         merged["desc_es"] = es_info["desc"]
     return merged
 
@@ -948,9 +1218,18 @@ def ensure_move_in_db(
     # 1. Consultar si ya existe en la tabla de base de datos (Supabase / Caché local)
     if sync_db:
         try:
-            from backend.database import get_pokemon_move_from_db
+            from backend.database import get_pokemon_move_from_db, save_pokemon_move_to_db
             existing = get_pokemon_move_from_db(slug)
             if existing:
+                eff = existing.get("effect_data")
+                has_eff_mechanics = isinstance(eff, dict) and any(
+                    eff.get(k) for k in ("self_boosts", "boosts", "secondary", "target_status", "volatile_status", "heal_fraction", "weather", "terrain", "side_condition")
+                )
+                if not has_eff_mechanics and slug not in POPULAR_MOVES:
+                    fresh = fetch_move_from_pokeapi(slug)
+                    if fresh:
+                        existing = {**existing, **fresh}
+                        save_pokemon_move_to_db(existing)
                 merged = _merge_popular_and_effect_data(existing, slug)
                 return MoveState.from_dict(merged)
         except Exception:
@@ -970,9 +1249,9 @@ def ensure_move_in_db(
 
     from backend.engine.pkmn_ai_engine.core.text_es import get_move_text_es
     es_info = get_move_text_es(move_dict.get("name") or slug)
-    if not move_dict.get("name_es"):
+    if es_info.get("es"):
         move_dict["name_es"] = es_info["es"]
-    if not move_dict.get("desc_es"):
+    if es_info.get("desc"):
         move_dict["desc_es"] = es_info["desc"]
 
     # 3. Guardar el nuevo movimiento en la tabla 'pokemon_moves' de Supabase

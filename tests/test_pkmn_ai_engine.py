@@ -547,6 +547,83 @@ def test_showdown_substitute_protect_and_toxic_escalation():
     assert blissey.status_counter == 3
 
 
+def test_positive_stat_boosts_curse_switch_state_and_showdown_shortdesc():
+    """
+    Verifica:
+    1) Traducciones competitivas shortDesc de Showdown (porcentajes de trigger y etapas exactas).
+    2) Movimientos de aumento de estadísticas positivas (Curse, Swords Dance, Flame Charge, Clear Smog).
+    3) Eventos SWITCH con pokemon_state y flag revealed para la barra 6v6 de minisprites.
+    """
+    from backend.engine.pkmn_ai_engine.core.moves_db import resolve_move
+
+    # 1. Descripciones competitivas de Showdown (shortDesc)
+    m_bs = resolve_move("Body Slam").to_dict()
+    m_bb = resolve_move("Brick Break").to_dict()
+    m_cs = resolve_move("Clear Smog").to_dict()
+    m_cu = resolve_move("Curse").to_dict()
+
+    assert m_bs["name_es"] == "Golpe Cuerpo"
+    assert m_bs["desc_es"] == "30% de paralizar al objetivo."
+    assert m_bb["name_es"] == "Demolición"
+    assert m_bb["desc_es"] == "Destruye las pantallas, salvo si el objetivo es inmune."
+    assert m_cs["name_es"] == "Niebla Clara"
+    assert m_cs["desc_es"] == "Elimina los cambios de características del objetivo."
+    assert m_cu["name_es"] == "Maldición"
+    assert m_cu["desc_es"] == "Maldice si es Fantasma; si no: -1 Vel., +1 Ata. y Def."
+
+    # 2. Maldición (Curse) en Pokémon no-Fantasma (ej. Snorlax): -1 Vel, +1 Ata, +1 Def y evento BOOST con dict boosts
+    snorlax = PokemonState(
+        id="snorlax", species="Snorlax", types=("Normal",),
+        current_hp=200, max_hp=200,
+        stats=StatBlock(hp=200, atk=110, def_=85, spa=65, spd=110, spe=50),
+        moves=[resolve_move("Curse"), resolve_move("Body Slam")],
+        revealed=True, slot_index=0,
+    )
+    charizard = PokemonState(
+        id="charizard", species="Charizard", types=("Fire", "Flying"),
+        current_hp=150, max_hp=150,
+        stats=StatBlock(hp=150, atk=90, def_=80, spa=120, spd=85, spe=110),
+        moves=[resolve_move("Flame Charge"), resolve_move("Swords Dance")],
+        revealed=True, slot_index=0,
+    )
+    blastoise_bench = PokemonState(
+        id="blastoise", species="Blastoise", types=("Water",),
+        current_hp=160, max_hp=160,
+        stats=StatBlock(hp=160, atk=85, def_=110, spa=95, spd=115, spe=80),
+        moves=[resolve_move("Clear Smog")],
+        revealed=False, slot_index=1,
+    )
+
+    snapshot = BattleSnapshot(
+        turn=1,
+        player_active=snorlax,
+        ai_active=charizard,
+        ai_bench=[blastoise_bench],
+    )
+    engine = CombatEngine()
+
+    res = engine.resolve_turn(snapshot, Action("MOVE", "curse"), Action("MOVE", "flame-charge"))
+    # Snorlax debe tener +1 Atk, +1 Def, -1 Spe
+    assert snorlax.boosts.atk == 1
+    assert snorlax.boosts.def_ == 1
+    assert snorlax.boosts.spe == -1
+    # Charizard usó Flame Charge -> +1 Spe
+    assert charizard.boosts.spe == 1
+
+    boost_events = [e for e in res.events if e.get("type") == "BOOST"]
+    assert len(boost_events) >= 3  # +1 Spe de Charizard, +1 Atk y +1 Def de Snorlax
+    assert all("boosts" in e for e in boost_events)
+
+    # 3. Cambio de la IA a Blastoise: el evento SWITCH debe traer pokemon_state y marcar revealed=True
+    res_sw = engine.resolve_turn(snapshot, Action("MOVE", "body-slam"), Action("SWITCH", "blastoise"))
+    sw_events = [e for e in res_sw.events if e.get("type") == "SWITCH" and e.get("side") == "ai"]
+    assert len(sw_events) == 1
+    assert sw_events[0]["pokemon"] == "Blastoise"
+    assert sw_events[0]["pokemon_state"]["species"] == "Blastoise"
+    assert sw_events[0]["pokemon_state"]["revealed"] is True
+    assert snapshot.ai_active.revealed is True
+
+
 if __name__ == "__main__":
     test_type_effectiveness()
     test_damage_calculation()
@@ -562,5 +639,6 @@ if __name__ == "__main__":
     test_showdown_hazards_and_rapid_spin()
     test_showdown_terrains_weather_and_trick_room()
     test_showdown_substitute_protect_and_toxic_escalation()
-    print("ALL 14 TESTS PASSED SUCCESSFULLY!")
+    test_positive_stat_boosts_curse_switch_state_and_showdown_shortdesc()
+    print("ALL 15 TESTS PASSED SUCCESSFULLY!")
 

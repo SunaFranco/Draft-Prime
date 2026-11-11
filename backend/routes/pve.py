@@ -118,12 +118,20 @@ async def start_pve_battle(req: StartPVEBattleRequest):
     target_ai_level = _resolve_ai_target_level(req.year, req.player_team)
 
     # Convertir Pokémon del jugador usando el adaptador inteligente
-    parsed_player_team: List[PokemonState] = [adapt_draft_pokemon(p) for p in req.player_team[:6]]
+    parsed_player_team: List[PokemonState] = []
+    for idx, p in enumerate(req.player_team[:6]):
+        ps = adapt_draft_pokemon(p)
+        ps.slot_index = idx
+        ps.revealed = True
+        parsed_player_team.append(ps)
 
     # Convertir Pokémon de la IA escalando sus niveles y estadísticas al año actual
-    parsed_ai_team: List[PokemonState] = [
-        adapt_draft_pokemon(p, override_level=target_ai_level) for p in preset["team"][:6]
-    ]
+    parsed_ai_team: List[PokemonState] = []
+    for idx, p in enumerate(preset["team"][:6]):
+        ps = adapt_draft_pokemon(p, override_level=target_ai_level)
+        ps.slot_index = idx
+        ps.revealed = (idx == 0)
+        parsed_ai_team.append(ps)
 
     player_active = parsed_player_team[0]
     player_bench = parsed_player_team[1:]
