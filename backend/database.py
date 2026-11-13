@@ -41,6 +41,33 @@ else:
     print("[INFO] No se detectaron SUPABASE_URL y SUPABASE_KEY. Operando en modo fallback (Memoria Local).")
 
 
+def _fetch_all_cube_cards(cube_id: str) -> List[str]:
+    """Obtiene todas las cartas de un cubo desde Supabase paginando para soportar cubos grandes (>1000 cartas)."""
+    if not supabase_client:
+        return []
+
+    cards: List[str] = []
+    batch_size = 1000
+    start = 0
+    while True:
+        res = (
+            supabase_client.table("cube_cards")
+            .select("card_name, qty")
+            .eq("cube_id", cube_id)
+            .range(start, start + batch_size - 1)
+            .execute()
+        )
+        data = res.data or []
+        for card in data:
+            qty = card.get("qty", 1) or 1
+            cards.extend([card["card_name"]] * qty)
+        if len(data) < batch_size:
+            break
+        start += batch_size
+
+    return cards
+
+
 def get_all_cubes() -> List[dict]:
     """Obtiene todos los cubes desde Supabase."""
     if not supabase_client:
@@ -51,11 +78,16 @@ def get_all_cubes() -> List[dict]:
         if res.data:
             processed = []
             for item in res.data:
-                cards = []
-                for card in item.get("cube_cards", []):
-                    cards.extend([card["card_name"]] * card.get("qty", 1))
+                cid = str(item["id"])
+                embedded = item.get("cube_cards", [])
+                if len(embedded) >= 1000:
+                    cards = _fetch_all_cube_cards(cid)
+                else:
+                    cards = []
+                    for card in embedded:
+                        cards.extend([card["card_name"]] * (card.get("qty", 1) or 1))
                 processed.append({
-                    "id": str(item["id"]),
+                    "id": cid,
                     "title": item["title"],
                     "description": item.get("description", ""),
                     "author": item.get("author", "Anon"),
@@ -70,19 +102,37 @@ def get_all_cubes() -> List[dict]:
 
 
 def get_cube_by_id(cube_id: str) -> Optional[dict]:
-    """Obtiene un cube por su ID desde Supabase."""
+    """Obtiene un cube por su ID o título desde Supabase."""
     if not supabase_client:
         return None
 
+    import uuid
+    is_uuid = False
     try:
-        res = supabase_client.table("cubes").select("*, cube_cards(card_name, qty)").eq("id", cube_id).execute()
+        uuid.UUID(str(cube_id))
+        is_uuid = True
+    except (ValueError, AttributeError):
+        is_uuid = False
+
+    try:
+        if is_uuid:
+            res = supabase_client.table("cubes").select("*, cube_cards(card_name, qty)").eq("id", cube_id).execute()
+        else:
+            res = supabase_client.table("cubes").select("*, cube_cards(card_name, qty)").ilike("title", str(cube_id)).execute()
+
         if res.data and len(res.data) > 0:
             item = res.data[0]
-            cards = []
-            for card in item.get("cube_cards", []):
-                cards.extend([card["card_name"]] * card.get("qty", 1))
+            cid = str(item["id"])
+            embedded = item.get("cube_cards", [])
+            if len(embedded) >= 1000:
+                cards = _fetch_all_cube_cards(cid)
+            else:
+                cards = []
+                for card in embedded:
+                    cards.extend([card["card_name"]] * (card.get("qty", 1) or 1))
+
             return {
-                "id": str(item["id"]),
+                "id": cid,
                 "title": item["title"],
                 "description": item.get("description", ""),
                 "author": item.get("author", "Anon"),

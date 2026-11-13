@@ -44,9 +44,28 @@ export class YugiohDraftModeUI extends BaseGameModeUI {
     });
 
     if (cubeSelect) {
-      cubeSelect.innerHTML = cubes
-        .map((c) => `<option value="${c.key}">${c.title}</option>`)
-        .join("");
+      if (cubes.length === 0) {
+        cubeSelect.innerHTML = `<option value="" disabled selected>No hay cubos disponibles</option>`;
+      } else {
+        cubeSelect.innerHTML = cubes
+          .map((c) => {
+            const countLabel = c.card_count ? ` (${c.card_count} cartas)` : "";
+            return `<option value="${c.key}">${c.title}${countLabel}</option>`;
+          })
+          .join("");
+      }
+
+      const currentCubeKey = data.mode_config?.cube_key;
+      if (currentCubeKey) {
+        cubeSelect.value = currentCubeKey;
+      }
+    }
+
+    if (packCount && data.mode_config?.pack_count) {
+      packCount.value = String(data.mode_config.pack_count);
+    }
+    if (cardsPerPack && data.mode_config?.cards_per_pack) {
+      cardsPerPack.value = String(data.mode_config.cards_per_pack);
     }
   }
 

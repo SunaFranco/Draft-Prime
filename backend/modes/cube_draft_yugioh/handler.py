@@ -14,7 +14,15 @@ from backend.services.session_manager import can_control_room, get_connected_pla
 def get_available_cubes(get_all_cubes_fn: Optional[Callable] = None) -> List[dict]:
     """Devuelve los cubes disponibles en formato compatible con la UI."""
     fn = get_all_cubes_fn or database.get_all_cubes
-    return [{"key": cube["id"], "title": cube["title"]} for cube in fn()]
+    return [
+        {
+            "key": cube["id"],
+            "title": cube["title"],
+            "description": cube.get("description", ""),
+            "card_count": len(cube.get("cards", [])),
+        }
+        for cube in fn()
+    ]
 
 
 def resolve_cube_for_key(cube_key: str, get_cube_by_id_fn: Optional[Callable] = None) -> dict | None:
@@ -30,6 +38,9 @@ def get_cube_card_pool(cube_key: str, resolve_cube_fn: Optional[Callable] = None
     if db_cube:
         cards = db_cube.get("cards", []) or []
         return cards
+
+    if cube_key.startswith("custom_"):
+        return load_custom_cube(cube_key)
 
     raise ValueError(f"Cube desconocido: {cube_key}")
 
@@ -196,7 +207,8 @@ class CubeDraftYugiohMode(BaseGameMode):
         pack_count = int(message.get("pack_count", 0))
         cards_per_pack = int(message.get("cards_per_pack", 0))
 
-        if not cube_key or (not database.get_cube_by_id(cube_key) and not cube_key.startswith("custom_")):
+        resolved_cube = database.get_cube_by_id(cube_key) if cube_key else None
+        if not cube_key or (not resolved_cube and not cube_key.startswith("custom_")):
             raise ValueError("Cube inválido.")
         if pack_count < 1 or pack_count > 4:
             raise ValueError("Cantidad de sobres inválida (1-4).")
@@ -204,7 +216,8 @@ class CubeDraftYugiohMode(BaseGameMode):
             raise ValueError("Cantidad de cartas por sobre inválida (3-9).")
 
         return {
-            "cube_key":       cube_key,
+            "cube_key":       resolved_cube["id"] if resolved_cube else cube_key,
+            "cube_title":     resolved_cube["title"] if resolved_cube else cube_key,
             "pack_count":     pack_count,
             "cards_per_pack": cards_per_pack,
         }
