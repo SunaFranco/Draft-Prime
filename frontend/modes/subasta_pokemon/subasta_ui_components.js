@@ -10,6 +10,21 @@ const POKEMON_TYPES = [
   "Steel", "Fairy",
 ];
 
+export const TYPE_TRANSLATIONS_ES = {
+  Normal: "Normal", Fire: "Fuego", Water: "Agua", Grass: "Planta",
+  Electric: "Eléctrico", Ice: "Hielo", Fighting: "Lucha", Poison: "Veneno",
+  Ground: "Tierra", Flying: "Volador", Psychic: "Psíquico", Bug: "Bicho",
+  Rock: "Roca", Ghost: "Fantasma", Dragon: "Dragón", Steel: "Acero",
+  Dark: "Siniestro", Fairy: "Hada", Stellar: "Astral"
+};
+
+export function formatTypeEs(type) {
+  if (!type) return "";
+  if (type === "No tiene" || type === "Ninguno") return "No tiene";
+  const es = TYPE_TRANSLATIONS_ES[type] || type;
+  return es !== type ? `${es} (${type})` : es;
+}
+
 export const POKEMON_CARD_COLORS = {
   green: { label: "Verde", hex: "#10b981", rgb: "16, 185, 129" },
   blue: { label: "Azul", hex: "#3b82f6", rgb: "59, 130, 246" },
@@ -589,6 +604,8 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const myData = data.my_data || { money: 0 };
   const hints = auction.hints || {};
   const poke = auction.pokemon || {};
+  const hintThresholds = auction.hint_thresholds || {};
+  const revealPrice = Number(auction.reveal_price || 0);
 
   const isAuctionFinished = Boolean(auction.finished);
   const isWinnerPendingSecret = auction.awaiting_secret_choice && auction.winner === sessionClient.currentUsername;
@@ -621,8 +638,11 @@ export function renderAuctionView(data, sessionClient, isHost) {
   const revealCountdownMs = revealHoldUntil > 0 ? Math.max(0, revealHoldUntil - Date.now()) : 0;
   const revealPercent = revealHoldUntil > 0 ? Math.max(0, Math.min(100, (revealCountdownMs / 5000) * 100)) : 0;
   const isPubliclyRevealed = Boolean(auction.publicly_revealed === true || (auction.finished && !poke.is_hidden && poke.name && poke.image_url));
+  const isBidRevealMet = Boolean(revealPrice > 0 && (Number(auction.current_bid) || 0) >= revealPrice);
   const isPokemonRevealed = Boolean(
     auction.early_reveal === true ||
+    auction.pokemon_revealed === true ||
+    isBidRevealMet ||
     (
       !auction.awaiting_secret_choice &&
       auction.finished &&
@@ -632,19 +652,23 @@ export function renderAuctionView(data, sessionClient, isHost) {
       (isPubliclyRevealed || (!auction.reveal_hold_until || revealCountdownMs <= 5000))
     )
   );
+
+  const hintPrimaryType = hints.primary_type && !String(hints.primary_type).includes("🔒")
+    ? formatTypeEs(hints.primary_type)
+    : hints.primary_type || (hintThresholds.primary_type ? `🔒 Incógnito ($${formatMoneyCompact(hintThresholds.primary_type)})` : "🔒 Incógnito");
+
+  const hintSecondaryType = hints.secondary_type && !String(hints.secondary_type).includes("🔒")
+    ? (hints.secondary_type === "No tiene" ? "No tiene" : formatTypeEs(hints.secondary_type))
+    : hints.secondary_type || (hintThresholds.secondary_type ? `🔒 Incógnito ($${formatMoneyCompact(hintThresholds.secondary_type)})` : "🔒 Incógnito");
+
   const hintAbInfo = hints.ability && !String(hints.ability).includes("🔒") ? getAbilityTextEs(hints.ability) : null;
   const hintAbility = hintAbInfo
     ? `<a href="${buildWikidexUrl(hintAbInfo.es)}" target="_blank" rel="noopener noreferrer" class="badge-link" title="${escapeHtml(hintAbInfo.desc)}">${escapeHtml(hintAbInfo.es)}</a>${hintAbInfo.desc ? `<div style="font-size:0.75rem;color:#93c5fd;margin-top:2px;">ℹ️ ${escapeHtml(hintAbInfo.desc)}</div>` : ""}`
-    : hints.ability || "🔒 Incógnito (4.0x)";
-  const colorHint = hints.color;
-  const pokemonColor = colorHint && Object.prototype.hasOwnProperty.call(POKEMON_COLORS, colorHint)
-    ? POKEMON_COLORS[colorHint]
-    : null;
-  const colorHintDisplay = colorHint === undefined
-    ? "🔒 Incógnito (1.5x)"
-    : pokemonColor
-      ? `<span role="img" aria-label="Color principal: ${pokemonColor.label}" title="${pokemonColor.label}" style="display:inline-block;width:1rem;height:1rem;margin:0 0.35rem;vertical-align:middle;border:1px solid currentColor;border-radius:3px;background-color:${pokemonColor.hex};"></span>${pokemonColor.label}`
-      : "No disponible";
+    : hints.ability || (hintThresholds.ability ? `🔒 Incógnito ($${formatMoneyCompact(hintThresholds.ability)})` : "🔒 Incógnito");
+
+  const hintNature = hints.nature && !String(hints.nature).includes("🔒")
+    ? formatNature(hints.nature)
+    : hints.nature || (hintThresholds.nature ? `🔒 Incógnito ($${formatMoneyCompact(hintThresholds.nature)})` : "🔒 Incógnito");
 
   const tier = data.current_phase_tier || (auction.phase_tier || (isMegaPokemon(poke) ? "mega" : "normal"));
   const tierDisplayName = tier === "mega" ? "🟣 Pool Mega" : (tier === "legendary" ? "🟡 Pool Legendaria" : "🔵 Pool Normal");
@@ -672,6 +696,11 @@ export function renderAuctionView(data, sessionClient, isHost) {
             : `<div class="poke-unknown-avatar">❓</div>`}
         </div>
         ${isPokemonRevealed && auction.finished ? `<p class="base-price"><strong>Adjudicado a:</strong> ${auction.winner || "Ninguno"}</p>` : `<p class="base-price">Precio Inicial: <strong>$${formatMoneyCompact(auction.base_price || 5000)}</strong></p>`}
+        ${!isPokemonRevealed && !auction.finished && revealPrice > 0 ? `
+          <p class="reveal-threshold-info" style="font-size:0.8rem; color:#93c5fd; margin-top:2px;">
+            🔓 Se revela al pujar <strong>$${formatMoneyCompact(revealPrice)}</strong>
+          </p>
+        ` : ""}
 
         ${auction.reveal_hold_until ? `
           <div class="reveal-countdown" style="margin-top: 12px;">
@@ -688,12 +717,11 @@ export function renderAuctionView(data, sessionClient, isHost) {
         <div class="hints-box">
           <h4>💡 Pistas Desbloqueadas:</h4>
           <ul>
-            <li><strong>Letra Inicial:</strong> ${hints.first_letter || "?"} (1.0x)</li>
-            <li><strong>Color principal:</strong> ${colorHintDisplay} (1.5x)</li>
-            <li><strong>Región:</strong> ${hints.region || "🔒 Incógnito (2.0x)"}</li>
-            <li><strong>Mejor Stat Base:</strong> ${hints.highest_stat || "🔒 Incógnito (3.0x)"}</li>
-            <li><strong>Tipo Primario:</strong> ${hints.primary_type || "🔒 Incógnito (3.5x)"}</li>
+            <li><strong>Tipo Primario:</strong> ${hintPrimaryType}</li>
+            <li><strong>Segundo Tipo:</strong> ${hintSecondaryType}</li>
+            <li><strong>Identidad:</strong> ${isPokemonRevealed || canWinnerPreviewPokemon ? `<span style="color:#4ade80;font-weight:bold;">${poke.name}</span>` : `🔒 Incógnito ($${formatMoneyCompact(revealPrice)})`}</li>
             <li><strong>Habilidad:</strong> ${hintAbility}</li>
+            <li><strong>Naturaleza:</strong> ${hintNature}</li>
           </ul>
         </div>
       </div>
@@ -1205,7 +1233,21 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
     ],
   };
   const currentYear = Number(data.current_year || 1);
-  const currentShopItems = shopCatalogByYear[currentYear] || shopCatalogByYear[1];
+  const claimedFreeYears = (myData.free_dna_splicers_claimed_years || []).map(Number);
+  const isFreeDnaAvailable = !claimedFreeYears.includes(currentYear);
+  const currentShopItems = (shopCatalogByYear[currentYear] || shopCatalogByYear[1]).map((item) => {
+    if (item.name === "DNA Splicers") {
+      return {
+        ...item,
+        price: isFreeDnaAvailable ? 0 : 50000,
+        isFree: isFreeDnaAvailable,
+        description: isFreeDnaAvailable
+          ? "¡1 gratis por año! Fusiona dos Pokémon durante la preparación de Showdown."
+          : item.description,
+      };
+    }
+    return item;
+  });
   const isPriorityShopItem = (item) => Boolean(
     item.isBox ||
     item.isRoulette ||
@@ -1580,7 +1622,7 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
             </div>
             <div id="fusion-preview-results" class="fusion-preview-results" aria-live="polite"><p class="text-muted">Elige dos Pokémon para ver los resultados y sus probabilidades.</p></div>
             <button type="button" class="btn btn-primary btn-large" id="btn-fuse-pokemon" data-has-splicers="${Boolean(bagItems["DNA Splicers"])}" data-has-combinations="false" disabled>Fusionar</button>
-            ${!bagItems["DNA Splicers"] ? '<p class="text-muted">Necesitas una DNA Splicers para habilitar la fusión. Puedes comprarla en la tienda por $50K.</p>' : pokemonList.length < 2 ? '<p class="text-muted">Necesitas al menos dos Pokémon.</p>' : ""}
+            ${!bagItems["DNA Splicers"] ? (isFreeDnaAvailable ? '<p class="text-muted">Necesitas una DNA Splicers para habilitar la fusión. ¡Tienes una gratis disponible en la tienda este año!</p>' : '<p class="text-muted">Necesitas una DNA Splicers para habilitar la fusión. Puedes comprarla en la tienda por $50K.</p>') : pokemonList.length < 2 ? '<p class="text-muted">Necesitas al menos dos Pokémon.</p>' : ""}
           </div>
         </div>
       ` : ""}
@@ -1720,8 +1762,9 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
               ${orderedShopItems.map((shopItem) => {
                 const isBox = isPriorityShopItem(shopItem);
                 const tooltipAttr = shopItem.description ? `title="${shopItem.description}"` : '';
+                const isFree = shopItem.price === 0;
                 return `
-                <div class="shop-item-row ${isBox ? 'shop-item-row--box' : ''}">
+                <div class="shop-item-row ${isBox ? 'shop-item-row--box' : ''} ${isFree ? 'shop-item-row--free' : ''}">
                   <span class="shop-item-icon" aria-hidden="true">
                     <img src="${buildItemSpriteUrl(shopItem.name)}" alt="" onerror="this.parentElement.classList.add('is-fallback'); this.remove()" />
                   </span>
@@ -1733,9 +1776,9 @@ export function renderMyPokemonInventory(data, sessionClient, isHost, activeBoxI
                       </button>
                     </span>
                   ` : `
-                    <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link shop-item-name">${getItemWikiName(shopItem.name)}</a>
+                    <a href="${buildWikidexUrl(getItemWikiName(shopItem.name))}" target="_blank" rel="noopener noreferrer" class="badge-link shop-item-name" ${tooltipAttr}>${getItemWikiName(shopItem.name)}</a>
                   `}
-                  <span class="shop-item-price">$${formatMoneyCompact(shopItem.price)}</span>
+                  <span class="shop-item-price ${isFree ? 'shop-item-price--free' : ''}">${isFree ? 'Gratis' : `$${formatMoneyCompact(shopItem.price)}`}</span>
                   ${preparationStage ? `<button class="btn btn-small btn-primary btn-buy-item" data-item-name="${shopItem.name}">Comprar</button>` : ""}
                 </div>
               `;

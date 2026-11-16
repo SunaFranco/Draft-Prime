@@ -1057,34 +1057,61 @@ def get_random_pokemon_from_tier(
 
 
 
+def get_auction_hints(poke_data: dict, current_bid: int, thresholds: dict) -> dict:
+    """
+    Retorna un diccionario de pistas acumulativas en función de la puja actual y los umbrales configurados:
+      - primary_type: Tipo primario
+      - secondary_type: Segundo tipo (o "No tiene")
+      - ability: Habilidad asignada
+      - nature: Naturaleza asignada
+    """
+    hints = {}
+    types = poke_data.get("types", [])
+    primary = poke_data.get("primary_type") or (types[0] if types else "Normal")
+    secondary = types[1] if len(types) > 1 else "No tiene"
+    ability = poke_data.get("ability", "Desconocida")
+    nature = poke_data.get("nature", "Hardy")
+
+    if current_bid >= thresholds.get("primary_type", 0):
+        hints["primary_type"] = primary
+
+    if current_bid >= thresholds.get("secondary_type", float("inf")):
+        hints["secondary_type"] = secondary
+
+    if current_bid >= thresholds.get("ability", float("inf")):
+        hints["ability"] = ability
+
+    if current_bid >= thresholds.get("nature", float("inf")):
+        hints["nature"] = nature
+
+    return hints
+
+
 def get_hints_for_multiplier(poke_data: dict, multiplier: float) -> dict:
     """
     Retorna un diccionario de pistas acumulativas en función del multiplicador del precio inicial:
-      - 1.0x: Primera letra del nombre
-      - 2.0x: Región de origen
-      - 3.0x: Estadística base más alta
-    - 3.5x: Tipo primario
-    - 4.0x: Habilidad asignada
+      - 1.0x: Tipo primario
+      - 1.5x: Segundo tipo (o "No tiene")
+      - 2.0x: Habilidad asignada
+      - 2.5x: Naturaleza asignada
     """
     hints = {}
-    name = poke_data.get("name", "???")
+    types = poke_data.get("types", [])
+    primary = poke_data.get("primary_type") or (types[0] if types else "Normal")
+    secondary = types[1] if len(types) > 1 else "No tiene"
+    ability = poke_data.get("ability", "Desconocida")
+    nature = poke_data.get("nature", "Hardy")
 
     if multiplier >= 1.0:
-        hints["first_letter"] = name[0].upper() if name else "?"
+        hints["primary_type"] = primary
 
     if multiplier >= 1.5:
-        hints["color"] = poke_data.get("color") or "unknown"
+        hints["secondary_type"] = secondary
 
     if multiplier >= 2.0:
-        hints["region"] = poke_data.get("region", "Desconocida")
+        hints["ability"] = ability
 
-    if multiplier >= 3.0:
-        hints["highest_stat"] = poke_data.get("highest_stat", "HP (50)")
-
-    if multiplier >= 3.5:
-        hints["primary_type"] = poke_data.get("primary_type", "Normal")
-
-    if multiplier >= 4.0:
-        hints["ability"] = poke_data.get("ability", "Desconocida")
+    if multiplier >= 2.5:
+        hints["nature"] = nature
 
     return hints

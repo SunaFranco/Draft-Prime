@@ -89,6 +89,62 @@ def calculate_buyout_price(starting_money: int, phase_quota: int) -> int:
     return ((price + MIN_BID_INCREMENT - 1) // MIN_BID_INCREMENT) * MIN_BID_INCREMENT
 
 
+def calculate_reveal_price(starting_money: int, auction_poke_count: int) -> int:
+    """Calcula el precio al cual se revela la identidad del Pokémon (dinero inicial / cant de pokes)."""
+    price = max(5000, int(starting_money / max(1, auction_poke_count)))
+    return ((price + MIN_BID_INCREMENT - 1) // MIN_BID_INCREMENT) * MIN_BID_INCREMENT
+
+
+def get_auction_poke_count(subasta_state: dict, current_year: int) -> int:
+    """Calcula la cantidad total de Pokémon en la subasta del año actual."""
+    year_pools = subasta_state.get("year_pools", {})
+    yp = year_pools.get(current_year) or year_pools.get(str(current_year)) or {}
+    total = sum(int(c) for c in yp.values() if isinstance(c, (int, float, str)) and int(c) > 0)
+    if total > 0:
+        return total
+    return max(1, int(subasta_state.get("current_phase_quota", 1)))
+
+
+def calculate_hint_thresholds(base_price: int, reveal_price: int, buyout_price: int) -> dict:
+    """
+    Calcula los umbrales de puja para cada pista y la revelación del Pokémon:
+      - primary_type: base_price (inmediata)
+      - secondary_type: punto medio entre base_price y reveal_price
+      - reveal: reveal_price (dinero inicial / cant de pokes)
+      - ability: 1/3 del intervalo entre reveal_price y buyout_price
+      - nature: 2/3 del intervalo entre reveal_price y buyout_price
+    """
+    reveal_price = max(base_price, reveal_price)
+    buyout_price = max(reveal_price + MIN_BID_INCREMENT * 2, buyout_price)
+
+    # Segundo tipo a mitad de camino entre precio base y precio de revelación
+    if reveal_price > base_price:
+        step_pre = (reveal_price - base_price) / 2.0
+        sec_type_thresh = base_price + max(MIN_BID_INCREMENT, int(round(step_pre / MIN_BID_INCREMENT)) * MIN_BID_INCREMENT)
+        if sec_type_thresh >= reveal_price:
+            sec_type_thresh = max(base_price + MIN_BID_INCREMENT, reveal_price - MIN_BID_INCREMENT)
+    else:
+        sec_type_thresh = base_price
+
+    # Habilidad y Naturaleza distribuidas entre revelación y compra directa
+    step_post = (buyout_price - reveal_price) / 3.0
+    ability_thresh = reveal_price + max(MIN_BID_INCREMENT, int(round(step_post / MIN_BID_INCREMENT)) * MIN_BID_INCREMENT)
+    nature_thresh = reveal_price + max(MIN_BID_INCREMENT * 2, int(round(step_post * 2 / MIN_BID_INCREMENT)) * MIN_BID_INCREMENT)
+
+    if ability_thresh >= nature_thresh:
+        ability_thresh = max(reveal_price + MIN_BID_INCREMENT, nature_thresh - MIN_BID_INCREMENT)
+    if nature_thresh >= buyout_price:
+        nature_thresh = max(ability_thresh + MIN_BID_INCREMENT, buyout_price - MIN_BID_INCREMENT)
+
+    return {
+        "primary_type": base_price,
+        "secondary_type": sec_type_thresh,
+        "reveal": reveal_price,
+        "ability": ability_thresh,
+        "nature": nature_thresh,
+    }
+
+
 def calculate_auction_cost(bid_amount: int, pokeradar_discount: bool, debt_active: bool) -> int:
     cost = bid_amount // 2 if pokeradar_discount else bid_amount
     return math.ceil(cost * 1.25) if debt_active else cost
@@ -191,6 +247,21 @@ ITEM_SHOP_PRICES = {
     "Ruleta MT OP": 100000,
     "OmniPiedra": 100000,
 }
+
+
+def get_player_shop_item_price(player: dict, item_name: str, current_year: int) -> int:
+    """Calcula el precio de un objeto de la tienda para un jugador en el año actual.
+
+    Cada jugador recibe un DNA Splicers gratis por año. Una vez comprado el gratuito,
+    vuelve a su precio base hasta el inicio del siguiente año.
+    """
+    base_price = ITEM_SHOP_PRICES.get(item_name, 1500)
+    if item_name == "DNA Splicers":
+        raw_claimed = player.get("free_dna_splicers_claimed_years") or []
+        claimed = [int(y) for y in raw_claimed]
+        if int(current_year) not in claimed:
+            return 0
+    return base_price
 
 PLATE_ITEMS = [
     "Fist Plate",
@@ -766,10 +837,17 @@ async def init_subasta_round(session: dict):
 
     year_starting_money = subasta_state.get("year_starting_money", {}).get(
         current_year,
-        subasta_state.get("starting_money", 100000)
+        subasta_state.get("year_starting_money", {}).get(
+            str(current_year),
+            subasta_state.get("starting_money", 100000)
+        )
     )
     phase_quota = max(1, subasta_state.get("current_phase_quota", 2))
+    auction_poke_count = get_auction_poke_count(subasta_state, current_year)
     buyout_price = calculate_buyout_price(year_starting_money, phase_quota)
+    reveal_price = calculate_reveal_price(year_starting_money, auction_poke_count)
+    hint_thresholds = calculate_hint_thresholds(base_price, reveal_price, buyout_price)
+    hints = poke_api.get_auction_hints(poke_data, base_price, hint_thresholds)
     blind_players = []
     for username, player in subasta_state["players"].items():
         blind_year = player.get("blind_auction_year")
@@ -788,13 +866,16 @@ async def init_subasta_round(session: dict):
         "folded_players": no_touch_players.copy(),
         "buyout_multiplier": subasta_state.get("buyout_multiplier", 10.0),
         "buyout_price": buyout_price,
+        "reveal_price": reveal_price,
+        "hint_thresholds": hint_thresholds,
         "secret_fee": subasta_state.get("secret_fee", 500),
-        "hints": poke_api.get_hints_for_multiplier(poke_data, 1.0),
+        "hints": hints,
         "finished": False,
         "winner": assigned_host_player if len(eligible_players) == 1 else None,
         "awaiting_secret_choice": len(eligible_players) == 1,
         "reveal_hold_until": None,
         "publicly_revealed": False,
+        "pokemon_revealed": base_price >= reveal_price,
         "phase_tier": tier,
         "phase_quota": phase_quota,
         "blind_players": blind_players,
@@ -1054,9 +1135,11 @@ class SubastaPokemonMode(BaseGameMode):
             "pokemon": [],
             "pokemon_boxes": [{"id": "box-1", "name": "Caja 1"}],
             "items": [],
-            "points": 0
+            "points": 0,
+            "free_dna_splicers_claimed_years": [],
         }
         player_data = subasta_state["players"].get(username, default_player_data)
+        player_data.setdefault("free_dna_splicers_claimed_years", [])
         ensure_player_pokemon_boxes(player_data)
 
         current_stage = subasta_state.get("current_stage", 2)
@@ -1112,10 +1195,17 @@ class SubastaPokemonMode(BaseGameMode):
         no_touch_blocked = username in current_auction.get("no_touch_players", [])
         current_auction["no_touch_blocked"] = no_touch_blocked
         current_auction["early_reveal"] = no_touch_blocked
+        is_revealed_by_bid = bool(
+            current_auction.get("reveal_price")
+            and (current_auction.get("current_bid") or 0) >= current_auction.get("reveal_price")
+        )
+        current_auction["pokemon_revealed"] = bool(
+            current_auction.get("pokemon_revealed") or is_revealed_by_bid
+        )
         if username in current_auction.get("blind_players", []) and not no_touch_blocked:
             current_auction["hints"] = {
                 hint: "🔒 Oculta por El Pokémon Ciego"
-                for hint in ("first_letter", "region", "highest_stat", "primary_type", "ability")
+                for hint in ("primary_type", "secondary_type", "ability", "nature")
             }
             can_preview_winning_pokemon = (
                 current_auction.get("awaiting_secret_choice")
@@ -1123,6 +1213,7 @@ class SubastaPokemonMode(BaseGameMode):
             )
             if not current_auction.get("finished") and not can_preview_winning_pokemon:
                 current_auction["pokemon"] = {"is_hidden": True}
+                current_auction["pokemon_revealed"] = False
         current_auction.pop("blind_players", None)
         current_auction.pop("no_touch_players", None)
 
@@ -1197,17 +1288,28 @@ class SubastaPokemonMode(BaseGameMode):
                 "my_results": raw_farming.get("results", {}).get(username, []) if farming_status == "revealing" else [],
             }
 
+        raw_session_players = session.get("players", [])
+        if isinstance(raw_session_players, dict):
+            connected_players = [
+                u for u, p in raw_session_players.items()
+                if (p.get("connected", True) if isinstance(p, dict) else True)
+            ]
+        elif isinstance(raw_session_players, list):
+            connected_players = [
+                player.get("username") if isinstance(player, dict) else str(player)
+                for player in raw_session_players
+                if (player.get("connected", False) if isinstance(player, dict) else True)
+            ]
+        else:
+            connected_players = []
+
         return {
             "stage": current_stage,
             "stage_name": STAGE_NAMES.get(current_stage, "En Juego"),
             "current_year": current_year,
             "current_turn": current_turn,
             "farming_phase": farming_client,
-            "connected_players": [
-                player["username"]
-                for player in session.get("players", [])
-                if player.get("connected", False)
-            ],
+            "connected_players": connected_players,
             "max_turns": get_year_event_count(subasta_state, current_year),
             "my_data": player_data,
             "all_players": filtered_players_info,
@@ -1361,7 +1463,8 @@ class SubastaPokemonMode(BaseGameMode):
                     "pokemon_boxes": [{"id": "box-1", "name": "Caja 1"}],
                     "items": [],
                     "points": 0,
-                    "resolved_turn": False
+                    "resolved_turn": False,
+                    "free_dna_splicers_claimed_years": [],
                 } for u in order
             },
             "current_auction": {},
@@ -1602,9 +1705,30 @@ class SubastaPokemonMode(BaseGameMode):
             auction["current_bid"] = bid_amount
             auction["high_bidder"] = username
 
-            # Actualizar pistas según multiplicador
-            multiplier = bid_amount / auction["base_price"]
-            auction["hints"] = poke_api.get_hints_for_multiplier(auction["pokemon"], multiplier)
+            # Actualizar pistas y estado de revelado según la puja
+            hint_thresholds = auction.get("hint_thresholds")
+            if not hint_thresholds:
+                current_year = int(subasta_state.get("current_year", 1))
+                year_starting_money = subasta_state.get("year_starting_money", {}).get(
+                    current_year,
+                    subasta_state.get("year_starting_money", {}).get(
+                        str(current_year),
+                        subasta_state.get("starting_money", 100000)
+                    )
+                )
+                auction_poke_count = get_auction_poke_count(subasta_state, current_year)
+                reveal_price = calculate_reveal_price(year_starting_money, auction_poke_count)
+                hint_thresholds = calculate_hint_thresholds(
+                    auction.get("base_price", 50000),
+                    reveal_price,
+                    auction.get("buyout_price", 100000)
+                )
+                auction["reveal_price"] = reveal_price
+                auction["hint_thresholds"] = hint_thresholds
+
+            auction["hints"] = poke_api.get_auction_hints(auction["pokemon"], bid_amount, hint_thresholds)
+            if bid_amount >= auction.get("reveal_price", float("inf")):
+                auction["pokemon_revealed"] = True
 
             queue_bid_session_save(session)
             await self._broadcast_subasta_state(session, manager)
@@ -1661,6 +1785,9 @@ class SubastaPokemonMode(BaseGameMode):
             auction["winner"] = username
             auction["finished"] = True
             auction["awaiting_secret_choice"] = True
+            auction["pokemon_revealed"] = True
+            hint_thresholds = auction.get("hint_thresholds", {})
+            auction["hints"] = poke_api.get_auction_hints(auction["pokemon"], buyout_price, hint_thresholds)
 
             save_game_session(session_id, self.key, subasta_state)
             await self._broadcast_subasta_state(session, manager)
@@ -2715,12 +2842,16 @@ class SubastaPokemonMode(BaseGameMode):
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": f"Ese objeto no está disponible en la tienda del Año {current_year}."}})
                 return True
 
-            price = ITEM_SHOP_PRICES.get(item_name, 1500)
-            if player["money"] < price:
+            price = get_player_shop_item_price(player, item_name, current_year)
+            if price > 0 and player["money"] < price:
                 await manager.send_personal(websocket, {"event": "error", "data": {"message": "No tienes suficiente dinero para comprar ese objeto."}})
                 return True
 
             player["money"] -= price
+            if item_name == "DNA Splicers" and price == 0:
+                claimed_years = player.setdefault("free_dna_splicers_claimed_years", [])
+                if current_year not in claimed_years:
+                    claimed_years.append(current_year)
 
             if item_name in ("Caja Misteriosa I", "Caja Misteriosa 1"):
                 roll = random.random()
